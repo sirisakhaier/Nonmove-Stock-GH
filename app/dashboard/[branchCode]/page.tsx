@@ -225,8 +225,8 @@ export default function StoreDashboard() {
         {/* 1. KPI Cards */}
         <KpiCards data={kpiData} />
 
-        {/* 2. Visual Charts */}
-        <NonmoveChart bucketData={bucketChart} categoryData={categoryChart} />
+        {/* 2. Visual Aging Chart */}
+        <NonmoveChart bucketData={bucketChart} />
 
         {/* 3. Model Explorer Table */}
         <ModelExplorerTable
