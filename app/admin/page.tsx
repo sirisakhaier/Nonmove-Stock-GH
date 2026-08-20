@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ApprovalQueueTable } from "@/components/ApprovalQueueTable";
 import { RequestHistoryTable } from "@/components/RequestHistoryTable";
-import { ExecutiveViewerDashboard } from "@/components/ExecutiveViewerDashboard";
 import { StoreDimensionManager } from "@/components/StoreDimensionManager";
 import { ModelDimensionManager } from "@/components/ModelDimensionManager";
 import {
@@ -27,7 +26,6 @@ import {
   Download,
   CheckSquare,
   History,
-  TrendingUp,
 } from "lucide-react";
 import { formatNumber, formatCurrency } from "@/lib/validators";
 
@@ -35,7 +33,7 @@ export default function AdminPage() {
   const [passcode, setPasscode] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"DATA" | "STORE_DIMENSION" | "MODEL_DIMENSION" | "APPROVALS" | "HISTORY" | "EXPORT" | "ANALYSIS">("DATA");
+  const [activeTab, setActiveTab] = useState<"DATA" | "STORE_DIMENSION" | "MODEL_DIMENSION" | "APPROVALS" | "HISTORY" | "EXPORT">("DATA");
 
   // Ingestion State
   const [file, setFile] = useState<File | null>(null);
@@ -264,17 +262,17 @@ export default function AdminPage() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-md shadow-purple-500/20 shrink-0">
-              <ShieldAlert className="h-6 w-6" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-lg shadow-purple-500/25 shrink-0">
+              <ShieldAlert className="h-7 w-7" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-                ศูนย์จัดการระบบและพิจารณาอนุมัติ (Admin & Approvals Hub)
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+                ศูนย์จัดการระบบ (Admin Management Hub)
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                นำเข้าและจัดการข้อมูลรายงาน, พิจารณาคำขอ, ตรวจสอบประวัติสถานะ, ส่งออก Excel และวิเคราะห์ภาพรวม
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                นำเข้าและจัดการข้อมูลรายงาน, จัดการ Master Dimension, พิจารณาคำขอ และส่งออกข้อมูล Excel
               </p>
             </div>
           </div>
@@ -284,15 +282,15 @@ export default function AdminPage() {
               fetchStats();
               fetchRequests();
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors self-start sm:self-auto"
           >
             <RefreshCw className="h-4 w-4" />
             รีเฟรชข้อมูล
           </button>
         </div>
 
-        {/* 7 Admin Navigation Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-1.5 gap-1.5 shadow-sm">
+        {/* 6 Admin Navigation Tabs */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-1.5 gap-1.5 shadow-sm">
           {/* Tab 1: Combined Import & Delete Data */}
           <button
             onClick={() => { setActiveTab("DATA"); fetchStats(); }}
@@ -368,20 +366,7 @@ export default function AdminPage() {
             }`}
           >
             <Download className="h-4 w-4" />
-            5. ส่งออก Excel
-          </button>
-
-          {/* Tab 6: Executive Analysis Dashboard */}
-          <button
-            onClick={() => setActiveTab("ANALYSIS")}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl text-xs font-bold transition-all ${
-              activeTab === "ANALYSIS"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
-            }`}
-          >
-            <TrendingUp className="h-4 w-4" />
-            6. วิเคราะห์ภาพรวม
+            6. ส่งออก Excel
           </button>
         </div>
 
@@ -625,13 +610,6 @@ export default function AdminPage() {
                 </a>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Tab 5: Executive Analysis Dashboard (Same as Viewer Module) */}
-        {activeTab === "ANALYSIS" && (
-          <div className="pt-2">
-            <ExecutiveViewerDashboard />
           </div>
         )}
       </main>

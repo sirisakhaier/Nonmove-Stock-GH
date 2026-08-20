@@ -23,6 +23,8 @@ import {
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   AreaChart,
   Area,
   XAxis,
@@ -31,6 +33,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  Legend,
 } from "recharts";
 import { formatNumber, formatCurrency, formatPercent } from "@/lib/validators";
 import { useTheme } from "@/components/ThemeProvider";
@@ -115,6 +118,18 @@ export function ExecutiveViewerDashboard() {
   const top20Models = summaryData?.top20Models || [];
   const historicalSnapshots = trendData?.historicalSnapshots || [];
 
+  // Flatten trend data with all Nonmove period bucket lines
+  const formattedTrendData = historicalSnapshots.map((s: any) => ({
+    date: s.date,
+    totalStockValue: s.totalStockValue,
+    "30-60 วัน": s.bucketAmounts?.["30-60"] || 0,
+    "60-90 วัน": s.bucketAmounts?.["60-90"] || 0,
+    "90-120 วัน": s.bucketAmounts?.["90-120"] || 0,
+    "120-180 วัน": s.bucketAmounts?.["120-180"] || 0,
+    "180-360 วัน": s.bucketAmounts?.["180-360"] || 0,
+    ">360 วัน": s.bucketAmounts?.[">360"] || 0,
+  }));
+
   const isDark = theme === "dark";
   const gridColor = isDark ? "#334155" : "#f1f5f9";
   const tickColor = isDark ? "#94a3b8" : "#64748b";
@@ -170,7 +185,7 @@ export function ExecutiveViewerDashboard() {
         r.sharePct,
       ]);
     } else if (activeAnalysisTab === "TREND") {
-      headers = ["Date", "StockValueTHB", "StockQty", "TotalSKUs", "HighRatioPct", "HighValueTHB"];
+      headers = ["Date", "StockValueTHB", "StockQty", "TotalSKUs", "HighRatioPct", "HighValueTHB", "30-60", "60-90", "90-120", "120-180", "180-360", ">360"];
       rows = historicalSnapshots.map((s: any) => [
         s.date,
         s.totalStockValue,
@@ -178,6 +193,12 @@ export function ExecutiveViewerDashboard() {
         s.totalSkus,
         s.highPct,
         s.highValue,
+        s.bucketAmounts?.["30-60"] || 0,
+        s.bucketAmounts?.["60-90"] || 0,
+        s.bucketAmounts?.["90-120"] || 0,
+        s.bucketAmounts?.["120-180"] || 0,
+        s.bucketAmounts?.["180-360"] || 0,
+        s.bucketAmounts?.[">360"] || 0,
       ]);
     } else if (activeAnalysisTab === "TOP_STORES") {
       headers = ["Rank", "BranchCode", "StoreName", "Region", "TotalSKUs", "StockQty", "StockValueTHB", "HighValueTHB", "HighRatioPct"];
@@ -218,22 +239,22 @@ export function ExecutiveViewerDashboard() {
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* 1. Header Filter Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 shrink-0">
             <Layers className="h-6 w-6 sm:h-7 sm:w-7" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
                 ภาพรวมผู้บริหาร (Executive Analysis)
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              </h1>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                 {selectedRegion === "ALL" ? "ทั่วประเทศ (Nationwide)" : `ภาค ${selectedRegion}`}
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              วิเคราะห์เจาะลึกแยกตามหมวดหมู่, ภูมิภาค, แนวโน้มรายวัน, Top 20 สาขา และ Top 20 โมเดล
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              วิเคราะห์เจาะลึกแยกตามหมวดหมู่, ภูมิภาค, แนวโน้มรายวัน, Top 20 สาขา และ Top 20 โมเดล · {TEAM_NAME}
             </p>
           </div>
         </div>
@@ -373,7 +394,7 @@ export function ExecutiveViewerDashboard() {
         </div>
       </div>
 
-      {/* 3. Visual Charts (Period Distribution & Trend) */}
+      {/* 3. Visual Charts (Period Distribution & Multi-Period Line Trend Chart) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Period Breakdown Bar Chart */}
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm space-y-3">
@@ -396,7 +417,7 @@ export function ExecutiveViewerDashboard() {
             </div>
           </div>
 
-          <div className="h-48 sm:h-60 w-full">
+          <div className="h-48 sm:h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={periodBreakdown} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
@@ -416,40 +437,40 @@ export function ExecutiveViewerDashboard() {
           </div>
         </div>
 
-        {/* Day-by-Day Historical Trend Area Chart */}
+        {/* Multi-Period Nonmove Trend Chart (Each Period Line) */}
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm space-y-3">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-              แนวโน้มมูลค่าสต๊อกสะสมตามรอบวัน (Historical Trend)
+              แนวโน้มมูลค่าสต๊อกแยกตามช่วงวัน (Non-Move Period Trend)
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              ติดตามการเปลี่ยนแปลงมูลค่าสต๊อกรวมตามรอบวันที่นำเข้า
+              ติดตามแนวโน้มมูลค่าของแต่ละช่วงวัน (Period Bucket) ตามรอบวันที่นำเข้า
             </p>
           </div>
 
-          <div className="h-48 sm:h-60 w-full">
-            {historicalSnapshots.length === 0 ? (
+          <div className="h-48 sm:h-64 w-full">
+            {formattedTrendData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-slate-400">
                 ไม่มีข้อมูลแนวโน้มประวัติ
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={historicalSnapshots} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
-                  <defs>
-                    <linearGradient id="viewerTrendVal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
+                <LineChart data={formattedTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} angle={-15} textAnchor="end" interval={0} />
                   <YAxis tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: isDark ? "#0f172a" : "#ffffff", borderColor: gridColor, borderRadius: "1rem" }}
-                    formatter={(value: any) => [formatCurrency(Number(value)), "มูลค่ารวม"]}
+                    formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
                   />
-                  <Area type="monotone" dataKey="totalStockValue" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#viewerTrendVal)" />
-                </AreaChart>
+                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
+                  <Line type="monotone" dataKey="30-60 วัน" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="60-90 วัน" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="90-120 วัน" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="120-180 วัน" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="180-360 วัน" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey=">360 วัน" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 3 }} />
+                </LineChart>
               </ResponsiveContainer>
             )}
           </div>
