@@ -76,7 +76,7 @@ model NonMoveRow {
   typeName          String?   @map("type_name")
 
   store    Store   @relation(fields: [branchCode], references: [branchCode], onDelete: Cascade)
-  product  Product @relation(fields: [productCode], references: [productCode])
+  product  Product @relation(fields: [productCode], references: [productCode], onDelete: Cascade)
 
   @@index([branchCode, reportDate])
   @@index([productCode])
@@ -128,7 +128,7 @@ model SkuRequest {
   reviewComment  String?      @map("review_comment")
 
   store        Store          @relation(fields: [branchCode], references: [branchCode], onDelete: Cascade)
-  product      Product        @relation(fields: [productCode], references: [productCode])
+  product      Product        @relation(fields: [productCode], references: [productCode], onDelete: Cascade)
   requestedBy  UserSession    @relation(fields: [requestedById], references: [id])
   photos       RequestPhoto[]
 
