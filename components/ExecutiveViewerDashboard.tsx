@@ -19,6 +19,8 @@ import {
   Store,
   ArrowUpRight,
   ArrowDownRight,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import {
   BarChart,
@@ -39,6 +41,15 @@ import { formatNumber, formatCurrency, formatPercent } from "@/lib/validators";
 import { useTheme } from "@/components/ThemeProvider";
 import { TEAM_NAME } from "@/lib/version";
 
+const ALL_PERIOD_BUCKETS = [
+  { key: "30-60 วัน", label: "30-60 วัน", color: "#0ea5e9" },
+  { key: "60-90 วัน", label: "60-90 วัน", color: "#14b8a6" },
+  { key: "90-120 วัน", label: "90-120 วัน", color: "#10b981" },
+  { key: "120-180 วัน", label: "120-180 วัน", color: "#f59e0b" },
+  { key: "180-360 วัน", label: "180-360 วัน", color: "#f97316" },
+  { key: ">360 วัน", label: ">360 วัน", color: "#ef4444" },
+];
+
 export function ExecutiveViewerDashboard() {
   const [regions, setRegions] = useState<string[]>([]);
   const [selectedRegion, setSelectedRegion] = useState("ALL");
@@ -50,6 +61,14 @@ export function ExecutiveViewerDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<"CATEGORY" | "REGION" | "TREND" | "TOP_STORES" | "TOP_MODELS">("CATEGORY");
   const [search, setSearch] = useState("");
+  const [selectedTrendPeriods, setSelectedTrendPeriods] = useState<string[]>([
+    "30-60 วัน",
+    "60-90 วัน",
+    "90-120 วัน",
+    "120-180 วัน",
+    "180-360 วัน",
+    ">360 วัน",
+  ]);
   const { theme } = useTheme();
 
   // 1. Fetch Regions
@@ -129,6 +148,23 @@ export function ExecutiveViewerDashboard() {
     "180-360 วัน": s.bucketAmounts?.["180-360"] || 0,
     ">360 วัน": s.bucketAmounts?.[">360"] || 0,
   }));
+
+  const toggleTrendPeriod = (bucketKey: string) => {
+    if (selectedTrendPeriods.includes(bucketKey)) {
+      if (selectedTrendPeriods.length === 1) return; // Keep at least 1
+      setSelectedTrendPeriods(selectedTrendPeriods.filter((k) => k !== bucketKey));
+    } else {
+      setSelectedTrendPeriods([...selectedTrendPeriods, bucketKey]);
+    }
+  };
+
+  const selectAllTrendPeriods = () => {
+    if (selectedTrendPeriods.length === ALL_PERIOD_BUCKETS.length) {
+      setSelectedTrendPeriods([">360 วัน", "180-360 วัน", "120-180 วัน"]);
+    } else {
+      setSelectedTrendPeriods(ALL_PERIOD_BUCKETS.map((b) => b.key));
+    }
+  };
 
   const isDark = theme === "dark";
   const gridColor = isDark ? "#334155" : "#f1f5f9";
@@ -394,7 +430,7 @@ export function ExecutiveViewerDashboard() {
         </div>
       </div>
 
-      {/* 3. Visual Charts (Period Distribution & Multi-Period Line Trend Chart) */}
+      {/* 3. Visual Charts (Period Distribution & Multi-Period Line Trend Chart with Multi-Check Filter) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Period Breakdown Bar Chart */}
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm space-y-3">
@@ -437,25 +473,60 @@ export function ExecutiveViewerDashboard() {
           </div>
         </div>
 
-        {/* Multi-Period Nonmove Trend Chart (Each Period Line) */}
+        {/* Multi-Period Nonmove Trend Chart with Interactive Multi-Check Filter */}
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm space-y-3">
-          <div>
-            <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-              แนวโน้มมูลค่าสต๊อกแยกตามช่วงวัน (Non-Move Period Trend)
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              ติดตามแนวโน้มมูลค่าของแต่ละช่วงวัน (Period Bucket) ตามรอบวันที่นำเข้า
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                แนวโน้มมูลค่าสต๊อกแยกตามช่วงวัน (Non-Move Period Trend)
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                เลือกช่วงวันเพื่อเปรียบเทียบแนวโน้ม (Multi-Check)
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={selectAllTrendPeriods}
+              className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline self-start sm:self-auto"
+            >
+              {selectedTrendPeriods.length === ALL_PERIOD_BUCKETS.length ? "แสดงเฉพาะกลุ่มวิกฤต" : "เลือกทุกช่วงวัน"}
+            </button>
           </div>
 
-          <div className="h-48 sm:h-64 w-full">
+          {/* Multi-Check Badges Toolbar */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-1">
+            {ALL_PERIOD_BUCKETS.map((b) => {
+              const isSelected = selectedTrendPeriods.includes(b.key);
+              return (
+                <button
+                  key={b.key}
+                  type="button"
+                  onClick={() => toggleTrendPeriod(b.key)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all border ${
+                    isSelected
+                      ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 shadow-xs"
+                      : "opacity-40 hover:opacity-75 bg-transparent border-dashed border-slate-200 dark:border-slate-800 text-slate-400"
+                  }`}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: b.color }}
+                  />
+                  <span>{b.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="h-48 sm:h-60 w-full">
             {formattedTrendData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-slate-400">
                 ไม่มีข้อมูลแนวโน้มประวัติ
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={formattedTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
+                <LineChart data={formattedTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} angle={-15} textAnchor="end" interval={0} />
                   <YAxis tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
@@ -463,13 +534,20 @@ export function ExecutiveViewerDashboard() {
                     contentStyle={{ backgroundColor: isDark ? "#0f172a" : "#ffffff", borderColor: gridColor, borderRadius: "1rem" }}
                     formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
                   />
-                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
-                  <Line type="monotone" dataKey="30-60 วัน" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="60-90 วัน" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="90-120 วัน" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="120-180 วัน" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="180-360 วัน" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey=">360 วัน" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} />
+                  {ALL_PERIOD_BUCKETS.map((b) => {
+                    if (!selectedTrendPeriods.includes(b.key)) return null;
+                    return (
+                      <Line
+                        key={b.key}
+                        type="monotone"
+                        dataKey={b.key}
+                        stroke={b.color}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                    );
+                  })}
                 </LineChart>
               </ResponsiveContainer>
             )}

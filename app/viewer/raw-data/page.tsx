@@ -430,9 +430,12 @@ export default function ViewerRawDataPage() {
               <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="py-2.5 px-3 font-bold">#</th>
+                  <th className="py-2.5 px-3 font-bold">STORE_ID</th>
                   <th className="py-2.5 px-3 font-bold">รหัสสาขา</th>
                   <th className="py-2.5 px-3 font-bold">ชื่อสาขา (Customer Store Name)</th>
+                  <th className="py-2.5 px-3 font-bold">จังหวัด</th>
                   <th className="py-2.5 px-3 font-bold text-center">ภาค</th>
+                  <th className="py-2.5 px-3 font-bold text-center">ประเภทสาขา</th>
                   <th className="py-2.5 px-3 font-bold">รหัสสินค้า</th>
                   <th className="py-2.5 px-3 font-bold">รุ่นสินค้า (Model)</th>
                   <th className="py-2.5 px-3 font-bold text-center">ประเภท (SKU_TYPE)</th>
@@ -445,14 +448,14 @@ export default function ViewerRawDataPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={11} className="py-12 text-center text-slate-400 font-sans">
+                    <td colSpan={14} className="py-12 text-center text-slate-400 font-sans">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-indigo-600 mb-2" />
                       กำลังโหลดตัวอย่างข้อมูลดิบ...
                     </td>
                   </tr>
                 ) : previewRows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-12 text-center text-slate-400 font-sans">
+                    <td colSpan={14} className="py-12 text-center text-slate-400 font-sans">
                       ไม่พบข้อมูลที่ตรงกับตัวกรองที่เลือก
                     </td>
                   </tr>
@@ -460,13 +463,20 @@ export default function ViewerRawDataPage() {
                   previewRows.map((r: any) => (
                     <tr key={r.id} className="hover:bg-indigo-50/40 dark:hover:bg-slate-800/60 transition-colors">
                       <td className="py-2 px-3 font-sans text-slate-400">{r.index}</td>
+                      <td className="py-2 px-3 font-bold text-slate-700 dark:text-slate-300">{r.storeId}</td>
                       <td className="py-2 px-3 font-bold text-indigo-700 dark:text-indigo-400">{r.branchCode}</td>
                       <td className="py-2 px-3 font-sans font-medium text-slate-900 dark:text-white max-w-[200px] truncate">
                         {r.storeName}
                       </td>
+                      <td className="py-2 px-3 font-sans text-slate-600 dark:text-slate-300">{r.province}</td>
                       <td className="py-2 px-3 text-center font-sans">
                         <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
                           {r.region}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-center font-sans">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px]">
+                          {r.storeType}
                         </span>
                       </td>
                       <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200">{r.productCode}</td>
