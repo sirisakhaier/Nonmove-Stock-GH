@@ -310,97 +310,143 @@ export function NonmoveTrendAnalysis({ branchCode, selectedDate }: TrendProps) {
             </div>
           </div>
 
-          {/* Movement Table */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="overflow-x-auto max-h-64 overflow-y-auto">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                  <tr>
-                    <th className="py-2.5 px-4 font-bold">รหัสสินค้า</th>
-                    <th className="py-2.5 px-4 font-bold">ชื่อสินค้า / รุ่น</th>
-                    <th className="py-2.5 px-4 font-bold">หมวดหมู่</th>
-                    <th className="py-2.5 px-4 font-bold text-right">สต๊อก</th>
-                    <th className="py-2.5 px-4 font-bold text-right">มูลค่า (บาท)</th>
-                    <th className="py-2.5 px-4 font-bold text-center">ช่วงวัน</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {activeMovementTab === "CLEARED" && (
-                    movements.clearedItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-slate-400">
-                          ไม่มีสินค้าที่ถูกระบายออกในรอบนี้
-                        </td>
-                      </tr>
-                    ) : (
-                      movements.clearedItems.map((item: any) => (
-                        <tr key={item.productCode} className="hover:bg-emerald-50/40 dark:hover:bg-slate-800/60 transition-colors">
-                          <td className="py-2.5 px-4 font-mono font-bold text-slate-900 dark:text-white">{item.productCode}</td>
-                          <td className="py-2.5 px-4 max-w-xs truncate font-medium text-slate-800 dark:text-slate-200">{item.productName}</td>
-                          <td className="py-2.5 px-4">{item.category}</td>
-                          <td className="py-2.5 px-4 text-right font-bold">{formatNumber(item.stockQty)}</td>
-                          <td className="py-2.5 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(item.stockValue)}</td>
-                          <td className="py-2.5 px-4 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300">
-                              ระบายออกแล้ว
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )
-                  )}
+          {/* Movement Cards (2-Line per record layout) */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-80 overflow-y-auto">
+              {activeMovementTab === "CLEARED" && (
+                movements.clearedItems.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                    ไม่มีสินค้าที่ถูกระบายออกในรอบนี้
+                  </div>
+                ) : (
+                  movements.clearedItems.map((item: any) => (
+                    <div
+                      key={item.productCode}
+                      className="p-3 sm:px-4 sm:py-3 hover:bg-emerald-50/40 dark:hover:bg-slate-800/60 transition-colors space-y-1.5"
+                    >
+                      {/* Line 1: ProductCode · Model | SKU_TYPE */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-baseline gap-2 truncate">
+                          <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm tracking-tight shrink-0">
+                            {item.productCode}
+                          </span>
+                          <span className="text-slate-300 dark:text-slate-600">·</span>
+                          <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
+                            {item.model || item.productName}
+                          </span>
+                        </div>
 
-                  {activeMovementTab === "NEW" && (
-                    movements.newItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-slate-400">
-                          ไม่มีสินค้า Non-Move รายการใหม่ในรอบนี้
-                        </td>
-                      </tr>
-                    ) : (
-                      movements.newItems.map((item: any) => (
-                        <tr key={item.productCode} className="hover:bg-rose-50/40 dark:hover:bg-slate-800/60 transition-colors">
-                          <td className="py-2.5 px-4 font-mono font-bold text-slate-900 dark:text-white">{item.productCode}</td>
-                          <td className="py-2.5 px-4 max-w-xs truncate font-medium text-slate-800 dark:text-slate-200">{item.productName}</td>
-                          <td className="py-2.5 px-4">{item.category}</td>
-                          <td className="py-2.5 px-4 text-right font-bold">{formatNumber(item.stockQty)}</td>
-                          <td className="py-2.5 px-4 text-right font-bold text-rose-600 dark:text-rose-400">{formatCurrency(item.stockValue)}</td>
-                          <td className="py-2.5 px-4 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300">
-                              ใหม่ ({item.bucket} วัน)
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )
-                  )}
+                        {item.skuType && (
+                          <span className="inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                            {item.skuType}
+                          </span>
+                        )}
+                      </div>
 
-                  {activeMovementTab === "PERSISTENT" && (
-                    movements.persistentItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-slate-400">
-                          ไม่มีรายการสินค้าค้างต่อเนื่อง
-                        </td>
-                      </tr>
-                    ) : (
-                      movements.persistentItems.map((item: any) => (
-                        <tr key={item.productCode} className="hover:bg-amber-50/40 dark:hover:bg-slate-800/60 transition-colors">
-                          <td className="py-2.5 px-4 font-mono font-bold text-slate-900 dark:text-white">{item.productCode}</td>
-                          <td className="py-2.5 px-4 max-w-xs truncate font-medium text-slate-800 dark:text-slate-200">{item.productName}</td>
-                          <td className="py-2.5 px-4">{item.category}</td>
-                          <td className="py-2.5 px-4 text-right font-bold">{formatNumber(item.stockQty)}</td>
-                          <td className="py-2.5 px-4 text-right font-bold text-slate-900 dark:text-white">{formatCurrency(item.stockValue)}</td>
-                          <td className="py-2.5 px-4 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300">
-                              {item.bucket} วัน
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )
-                  )}
-                </tbody>
-              </table>
+                      {/* Line 2: Status Pill | Stock QTY & Value */}
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300">
+                          ✅ ระบายออกแล้ว
+                        </span>
+
+                        <div className="text-right text-[11px] text-slate-600 dark:text-slate-300">
+                          สต๊อก: <strong className="text-slate-900 dark:text-white font-bold">{formatNumber(item.stockQty)}</strong> ชิ้น (<strong className="text-emerald-600 dark:text-emerald-400 font-bold">{formatCurrency(item.stockValue)}</strong>)
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+
+              {activeMovementTab === "NEW" && (
+                movements.newItems.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                    ไม่มีสินค้า Non-Move รายการใหม่ในรอบนี้
+                  </div>
+                ) : (
+                  movements.newItems.map((item: any) => (
+                    <div
+                      key={item.productCode}
+                      className="p-3 sm:px-4 sm:py-3 hover:bg-rose-50/40 dark:hover:bg-slate-800/60 transition-colors space-y-1.5"
+                    >
+                      {/* Line 1: ProductCode · Model | SKU_TYPE */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-baseline gap-2 truncate">
+                          <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm tracking-tight shrink-0">
+                            {item.productCode}
+                          </span>
+                          <span className="text-slate-300 dark:text-slate-600">·</span>
+                          <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
+                            {item.model || item.productName}
+                          </span>
+                        </div>
+
+                        {item.skuType && (
+                          <span className="inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                            {item.skuType}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Line 2: Status Pill | Stock QTY & Value */}
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                          🔥 ใหม่ ({item.bucket} วัน)
+                        </span>
+
+                        <div className="text-right text-[11px] text-slate-600 dark:text-slate-300">
+                          สต๊อก: <strong className="text-slate-900 dark:text-white font-bold">{formatNumber(item.stockQty)}</strong> ชิ้น (<strong className="text-rose-600 dark:text-rose-400 font-bold">{formatCurrency(item.stockValue)}</strong>)
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+
+              {activeMovementTab === "PERSISTENT" && (
+                movements.persistentItems.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                    ไม่มีรายการสินค้าค้างต่อเนื่อง
+                  </div>
+                ) : (
+                  movements.persistentItems.map((item: any) => (
+                    <div
+                      key={item.productCode}
+                      className="p-3 sm:px-4 sm:py-3 hover:bg-amber-50/40 dark:hover:bg-slate-800/60 transition-colors space-y-1.5"
+                    >
+                      {/* Line 1: ProductCode · Model | SKU_TYPE */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-baseline gap-2 truncate">
+                          <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm tracking-tight shrink-0">
+                            {item.productCode}
+                          </span>
+                          <span className="text-slate-300 dark:text-slate-600">·</span>
+                          <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
+                            {item.model || item.productName}
+                          </span>
+                        </div>
+
+                        {item.skuType && (
+                          <span className="inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                            {item.skuType}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Line 2: Status Pill | Stock QTY & Value */}
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                          🟡 ค้างอยู่ ({item.bucket} วัน)
+                        </span>
+
+                        <div className="text-right text-[11px] text-slate-600 dark:text-slate-300">
+                          สต๊อก: <strong className="text-slate-900 dark:text-white font-bold">{formatNumber(item.stockQty)}</strong> ชิ้น (<strong className="text-slate-900 dark:text-white font-black">{formatCurrency(item.stockValue)}</strong>)
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
             </div>
           </div>
         </div>
