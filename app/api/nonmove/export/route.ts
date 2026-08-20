@@ -77,17 +77,17 @@ export async function GET(req: NextRequest) {
       const worstBucket = getWorstBucket(m.Buckets);
       return {
         "Product Code": `="${m.ProductCode}"`,
-        "Product Name": `"${(m.ProductName || "").replace(/"/g, """")}"`,
-        "Model": `"${(m.Model || "").replace(/"/g, """")}"`,
-        "Category": `"${(m.Category || "").replace(/"/g, """")}"`,
-        "Sub Category": `"${(m.SubCategory || "").replace(/"/g, """")}"`,
+        "Product Name": `"${(m.ProductName || "").replace(/"/g, '""')}"`,
+        "Model": `"${(m.Model || "").replace(/"/g, '""')}"`,
+        "Category": `"${(m.Category || "").replace(/"/g, '""')}"`,
+        "Sub Category": `"${(m.SubCategory || "").replace(/"/g, '""')}"`,
         "Nonmove Bucket": worstBucket,
         "Aging Bucket": m.AgingDays,
         "Classification": classifyNonmove(worstBucket),
         "Stock Qty": m.StockQty,
         "Stock Value (THB)": m.StockValue,
         "Request Status": m.RequestStatus,
-        "Review Comment": `"${(m.ReviewComment || "").replace(/"/g, """")}"`,
+        "Review Comment": `"${(m.ReviewComment || "").replace(/"/g, '""')}"`,
       };
     });
 
