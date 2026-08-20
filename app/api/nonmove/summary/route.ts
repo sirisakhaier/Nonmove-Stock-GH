@@ -7,12 +7,23 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchCode = searchParams.get("branchCode");
-    const reportDateStr = searchParams.get("reportDate");
+    const reportDateStr = searchParams.get("date") || searchParams.get("reportDate");
     const category = searchParams.get("category");
 
     if (!branchCode) {
       return NextResponse.json({ error: "branchCode is required" }, { status: 400 });
     }
+
+    const store = await prisma.store.findUnique({
+      where: { branchCode },
+      select: {
+        branchCode: true,
+        storeNameCust: true,
+        storeName: true,
+        region: true,
+        province: true,
+      },
+    });
 
     // Find all distinct available dates for this store
     const availableDates = await prisma.nonMoveRow.findMany({
@@ -24,12 +35,34 @@ export async function GET(req: NextRequest) {
 
     const dateList = availableDates.map((d) => d.reportDate.toISOString().split("T")[0]);
 
-    let targetDate: Date;
-    if (reportDateStr) {
-      targetDate = new Date(reportDateStr);
-    } else {
-      targetDate = availableDates[0]?.reportDate || new Date();
+    if (dateList.length === 0) {
+      return NextResponse.json({
+        store: {
+          branchCode,
+          branchName: store?.storeNameCust || store?.storeName || branchCode,
+          region: store?.region || "OTHER",
+        },
+        selectedDate: null,
+        reportDate: null,
+        availableDates: [],
+        kpis: {
+          totalSkus: 0,
+          totalStockQty: 0,
+          totalStockValue: 0,
+          highNonmoveRatio: 0,
+          highCount: 0,
+          okCount: 0,
+          overallOkPct: 0,
+          excludedCount: 0,
+        },
+        chartData: NONMOVE_BUCKET_ORDER.map((b) => ({ bucket: b, count: 0, classification: classifyNonmove(b), isHigh: classifyNonmove(b) === "HIGH" })),
+        categoryBreakdown: [],
+        categories: [],
+      });
     }
+
+    let targetDateStr = reportDateStr && dateList.includes(reportDateStr) ? reportDateStr : dateList[0];
+    let targetDate = new Date(targetDateStr);
 
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -80,18 +113,19 @@ export async function GET(req: NextRequest) {
 
     for (const r of rows) {
       const p = r.productCode;
-      const existing = modelMap.get(p);
-      if (!existing) {
+      const cat = r.categoryName || r.product?.category || "Other";
+      if (!modelMap.has(p)) {
         modelMap.set(p, {
           stockQty: r.stockQty,
           stockValue: r.stockValue,
           buckets: [r.nonmoveDaysBucket],
-          categoryName: r.categoryName || "Other",
+          categoryName: cat,
         });
       } else {
-        existing.stockQty += r.stockQty;
-        existing.stockValue += r.stockValue;
-        existing.buckets.push(r.nonmoveDaysBucket);
+        const item = modelMap.get(p)!;
+        item.stockQty += r.stockQty;
+        item.stockValue += r.stockValue;
+        item.buckets.push(r.nonmoveDaysBucket);
       }
     }
 
@@ -141,10 +175,12 @@ export async function GET(req: NextRequest) {
       bucket,
       count: bucketCounts[bucket] || 0,
       classification: classifyNonmove(bucket),
+      isHigh: classifyNonmove(bucket) === "HIGH",
     }));
 
     const categoryData = Object.entries(categoryBreakdown)
       .map(([name, val]) => ({
+        category: name,
         name,
         value: Math.round(val.value),
         count: val.count,
@@ -167,8 +203,24 @@ export async function GET(req: NextRequest) {
     const categories = allCategories.map((c) => c.categoryName).filter(Boolean);
 
     return NextResponse.json({
-      reportDate: targetDate.toISOString().split("T")[0],
+      store: {
+        branchCode,
+        branchName: store?.storeNameCust || store?.storeName || branchCode,
+        region: store?.region || "OTHER",
+      },
+      reportDate: targetDateStr,
+      selectedDate: targetDateStr,
       availableDates: dateList,
+      kpis: {
+        totalSkus,
+        totalStockQty,
+        totalStockValue,
+        highNonmoveRatio: highPct,
+        highCount,
+        okCount,
+        overallOkPct: okPct,
+        excludedCount,
+      },
       totalSkus,
       totalStockQty,
       totalStockValue,
@@ -178,6 +230,7 @@ export async function GET(req: NextRequest) {
       highPct,
       okPct,
       chartData,
+      categoryBreakdown: categoryData,
       categoryData,
       categories,
     });

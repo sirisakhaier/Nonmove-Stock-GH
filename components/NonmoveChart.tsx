@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -13,16 +13,47 @@ import {
 } from "recharts";
 
 interface ChartProps {
-  bucketData: { bucket: string; count: number; isHigh: boolean }[];
-  categoryData: { category: string; value: number; count: number }[];
+  bucketData?: { bucket: string; count: number; isHigh?: boolean; classification?: string }[];
+  categoryData?: { category?: string; name?: string; value: number; count?: number }[];
 }
 
-export function NonmoveChart({ bucketData, categoryData }: ChartProps) {
+export function NonmoveChart({ bucketData = [], categoryData = [] }: ChartProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const formatBaht = (val: number) => {
     if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
     if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
     return val.toLocaleString("th-TH");
   };
+
+  const normalizedCategoryData = (categoryData || []).map((item) => ({
+    category: item.category || item.name || "อื่นๆ",
+    value: item.value || 0,
+    count: item.count || 0,
+  }));
+
+  const normalizedBucketData = (bucketData || []).map((item) => ({
+    bucket: item.bucket,
+    count: item.count || 0,
+    isHigh: item.isHigh ?? (item.classification === "HIGH"),
+  }));
+
+  if (!isMounted) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="h-72 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm animate-pulse flex items-center justify-center text-xs text-slate-400">
+          กำลังโหลดแผนภูมิ...
+        </div>
+        <div className="h-72 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm animate-pulse flex items-center justify-center text-xs text-slate-400">
+          กำลังโหลดแผนภูมิ...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -51,7 +82,7 @@ export function NonmoveChart({ bucketData, categoryData }: ChartProps) {
 
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={bucketData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+            <BarChart data={normalizedBucketData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis
                 dataKey="bucket"
@@ -72,7 +103,7 @@ export function NonmoveChart({ bucketData, categoryData }: ChartProps) {
                 }}
               />
               <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                {bucketData.map((entry, index) => (
+                {normalizedBucketData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={entry.isHigh ? "#f43f5e" : "#10b981"}
@@ -100,7 +131,7 @@ export function NonmoveChart({ bucketData, categoryData }: ChartProps) {
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={categoryData.slice(0, 6)}
+              data={normalizedCategoryData.slice(0, 6)}
               layout="vertical"
               margin={{ top: 10, right: 30, left: 20, bottom: 10 }}
             >

@@ -70,17 +70,21 @@ export default function StoreDashboard() {
       if (!res.ok) throw new Error("โหลดข้อมูลสรุปไม่สำเร็จ");
       const data = await res.json();
 
-      setStoreInfo(data.store);
+      if (data.store) {
+        setStoreInfo(data.store);
+      }
       setAvailableDates(data.availableDates || []);
       if (!selectedDate && data.selectedDate) {
         setSelectedDate(data.selectedDate);
       }
-      setKpiData(data.kpis);
+      if (data.kpis) {
+        setKpiData(data.kpis);
+        setHighPct(data.kpis.highNonmoveRatio || 0);
+        setOkPct(data.kpis.overallOkPct || 0);
+      }
       setBucketChart(data.chartData || []);
-      setCategoryChart(data.categoryBreakdown || []);
+      setCategoryChart(data.categoryBreakdown || data.categoryData || []);
       setCategories(data.categories || []);
-      setHighPct(data.kpis.highNonmoveRatio);
-      setOkPct(data.kpis.overallOkPct);
     } catch (error) {
       console.error("Error fetching summary:", error);
     }
@@ -106,8 +110,8 @@ export default function StoreDashboard() {
 
       setTableRows(data.data || []);
       setTotalRows(data.total || 0);
-      setHighPct(data.highPct);
-      setOkPct(data.okPct);
+      if (data.highPct !== undefined) setHighPct(data.highPct);
+      if (data.okPct !== undefined) setOkPct(data.okPct);
     } catch (error) {
       console.error("Error fetching table data:", error);
     } finally {
@@ -174,9 +178,11 @@ export default function StoreDashboard() {
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 font-mono">
                   {branchCode}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
-                  {storeInfo?.region}
-                </span>
+                {storeInfo?.region && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                    {storeInfo.region}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 mt-1">
                 แดชบอร์ดติดตามและจัดการสต๊อกสินค้าไม่เคลื่อนไหวประจำสาขา
@@ -186,20 +192,22 @@ export default function StoreDashboard() {
 
           {/* Date Selector & Action Buttons */}
           <div className="flex items-center gap-3 self-start md:self-auto">
-            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2 shadow-inner">
-              <Calendar className="h-4 w-4 text-slate-500" />
-              <select
-                value={selectedDate}
-                onChange={(e) => handleDateChange(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
-              >
-                {availableDates.map((d) => (
-                  <option key={d} value={d}>
-                    รายงานวันที่: {d}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {availableDates.length > 0 && (
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2 shadow-inner">
+                <Calendar className="h-4 w-4 text-slate-500" />
+                <select
+                  value={selectedDate}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                >
+                  {availableDates.map((d) => (
+                    <option key={d} value={d}>
+                      รายงานวันที่: {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <button
               onClick={() => {

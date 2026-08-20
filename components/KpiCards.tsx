@@ -3,18 +3,24 @@ import { Package, Layers, DollarSign, AlertTriangle } from "lucide-react";
 import { formatNumber, formatCurrency, formatPercent } from "@/lib/validators";
 
 interface KpiData {
-  totalSkus: number;
-  totalStockQty: number;
-  totalStockValue: number;
-  highNonmoveRatio: number;
-  highCount: number;
-  okCount: number;
-  overallOkPct: number;
+  totalSkus?: number;
+  totalStockQty?: number;
+  totalStockValue?: number;
+  highNonmoveRatio?: number;
+  highCount?: number;
+  okCount?: number;
+  overallOkPct?: number;
   excludedCount?: number;
 }
 
-export function KpiCards({ data }: { data: KpiData }) {
-  const isCritical = data.highNonmoveRatio > 30;
+export function KpiCards({ data = {} }: { data?: KpiData }) {
+  const totalSkus = data?.totalSkus || 0;
+  const totalStockQty = data?.totalStockQty || 0;
+  const totalStockValue = data?.totalStockValue || 0;
+  const highNonmoveRatio = data?.highNonmoveRatio || 0;
+  const highCount = data?.highCount || 0;
+  const okCount = data?.okCount || 0;
+  const isCritical = highNonmoveRatio > 30;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -30,7 +36,7 @@ export function KpiCards({ data }: { data: KpiData }) {
         </div>
         <div className="mt-3 flex items-baseline gap-2">
           <span className="text-2xl sm:text-3xl font-bold text-slate-900">
-            {formatNumber(data.totalSkus)}
+            {formatNumber(totalSkus)}
           </span>
           <span className="text-xs text-slate-500 font-medium">SKU</span>
         </div>
@@ -51,7 +57,7 @@ export function KpiCards({ data }: { data: KpiData }) {
         </div>
         <div className="mt-3 flex items-baseline gap-2">
           <span className="text-2xl sm:text-3xl font-bold text-slate-900">
-            {formatNumber(data.totalStockQty)}
+            {formatNumber(totalStockQty)}
           </span>
           <span className="text-xs text-slate-500 font-medium">ชิ้น</span>
         </div>
@@ -72,7 +78,7 @@ export function KpiCards({ data }: { data: KpiData }) {
         </div>
         <div className="mt-3 flex items-baseline gap-1">
           <span className="text-2xl sm:text-3xl font-bold text-slate-900">
-            {formatCurrency(data.totalStockValue)}
+            {formatCurrency(totalStockValue)}
           </span>
         </div>
         <p className="mt-1 text-xs text-slate-500">
@@ -100,13 +106,13 @@ export function KpiCards({ data }: { data: KpiData }) {
           <span className={`text-2xl sm:text-3xl font-bold ${
             isCritical ? "text-rose-700" : "text-slate-900"
           }`}>
-            {formatPercent(data.highNonmoveRatio)}
+            {formatPercent(highNonmoveRatio)}
           </span>
           <span className="text-xs text-slate-500 font-medium">(High Bucket)</span>
         </div>
         <div className="mt-2 flex items-center justify-between text-xs">
-          <span className="text-rose-600 font-semibold">🔥 วิกฤต: {data.highCount} SKU</span>
-          <span className="text-emerald-600 font-semibold">✅ ปกติ: {data.okCount} SKU</span>
+          <span className="text-rose-600 font-semibold">🔥 วิกฤต: {highCount} SKU</span>
+          <span className="text-emerald-600 font-semibold">✅ ปกติ: {okCount} SKU</span>
         </div>
       </div>
     </div>
