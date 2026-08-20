@@ -150,86 +150,102 @@ export default function MyRequestsPage() {
               ไม่พบประวัติรายการคำขอของสาขานี้
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                <thead className="bg-slate-50 dark:bg-slate-800/60 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                  <tr>
-                    <th className="py-3.5 px-4 font-semibold">รหัสสินค้า / รุ่น (Model)</th>
-                    <th className="py-3.5 px-4 font-semibold">ประเภทคำขอ</th>
-                    <th className="py-3.5 px-4 font-semibold">เหตุผลที่ระบุ</th>
-                    <th className="py-3.5 px-4 font-semibold">วันที่ยื่นคำขอ</th>
-                    <th className="py-3.5 px-4 font-semibold text-center">รูปหลักฐาน</th>
-                    <th className="py-3.5 px-4 font-semibold text-center">สถานะการพิจารณา</th>
-                    <th className="py-3.5 px-4 font-semibold">ข้อความจากผู้อนุมัติ</th>
-                    <th className="py-3.5 px-4 font-semibold text-center">การดำเนินการ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredRequests.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3.5 px-4 max-w-xs">
-                        <div className="font-mono font-bold text-slate-900 dark:text-white">{r.productCode}</div>
-                        <div className="text-slate-800 dark:text-slate-200 font-mono font-semibold text-xs">
-                          {r.product?.model || "-"}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
-                          r.requestType === "EXCLUDE"
-                            ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                            : "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                        }`}>
-                          {r.requestType === "EXCLUDE" ? "ขอยกเว้น (Exclusion)" : "ชี้แจง (Explain)"}
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+              {filteredRequests.map((r) => {
+                const isRevise = r.status === "REVISE";
+                const isApproved = r.status === "APPROVED";
+                const isRejected = r.status === "REJECTED";
+
+                return (
+                  <div
+                    key={r.id}
+                    className="p-3.5 sm:p-5 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors space-y-3"
+                  >
+                    {/* Line 1: Header (ProductCode · Model | Status Badge) */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-baseline gap-2 truncate">
+                        <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm tracking-tight shrink-0">
+                          {r.productCode}
                         </span>
-                      </td>
-                      <td className="py-3.5 px-4 max-w-sm">
-                        <div className="font-semibold text-slate-900 dark:text-white">{r.reason}</div>
+                        <span className="text-slate-300 dark:text-slate-600">·</span>
+                        <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
+                          {r.product?.model || "-"}
+                        </span>
+                        {r.product?.skuType && (
+                          <span className="inline-flex items-center px-2 py-0.2 text-[10px] font-bold rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            {r.product.skuType}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="shrink-0">
+                        <RequestStatusBadge status={r.status} requestType={r.requestType} />
+                      </div>
+                    </div>
+
+                    {/* Line 2: Reason, Comments & Photo Thumbnails */}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 text-xs">
+                      {/* Reason & Comments */}
+                      <div className="space-y-1 max-w-xl">
+                        <div className="text-slate-800 dark:text-slate-200 flex items-start gap-1.5">
+                          <span className="font-bold text-slate-500 dark:text-slate-400 shrink-0">เหตุผล:</span>
+                          <span className="font-medium text-slate-900 dark:text-white">{r.reason}</span>
+                        </div>
                         {r.comments && (
-                          <div className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5 line-clamp-2">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
                             {r.comments}
                           </div>
                         )}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
-                        {new Date(r.requestedAt).toLocaleString("th-TH")}
-                      </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        {r.photos && r.photos.length > 0 ? (
-                          <div className="flex items-center justify-center gap-1">
-                            {r.photos.map((p: any) => (
-                              <button
-                                key={p.id}
-                                type="button"
-                                onClick={() => setSelectedPhoto(p.url)}
-                                className="relative h-8 w-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 hover:opacity-80 transition-opacity"
-                              >
-                                <img src={p.url} alt="proof" className="h-full w-full object-cover" />
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <RequestStatusBadge status={r.status} requestType={r.requestType} />
-                      </td>
-                      <td className="py-3.5 px-4 max-w-xs text-slate-600 dark:text-slate-300">
-                        {r.reviewComment ? (
-                          <div className="text-xs font-medium text-slate-800 dark:text-slate-200 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 p-2 rounded-xl">
-                            {r.reviewComment}
-                            {r.reviewedAt && (
-                              <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-                                พิจารณาเมื่อ: {new Date(r.reviewedAt).toLocaleDateString("th-TH")}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        {r.status === "REVISE" ? (
+                      </div>
+
+                      {/* Photo Thumbnails */}
+                      {r.photos && r.photos.length > 0 && (
+                        <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                          {r.photos.map((p: any, pIdx: number) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setSelectedPhoto(p.url)}
+                              className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:scale-105 transition-all shadow-sm shrink-0 group"
+                              title={`ดูรูปที่ ${pIdx + 1}`}
+                            >
+                              <img src={p.url} alt="proof" className="h-full w-full object-cover" />
+                              <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Line 3: Reviewer Comments Box (if reviewed) */}
+                    {r.reviewComment && (
+                      <div className={`p-2.5 rounded-xl border text-xs leading-relaxed ${
+                        isApproved
+                          ? "bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200"
+                          : isRejected
+                          ? "bg-rose-50/60 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40 text-rose-900 dark:text-rose-200"
+                          : "bg-amber-50/60 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200"
+                      }`}>
+                        <div className="flex items-baseline justify-between gap-2 font-bold text-[11px]">
+                          <span>ผู้อนุมัติ: {r.reviewedByName || "Admin"}</span>
+                          {r.reviewedAt && (
+                            <span className="font-normal opacity-80">
+                              {new Date(r.reviewedAt).toLocaleDateString("th-TH")}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 font-medium">{r.reviewComment}</div>
+                      </div>
+                    )}
+
+                    {/* Line 4: Footer (Submitted Date | Action Button) */}
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/60 text-[11px] text-slate-400 dark:text-slate-500">
+                      <div>
+                        ยื่นคำขอเมื่อ: <span className="font-medium text-slate-600 dark:text-slate-400">{new Date(r.requestedAt).toLocaleString("th-TH")}</span>
+                      </div>
+
+                      <div className="shrink-0">
+                        {isRevise ? (
                           <button
                             onClick={() => handleOpenEdit(r)}
                             className="inline-flex items-center gap-1 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700 transition-colors animate-pulse"
@@ -240,16 +256,16 @@ export default function MyRequestsPage() {
                         ) : (
                           <button
                             onClick={() => handleOpenEdit(r)}
-                            className="inline-flex items-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            className="inline-flex items-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                           >
-                            ดูคำขอ
+                            ดูรายละเอียด
                           </button>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
