@@ -182,31 +182,32 @@ export default function IdentifyPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-5 sm:py-8 px-3.5 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors duration-200">
       {/* 1. Top Header: Scaled Logo, Title, Global House Store Brand & Compact Viewer/Admin Button */}
       <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 py-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-4">
-        {/* Scaled Logo, Title & Global House Store Logo */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <img
-            src="/logo.png"
-            alt="Haier"
-            className="h-12 sm:h-16 w-auto object-contain shrink-0 drop-shadow-sm"
-          />
-          <div>
+        {/* Dual Brand: Haier × Global House (Same Size, Same Format Style) */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            <img
+              src="/logo.png"
+              alt="Haier"
+              className="h-10 sm:h-12 w-auto object-contain shrink-0 drop-shadow-sm rounded-lg"
+            />
+            <span className="text-slate-300 dark:text-slate-600 font-light text-base sm:text-lg">×</span>
+            <img
+              src="/global_house.jpg"
+              alt="Global House"
+              className="h-10 sm:h-12 w-auto object-contain shrink-0 drop-shadow-sm rounded-lg"
+            />
+          </div>
+
+          <div className="sm:border-l sm:border-slate-200 sm:dark:border-slate-800 sm:pl-4">
             <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
               Non-Move Stock Analysis
             </h1>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
-              {TEAM_NAME}
-            </p>
-
-            {/* Store Partner: Global House */}
-            <div className="flex items-center gap-2 mt-1.5 pt-1 border-t border-slate-200/70 dark:border-slate-800">
-              <img
-                src="/global_house.jpg"
-                alt="Global House"
-                className="h-4 sm:h-5 w-auto object-contain rounded"
-              />
-              <span className="text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-400">
-                โกลบอลเฮ้าส์ (Global House)
-              </span>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5 flex-wrap">
+              <span className="font-bold text-slate-800 dark:text-slate-200">ไฮเออร์ (Haier)</span>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <span className="font-bold text-emerald-800 dark:text-emerald-400">โกลบอลเฮ้าส์ (Global House)</span>
+              <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">·</span>
+              <span className="text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">{TEAM_NAME}</span>
             </div>
           </div>
         </div>
