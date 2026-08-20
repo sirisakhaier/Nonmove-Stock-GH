@@ -78,7 +78,7 @@ export function NonmoveTrendAnalysis({ branchCode, selectedDate }: TrendProps) {
   const hasPrev = data.hasComparison;
 
   return (
-    <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-sm space-y-6 transition-colors duration-200">
+    <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-6 shadow-sm space-y-4 sm:space-y-6 transition-colors duration-200">
       {/* Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-5">
         <div className="flex items-center gap-3">
@@ -229,7 +229,7 @@ export function NonmoveTrendAnalysis({ branchCode, selectedDate }: TrendProps) {
           </div>
         </div>
 
-        <div className="h-64 w-full">
+        <div className="h-48 sm:h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data.historicalSnapshots} margin={{ top: 10, right: 10, left: -15, bottom: 10 }}>
               <defs>

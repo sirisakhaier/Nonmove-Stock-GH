@@ -68,25 +68,27 @@ export function Navbar() {
             <>
               <Link
                 href={`/dashboard/${branchCode}`}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                   pathname.startsWith("/dashboard/") && !pathname.includes("/requests")
                     ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800"
                     : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
-                <Store className="h-4 w-4" />
-                แดชบอร์ดสาขา
+                <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">แดชบอร์ดสาขา</span>
+                <span className="sm:hidden">แดชบอร์ด</span>
               </Link>
               <Link
                 href={`/dashboard/${branchCode}/requests`}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                   pathname.includes("/requests")
                     ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800"
                     : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
-                <FileSpreadsheet className="h-4 w-4" />
-                รายการคำขอของฉัน
+                <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">รายการคำขอของฉัน</span>
+                <span className="sm:hidden">คำขอ</span>
               </Link>
             </>
           )}

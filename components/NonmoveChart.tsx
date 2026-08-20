@@ -47,7 +47,7 @@ export function NonmoveChart({ bucketData = [] }: ChartProps) {
   const tooltipText = isDark ? "#f8fafc" : "#0f172a";
 
   return (
-    <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm transition-colors duration-200">
+    <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-6 shadow-sm transition-colors duration-200">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
@@ -73,7 +73,7 @@ export function NonmoveChart({ bucketData = [] }: ChartProps) {
       </div>
 
       {/* Bar Chart */}
-      <div className="h-72 w-full">
+      <div className="h-48 sm:h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={normalizedBucketData} margin={{ top: 15, right: 20, left: -10, bottom: 25 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />

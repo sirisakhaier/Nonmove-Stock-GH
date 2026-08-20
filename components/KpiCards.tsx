@@ -23,99 +23,101 @@ export function KpiCards({ data = {} }: { data?: KpiData }) {
   const isCritical = highNonmoveRatio > 30;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Total SKUs */}
-      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-md transition-all">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+      {/* 1. Total SKUs */}
+      <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-5 shadow-sm hover:shadow-md transition-all">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            จำนวนรายการสินค้า
+          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            รายการสินค้า
           </span>
-          <div className="rounded-2xl bg-blue-50 dark:bg-blue-950/60 p-2.5 text-blue-600 dark:text-blue-400">
-            <Package className="h-5 w-5" />
+          <div className="rounded-xl sm:rounded-2xl bg-blue-50 dark:bg-blue-950/60 p-1.5 sm:p-2.5 text-blue-600 dark:text-blue-400">
+            <Package className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+        <div className="mt-2 sm:mt-3 flex items-baseline gap-1.5">
+          <span className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">
             {formatNumber(totalSkus)}
           </span>
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">SKU</span>
+          <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-bold">SKU</span>
         </div>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          รายการสินค้าที่ไม่เคลื่อนไหวในสาขา
+        <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 truncate">
+          ไม่เคลื่อนไหวในสาขา
         </p>
       </div>
 
-      {/* Total Units */}
-      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-md transition-all">
+      {/* 2. Total Units */}
+      <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-5 shadow-sm hover:shadow-md transition-all">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            จำนวนชิ้นสต๊อก
+          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            จำนวนสต๊อก
           </span>
-          <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 p-2.5 text-indigo-600 dark:text-indigo-400">
-            <Layers className="h-5 w-5" />
+          <div className="rounded-xl sm:rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 p-1.5 sm:p-2.5 text-indigo-600 dark:text-indigo-400">
+            <Layers className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+        <div className="mt-2 sm:mt-3 flex items-baseline gap-1.5">
+          <span className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">
             {formatNumber(totalStockQty)}
           </span>
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">ชิ้น</span>
+          <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-bold">ชิ้น</span>
         </div>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          จำนวนคงเหลือรวมทุกช่วงวัน
+        <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 truncate">
+          คงเหลือรวมทุกช่วงวัน
         </p>
       </div>
 
-      {/* Total Value */}
-      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-md transition-all">
+      {/* 3. Total Value */}
+      <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-5 shadow-sm hover:shadow-md transition-all">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            มูลค่าสต๊อกรวม (บาท)
+          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            มูลค่าสต๊อกรวม
           </span>
-          <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 p-2.5 text-emerald-600 dark:text-emerald-400">
-            <DollarSign className="h-5 w-5" />
+          <div className="rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 p-1.5 sm:p-2.5 text-emerald-600 dark:text-emerald-400">
+            <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
-        <div className="mt-3 flex items-baseline gap-1">
-          <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+        <div className="mt-2 sm:mt-3 flex items-baseline gap-1">
+          <span className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white truncate">
             {formatCurrency(totalStockValue)}
           </span>
         </div>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          มูลค่าต้นทุนสินค้าไม่เคลื่อนไหว
+        <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 truncate">
+          มูลค่าต้นทุนคงเหลือ
         </p>
       </div>
 
-      {/* High Non-Move Ratio */}
-      <div className={`rounded-3xl border p-5 shadow-sm hover:shadow-md transition-all ${
+      {/* 4. High Non-Move Ratio */}
+      <div className={`rounded-2xl sm:rounded-3xl border p-3.5 sm:p-5 shadow-sm hover:shadow-md transition-all ${
         isCritical
           ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30"
           : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
       }`}>
         <div className="flex items-center justify-between">
-          <span className={`text-xs font-bold uppercase tracking-wider ${
+          <span className={`text-[11px] sm:text-xs font-bold uppercase tracking-wider truncate ${
             isCritical ? "text-rose-700 dark:text-rose-300" : "text-slate-500 dark:text-slate-400"
           }`}>
-            สัดส่วนสินค้าค้างนานวิกฤต
+            สินค้าวิกฤต (&gt;90 วัน)
           </span>
-          <div className={`rounded-2xl p-2.5 ${
-            isCritical ? "bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400" : "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400"
+          <div className={`rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 ${
+            isCritical
+              ? "bg-rose-100 dark:bg-rose-900/80 text-rose-600 dark:text-rose-400"
+              : "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400"
           }`}>
-            <AlertTriangle className="h-5 w-5" />
+            <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className={`text-2xl sm:text-3xl font-black ${
-            isCritical ? "text-rose-700 dark:text-rose-300" : "text-slate-900 dark:text-white"
+        <div className="mt-2 sm:mt-3 flex items-baseline gap-1.5">
+          <span className={`text-xl sm:text-3xl font-black ${
+            isCritical ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-white"
           }`}>
             {formatPercent(highNonmoveRatio)}
           </span>
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">(High Bucket)</span>
         </div>
-        <div className="mt-2 flex items-center justify-between text-xs">
-          <span className="text-rose-600 dark:text-rose-400 font-bold">🔥 วิกฤต: {highCount} SKU</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-bold">✅ ปกติ: {okCount} SKU</span>
-        </div>
+        <p className={`mt-0.5 sm:mt-1 text-[10px] sm:text-xs truncate ${
+          isCritical ? "text-rose-600 dark:text-rose-400 font-bold" : "text-slate-400 dark:text-slate-500"
+        }`}>
+          {highCount} จาก {totalSkus} SKU
+        </p>
       </div>
     </div>
   );

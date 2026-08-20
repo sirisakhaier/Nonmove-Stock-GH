@@ -9,10 +9,9 @@ import {
   ChevronLeft,
   ChevronRight,
   FileEdit,
-  ShieldAlert,
 } from "lucide-react";
 import { RequestStatusBadge } from "./RequestStatusBadge";
-import { formatCurrency, formatNumber } from "@/lib/validators";
+import { formatNumber } from "@/lib/validators";
 import { NONMOVE_BUCKET_ORDER } from "@/lib/nonmoveConfig";
 
 interface ProductModelItem {
@@ -83,53 +82,53 @@ export function ModelExplorerTable({
   const totalPages = Math.ceil(total / limit) || 1;
 
   return (
-    <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors duration-200">
+    <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors duration-200">
       {/* Table Header Controls */}
-      <div className="p-5 border-b border-slate-200 dark:border-slate-800 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-3 sm:p-5 border-b border-slate-200 dark:border-slate-800 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                 รายการสินค้าไม่เคลื่อนไหว (Model Explorer)
               </h3>
               {/* Dynamic Live Metric Pill */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold shadow-sm">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold shadow-sm">
                 <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-                  <Flame className="h-3.5 w-3.5 fill-rose-500 text-rose-500" />
+                  <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />
                   {highPct}% วิกฤต
                 </span>
                 <span className="text-slate-300 dark:text-slate-600">·</span>
                 <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                   {okPct}% ปกติ
                 </span>
               </div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              พบทั้งหมด {formatNumber(total)} รายการ (คลิกที่แถวเพื่อขอยกเว้นการคิด Non-Move)
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              พบ {formatNumber(total)} รายการ (กดที่แถวเพื่อขอยกเว้น Non-Move)
             </p>
           </div>
 
           <button
             onClick={onExport}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors self-start sm:self-auto shrink-0"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3.5 w-3.5" />
             ดาวน์โหลด CSV
           </button>
         </div>
 
-        {/* Filter Toolbar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        {/* Filter Toolbar (Mobile Optimized) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {/* Search Box */}
-          <div className="relative md:col-span-2">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <div className="relative sm:col-span-2 lg:col-span-1">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="ค้นหารหัสสินค้า, ชื่อสินค้า, รุ่น/Model..."
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:outline-none"
+              placeholder="ค้นหารหัส, ชื่อ, รุ่น..."
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-8 pr-2.5 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
@@ -138,11 +137,11 @@ export function ModelExplorerTable({
             <select
               value={selectedCategory}
               onChange={(e) => onCategoryChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกหมวดหมู่สินค้า</option>
+              <option value="ALL">ทุกหมวดหมู่ (Category)</option>
               {categories.map((c) => (
-                <option key={c} value={c} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                <option key={c} value={c}>
                   {c}
                 </option>
               ))}
@@ -154,11 +153,11 @@ export function ModelExplorerTable({
             <select
               value={selectedBucket}
               onChange={(e) => onBucketChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกช่วงวัน Non-move</option>
+              <option value="ALL">ทุกช่วงวัน Non-move</option>
               {NONMOVE_BUCKET_ORDER.map((b) => (
-                <option key={b} value={b} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                <option key={b} value={b}>
                   {b} วัน
                 </option>
               ))}
@@ -170,38 +169,37 @@ export function ModelExplorerTable({
             <select
               value={selectedStatus}
               onChange={(e) => onStatusChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกสถานะคำขอ</option>
-              <option value="NO_REQUEST" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ยังไม่มีคำขอ</option>
-              <option value="PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">รอการตรวจสอบ (Pending)</option>
-              <option value="REVISE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ขอข้อมูลเพิ่ม (Revise)</option>
-              <option value="APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">อนุมัติแล้ว (Approved)</option>
-              <option value="REJECTED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ไม่อนุมัติ (Rejected)</option>
+              <option value="ALL">ทุกสถานะคำขอ</option>
+              <option value="NO_REQUEST">ยังไม่มีคำขอ</option>
+              <option value="PENDING">รอตรวจสอบ (Pending)</option>
+              <option value="REVISE">ขอข้อมูลเพิ่ม (Revise)</option>
+              <option value="APPROVED">อนุมัติแล้ว (Approved)</option>
+              <option value="REJECTED">ไม่อนุมัติ (Rejected)</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table (Responsive with revised columns) */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
           <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
             <tr>
-              <th className="py-3.5 px-4 font-bold">รหัสสินค้า</th>
-              <th className="py-3.5 px-4 font-bold">ชื่อสินค้า / รุ่น</th>
-              <th className="py-3.5 px-4 font-bold">หมวดหมู่</th>
-              <th className="py-3.5 px-4 font-bold">ช่วงวันไม่เคลื่อนไหว</th>
-              <th className="py-3.5 px-4 font-bold">อายุสินค้า</th>
-              <th className="py-3.5 px-4 font-bold text-right">จำนวนสต๊อก</th>
-              <th className="py-3.5 px-4 font-bold text-right">มูลค่า (บาท)</th>
-              <th className="py-3.5 px-4 font-bold text-center">สถานะ / ดำเนินการ</th>
+              <th className="py-2.5 px-3 font-bold">รหัสสินค้า</th>
+              <th className="py-2.5 px-3 font-bold">ชื่อสินค้า</th>
+              <th className="py-2.5 px-3 font-bold">รุ่น (Model)</th>
+              <th className="py-2.5 px-3 font-bold">หมวดหมู่ (Category)</th>
+              <th className="py-2.5 px-3 font-bold text-center">ช่วงวันไม่เคลื่อนไหว</th>
+              <th className="py-2.5 px-3 font-bold text-right">จำนวนชิ้น (QTY)</th>
+              <th className="py-2.5 px-3 font-bold text-center">สถานะ / ดำเนินการ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                <td colSpan={7} className="py-10 text-center text-slate-400 dark:text-slate-500 font-medium">
                   ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา
                 </td>
               </tr>
@@ -214,25 +212,34 @@ export function ModelExplorerTable({
                     onClick={() => onSelectProduct(item)}
                     className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/70 cursor-pointer transition-colors group"
                   >
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                    {/* 1. รหัสสินค้า */}
+                    <td className="py-2.5 px-3 font-mono font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">
                       {item.productCode}
                     </td>
-                    <td className="py-3.5 px-4 max-w-xs">
+
+                    {/* 2. ชื่อสินค้า */}
+                    <td className="py-2.5 px-3 max-w-xs">
                       <div className="font-semibold text-slate-900 dark:text-slate-100 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                         {item.productName}
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                        รุ่น: {item.model}
-                      </div>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                        {item.categoryName}
+
+                    {/* 3. รุ่น (Model) from Model Dimension */}
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                      {item.model || "-"}
+                    </td>
+
+                    {/* 4. หมวดหมู่ (Category) from Model Dimension */}
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        {item.categoryName || "Other"}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap">
+
+                    {/* 5. ช่วงวันไม่เคลื่อนไหว */}
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
                           isHigh
                             ? "bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/70"
                             : item.isExcluded
@@ -244,32 +251,35 @@ export function ModelExplorerTable({
                         {item.nonmoveDaysBucket} วัน
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400 font-medium">
-                      {item.agingDaysBucket} วัน
+
+                    {/* 6. จำนวนชิ้น (QTY) */}
+                    <td className="py-2.5 px-3 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
+                      {formatNumber(item.stockQty)} <span className="text-[10px] text-slate-400 font-normal">ชิ้น</span>
                     </td>
-                    <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
-                      {formatNumber(item.stockQty)}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
-                      {formatCurrency(item.stockValue)}
-                    </td>
-                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <RequestStatusBadge
-                          status={item.activeRequest?.status}
-                          requestType="EXCLUDE"
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectProduct(item);
-                          }}
-                          className="rounded-xl p-1.5 text-slate-400 hover:bg-indigo-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                          title="ยื่นขอยกเว้น"
+
+                    {/* 7. สถานะ / ดำเนินการ */}
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      {item.activeRequest ? (
+                        <div
+                          onClick={() => onSelectProduct(item)}
+                          className="cursor-pointer inline-block"
+                          title="คลิกเพื่อดูรายละเอียดคำขอ"
                         >
-                          <ShieldAlert className="h-4 w-4" />
+                          <RequestStatusBadge
+                            status={item.activeRequest.status}
+                            requestType={item.activeRequest.requestType}
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onSelectProduct(item)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors"
+                        >
+                          <FileEdit className="h-3 w-3" />
+                          ขอยกเว้น
                         </button>
-                      </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -279,28 +289,32 @@ export function ModelExplorerTable({
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 px-5 py-3.5 bg-slate-50/50 dark:bg-slate-800/40">
-        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-          แสดง {total === 0 ? 0 : (page - 1) * limit + 1} ถึง {Math.min(page * limit, total)} จากทั้งหมด {formatNumber(total)} รายการ
+      {/* Pagination Footer (Mobile Optimized) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-xs">
+        <div className="text-slate-500 dark:text-slate-400 text-center sm:text-left text-[11px] sm:text-xs">
+          แสดง {formatNumber(Math.min((page - 1) * limit + 1, total))} ถึง{" "}
+          {formatNumber(Math.min(page * limit, total))} จาก {formatNumber(total)} รายการ
         </div>
-        <div className="flex items-center gap-1">
+
+        <div className="flex items-center justify-center gap-1">
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1}
-            className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40"
+            title="หน้าก่อนหน้า"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
           </button>
-          <span className="px-3 text-xs font-bold text-slate-700 dark:text-slate-200">
-            หน้า {page} / {totalPages}
+          <span className="px-2.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
+            {page} / {totalPages}
           </span>
           <button
             onClick={() => onPageChange(page + 1)}
             disabled={page >= totalPages}
-            className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40"
+            title="หน้าถัดไป"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

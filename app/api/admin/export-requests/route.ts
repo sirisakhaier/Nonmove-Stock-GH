@@ -40,8 +40,17 @@ export async function GET(req: NextRequest) {
       views: [{ state: "frozen", ySplit: 1 }],
     });
 
-    // Define Columns
-    worksheet.columns = [
+    // Find maximum number of photos in any request
+    let maxPhotos = 3;
+    for (const r of requests) {
+      if (r.photos.length > maxPhotos) {
+        maxPhotos = r.photos.length;
+      }
+    }
+    maxPhotos = Math.min(Math.max(maxPhotos, 3), 8);
+
+    // Define Base Columns
+    const baseColumns: any[] = [
       { header: "ลำดับ", key: "index", width: 8 },
       { header: "รหัสสาขา", key: "branchCode", width: 14 },
       { header: "ชื่อสาขา", key: "storeName", width: 28 },
@@ -60,9 +69,26 @@ export async function GET(req: NextRequest) {
       { header: "ผู้อนุมัติ/ตรวจสอบ", key: "reviewedByName", width: 20 },
       { header: "ข้อคิดเห็นผู้อนุมัติ", key: "reviewComment", width: 30 },
       { header: "วันที่พิจารณา", key: "reviewedAt", width: 22 },
-      { header: "รูปภาพหลักฐาน (Thumbnail)", key: "imageCell", width: 22 },
-      { header: "ลิงก์รูปภาพ (Photo URLs)", key: "photoUrls", width: 45 },
+      { header: "จำนวนรูป", key: "photoCount", width: 12 },
     ];
+
+    // Add Photo Thumbnail Columns (Photo 1, Photo 2, ...)
+    for (let p = 1; p <= maxPhotos; p++) {
+      baseColumns.push({
+        header: `รูปภาพหลักฐาน ${p} (Photo ${p})`,
+        key: `photoImg_${p}`,
+        width: 18,
+      });
+    }
+
+    // Add Photo URLs Column
+    baseColumns.push({
+      header: "ลิงก์รูปภาพทั้งหมด (Photo URLs)",
+      key: "photoUrls",
+      width: 45,
+    });
+
+    worksheet.columns = baseColumns;
 
     // Header styling
     const headerRow = worksheet.getRow(1);
@@ -74,6 +100,8 @@ export async function GET(req: NextRequest) {
       fgColor: { argb: "FF4F46E5" }, // Indigo
     };
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
+
+    const photoStartColIdx = 19; // 0-based column index where photoImg_1 starts
 
     // Populate rows
     for (let i = 0; i < requests.length; i++) {
@@ -89,7 +117,8 @@ export async function GET(req: NextRequest) {
 
       // Generate Permanent URLs for each photo
       const photoLinks: string[] = [];
-      for (const p of r.photos) {
+      for (let pIdx = 0; pIdx < r.photos.length; pIdx++) {
+        const p = r.photos[pIdx];
         if (p.url.startsWith("http://") || p.url.startsWith("https://")) {
           photoLinks.push(p.url);
         } else {
@@ -97,7 +126,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      const row = worksheet.addRow({
+      const rowData: any = {
         index: i + 1,
         branchCode: r.branchCode,
         storeName: r.store?.storeNameCust || r.store?.storeName || r.branchCode,
@@ -116,9 +145,15 @@ export async function GET(req: NextRequest) {
         reviewedByName: r.reviewedByName || "-",
         reviewComment: r.reviewComment || "-",
         reviewedAt: r.reviewedAt ? new Date(r.reviewedAt).toLocaleString("th-TH") : "-",
-        imageCell: r.photos.length > 0 ? "" : "ไม่มีรูปภาพ",
+        photoCount: r.photos.length > 0 ? `${r.photos.length} รูป` : "ไม่มีรูป",
         photoUrls: photoLinks.length > 0 ? photoLinks.join(" \n") : "-",
-      });
+      };
+
+      for (let p = 1; p <= maxPhotos; p++) {
+        rowData[`photoImg_${p}`] = p <= r.photos.length ? "" : "-";
+      }
+
+      const row = worksheet.addRow(rowData);
 
       row.height = r.photos.length > 0 ? 80 : 24;
       row.alignment = { vertical: "middle", wrapText: true };
@@ -143,36 +178,32 @@ export async function GET(req: NextRequest) {
         photoCell.font = { color: { argb: "FF2563EB" }, underline: true, size: 10 };
       }
 
-      // Embed thumbnail image into Excel cell
-      if (r.photos.length > 0) {
-        const firstPhoto = r.photos[0].url;
+      // EMBED ALL SUBMITTED PHOTOS INTO EXCEL
+      for (let pIdx = 0; pIdx < r.photos.length; pIdx++) {
+        const photoObj = r.photos[pIdx];
+        const photoUrl = photoObj.url;
         let imageBase64: string | null = null;
         let extension: "png" | "jpeg" = "jpeg";
 
         try {
-          // 1. Data URL (Base64)
-          if (firstPhoto.startsWith("data:image/")) {
-            const match = firstPhoto.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+          if (photoUrl.startsWith("data:image/")) {
+            const match = photoUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
             if (match) {
               extension = match[1].toLowerCase() === "png" ? "png" : "jpeg";
               imageBase64 = match[2];
             }
-          }
-          // 2. Local uploads folder
-          else if (firstPhoto.startsWith("/uploads/")) {
-            const localPath = path.join(process.cwd(), "public", firstPhoto);
+          } else if (photoUrl.startsWith("/uploads/")) {
+            const localPath = path.join(process.cwd(), "public", photoUrl);
             if (fs.existsSync(localPath)) {
               const fileBuf = fs.readFileSync(localPath);
-              extension = firstPhoto.toLowerCase().endsWith(".png") ? "png" : "jpeg";
+              extension = photoUrl.toLowerCase().endsWith(".png") ? "png" : "jpeg";
               imageBase64 = fileBuf.toString("base64");
             }
-          }
-          // 3. HTTP URL
-          else if (firstPhoto.startsWith("http://") || firstPhoto.startsWith("https://")) {
-            const resp = await fetch(firstPhoto);
+          } else if (photoUrl.startsWith("http://") || photoUrl.startsWith("https://")) {
+            const resp = await fetch(photoUrl);
             if (resp.ok) {
               const arrayBuf = await resp.arrayBuffer();
-              extension = firstPhoto.toLowerCase().endsWith(".png") ? "png" : "jpeg";
+              extension = photoUrl.toLowerCase().endsWith(".png") ? "png" : "jpeg";
               imageBase64 = Buffer.from(arrayBuf).toString("base64");
             }
           }
@@ -183,15 +214,14 @@ export async function GET(req: NextRequest) {
               extension,
             });
 
-            // Column 18 is imageCell (index 18 is zero-based 18)
             worksheet.addImage(imageId, {
-              tl: { col: 18, row: rowIndex - 1 },
-              ext: { width: 92, height: 70 }, // Crisp compressed thumbnail
+              tl: { col: photoStartColIdx + pIdx, row: rowIndex - 1 },
+              ext: { width: 85, height: 68 }, // Crisp thumbnail
               editAs: "oneCell",
             });
           }
         } catch (imgErr) {
-          console.warn("Could not embed image for row", rowIndex, imgErr);
+          console.warn(`Could not embed photo ${pIdx + 1} for row ${rowIndex}:`, imgErr);
         }
       }
     }
@@ -201,11 +231,11 @@ export async function GET(req: NextRequest) {
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="NonMove_Requests_With_Pictures_${Date.now()}.xlsx"`,
+        "Content-Disposition": `attachment; filename="NonMove_Requests_All_Pictures_${Date.now()}.xlsx"`,
       },
     });
   } catch (error: any) {
-    console.error("Error exporting requests with images to excel:", error);
+    console.error("Error exporting requests with all images to excel:", error);
     return NextResponse.json({ error: error.message || "Failed to export requests" }, { status: 500 });
   }
 }
