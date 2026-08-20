@@ -9,15 +9,16 @@ import {
   User,
   Phone,
   ArrowRight,
-  BarChart3,
   Layers,
   ShieldAlert,
   Sparkles,
   AlertCircle,
   Loader2,
+  GitCommit,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { isValidThaiPhone } from "@/lib/validators";
+import { APP_VERSION, TEAM_NAME, getCommitHash } from "@/lib/version";
 
 export default function IdentifyPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function IdentifyPage() {
   const [isLoadingStores, setIsLoadingStores] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [commitHash, setCommitHash] = useState(getCommitHash());
 
   useEffect(() => {
     fetch("/api/regions")
@@ -40,6 +42,13 @@ export default function IdentifyPage() {
         setIsLoadingRegions(false);
       })
       .catch(() => setIsLoadingRegions(false));
+
+    fetch("/api/version")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.commit) setCommitHash(data.commit);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -121,28 +130,32 @@ export default function IdentifyPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8 text-white transition-colors duration-200">
-      {/* Top Header: Only "Viewer", "Admin", and ThemeToggle */}
-      <div className="max-w-5xl mx-auto w-full flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30">
-            <BarChart3 className="h-6 w-6" />
-          </div>
+      {/* Top Header: Haier Logo, Team Name, Viewer, Admin, ThemeToggle */}
+      <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          {/* Authentic Haier Logo */}
+          <img
+            src="/logo.png"
+            alt="Haier"
+            className="h-11 w-auto object-contain rounded-xl shadow-md"
+          />
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white leading-tight">
+            <h1 className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight">
               Non-Move Stock Analysis
             </h1>
-            <p className="text-xs text-slate-400">ระบบบริหารจัดการและวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว</p>
+            <p className="text-xs font-semibold text-blue-200/80">{TEAM_NAME}</p>
           </div>
         </div>
 
-        {/* Buttons in top screen: Viewer & Admin ONLY + ThemeToggle */}
+        {/* Action Buttons: Viewer & Admin + ThemeToggle */}
         <div className="flex items-center gap-2">
           <Link
             href="/viewer"
             className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 dark:bg-white/5 border border-white/15 px-3.5 py-2 text-xs font-bold text-white backdrop-blur hover:bg-white/20 transition-all shadow-sm"
           >
             <Layers className="h-3.5 w-3.5 text-indigo-300" />
-            <span>ภาพรวมผู้บริหาร (Viewer)</span>
+            <span className="hidden sm:inline">ภาพรวมผู้บริหาร (Viewer)</span>
+            <span className="sm:hidden">Viewer</span>
           </Link>
 
           <Link
@@ -150,7 +163,8 @@ export default function IdentifyPage() {
             className="inline-flex items-center gap-1.5 rounded-xl bg-purple-500/20 border border-purple-500/30 px-3.5 py-2 text-xs font-bold text-purple-200 backdrop-blur hover:bg-purple-500/30 transition-all shadow-sm"
           >
             <ShieldAlert className="h-3.5 w-3.5 text-purple-300" />
-            <span>จัดการระบบ (Admin)</span>
+            <span className="hidden sm:inline">จัดการระบบ (Admin)</span>
+            <span className="sm:hidden">Admin</span>
           </Link>
 
           <ThemeToggle className="bg-white/10 dark:bg-slate-800/80 border-white/20 text-white" />
@@ -286,9 +300,15 @@ export default function IdentifyPage() {
         </div>
       </div>
 
-      {/* Footer Note */}
-      <div className="text-center text-xs text-slate-500 dark:text-slate-400 py-2">
-        ระบบวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว &copy; 2026 Non-Move Stock App. All rights reserved.
+      {/* Footer with Team Name & GitHub Commit Version */}
+      <div className="text-center text-xs text-slate-400 dark:text-slate-500 py-3 space-y-1">
+        <div>
+          ระบบวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว &copy; 2026 <strong>{TEAM_NAME}</strong>
+        </div>
+        <div className="flex items-center justify-center gap-1.5 font-mono text-[11px] text-slate-400">
+          <GitCommit className="h-3.5 w-3.5 text-indigo-400" />
+          <span>Version: {APP_VERSION} (Commit: <strong className="text-white">{commitHash}</strong>)</span>
+        </div>
       </div>
     </div>
   );

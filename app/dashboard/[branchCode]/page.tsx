@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { KpiCards } from "@/components/KpiCards";
 import { NonmoveChart } from "@/components/NonmoveChart";
+import { NonmoveTrendAnalysis } from "@/components/NonmoveTrendAnalysis";
 import { ModelExplorerTable } from "@/components/ModelExplorerTable";
 import { ActionPanel } from "@/components/ActionPanel";
 import {
@@ -16,6 +17,7 @@ import {
   Loader2,
   CheckCircle2,
 } from "lucide-react";
+import { TEAM_NAME, APP_VERSION, getCommitHash } from "@/lib/version";
 
 export default function StoreDashboard() {
   const params = useParams();
@@ -37,7 +39,6 @@ export default function StoreDashboard() {
     overallOkPct: 0,
   });
   const [bucketChart, setBucketChart] = useState<any[]>([]);
-  const [categoryChart, setCategoryChart] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
 
   // Table Data & Filters
@@ -83,7 +84,6 @@ export default function StoreDashboard() {
         setOkPct(data.kpis.overallOkPct || 0);
       }
       setBucketChart(data.chartData || []);
-      setCategoryChart(data.categoryBreakdown || data.categoryData || []);
       setCategories(data.categories || []);
     } catch (error) {
       console.error("Error fetching summary:", error);
@@ -167,7 +167,7 @@ export default function StoreDashboard() {
         {/* Header Store Overview & Date Picker */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 shrink-0">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 shrink-0">
               <Store className="h-7 w-7" />
             </div>
             <div>
@@ -175,7 +175,7 @@ export default function StoreDashboard() {
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
                   {storeInfo?.branchName || branchCode}
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 font-mono">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 font-mono">
                   {branchCode}
                 </span>
                 {storeInfo?.region && (
@@ -185,7 +185,7 @@ export default function StoreDashboard() {
                 )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                แดชบอร์ดติดตามและจัดการสต๊อกสินค้าไม่เคลื่อนไหวประจำสาขา
+                แดชบอร์ดติดตามและจัดการสต๊อกสินค้าไม่เคลื่อนไหวประจำสาขา · {TEAM_NAME}
               </p>
             </div>
           </div>
@@ -215,7 +215,7 @@ export default function StoreDashboard() {
                 fetchTableData();
               }}
               title="รีเฟรชข้อมูล"
-              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-2.5 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-blue-600 transition-colors"
+              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-2.5 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-indigo-600 transition-colors"
             >
               <RefreshCw className="h-4 w-4" />
             </button>
@@ -225,10 +225,13 @@ export default function StoreDashboard() {
         {/* 1. KPI Cards */}
         <KpiCards data={kpiData} />
 
-        {/* 2. Visual Aging Chart */}
+        {/* 2. Visual Aging Distribution Chart */}
         <NonmoveChart bucketData={bucketChart} />
 
-        {/* 3. Model Explorer Table */}
+        {/* 3. NEW: Day-by-Day Gap & Trend Analysis */}
+        <NonmoveTrendAnalysis branchCode={branchCode} selectedDate={selectedDate} />
+
+        {/* 4. Model Explorer Table */}
         <ModelExplorerTable
           data={tableRows}
           total={totalRows}
@@ -267,6 +270,11 @@ export default function StoreDashboard() {
           fetchTableData();
         }}
       />
+
+      {/* Footer */}
+      <footer className="text-center text-xs text-slate-400 dark:text-slate-500 py-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors">
+        <div>&copy; 2026 Non-Move Stock App · <strong>{TEAM_NAME}</strong></div>
+      </footer>
     </div>
   );
 }
