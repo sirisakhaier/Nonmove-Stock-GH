@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { ApprovalQueueTable } from "@/components/ApprovalQueueTable";
 import { RequestHistoryTable } from "@/components/RequestHistoryTable";
 import { ExecutiveViewerDashboard } from "@/components/ExecutiveViewerDashboard";
+import { StoreDimensionManager } from "@/components/StoreDimensionManager";
 import {
   ShieldAlert,
   Upload,
@@ -33,7 +34,7 @@ export default function AdminPage() {
   const [passcode, setPasscode] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"DATA" | "APPROVALS" | "HISTORY" | "EXPORT" | "ANALYSIS">("DATA");
+  const [activeTab, setActiveTab] = useState<"DATA" | "STORE_DIMENSION" | "APPROVALS" | "HISTORY" | "EXPORT" | "ANALYSIS">("DATA");
 
   // Ingestion State
   const [file, setFile] = useState<File | null>(null);
@@ -278,71 +279,84 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* 5 Admin Navigation Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-1.5 gap-1.5 shadow-sm">
+        {/* 6 Admin Navigation Tabs */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-1.5 gap-1.5 shadow-sm">
           {/* Tab 1: Combined Import & Delete Data */}
           <button
             onClick={() => { setActiveTab("DATA"); fetchStats(); }}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl text-xs font-bold transition-all ${
               activeTab === "DATA"
                 ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
                 : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
           >
             <Database className="h-4 w-4" />
-            1. จัดการข้อมูลรายงาน ({stats?.snapshots?.length || 0})
+            1. ข้อมูลรายงาน ({stats?.snapshots?.length || 0})
           </button>
 
-          {/* Tab 2: Approvals Queue */}
+          {/* Tab 2: NEW Store Dimension Manager */}
+          <button
+            onClick={() => setActiveTab("STORE_DIMENSION")}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === "STORE_DIMENSION"
+                ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Store className="h-4 w-4" />
+            2. Store Dimension
+          </button>
+
+          {/* Tab 3: Approvals Queue */}
           <button
             onClick={() => { setActiveTab("APPROVALS"); fetchRequests(); }}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl text-xs font-bold transition-all ${
               activeTab === "APPROVALS"
                 ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
                 : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
           >
             <CheckSquare className="h-4 w-4" />
-            2. พิจารณาคำขอ ({pendingCount})
+            3. พิจารณาคำขอ ({pendingCount})
           </button>
 
-          {/* Tab 3: NEW Request History & Status Logs */}
+          {/* Tab 4: Request History & Status Logs */}
           <button
             onClick={() => { setActiveTab("HISTORY"); fetchRequests(); }}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl text-xs font-bold transition-all ${
               activeTab === "HISTORY"
                 ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
                 : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
           >
             <History className="h-4 w-4" />
-            3. ประวัติและสถานะคำขอ ({requests.length})
+            4. ประวัติคำขอ ({requests.length})
           </button>
 
-          {/* Tab 4: Export Excel */}
+          {/* Tab 5: Export Excel */}
           <button
             onClick={() => setActiveTab("EXPORT")}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl text-xs font-bold transition-all ${
               activeTab === "EXPORT"
                 ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
                 : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
           >
             <Download className="h-4 w-4" />
-            4. ส่งออก Excel พร้อมรูป
+            5. ส่งออก Excel
           </button>
 
-          {/* Tab 5: Executive Analysis Dashboard */}
+          {/* Tab 6: Executive Analysis Dashboard */}
           <button
             onClick={() => setActiveTab("ANALYSIS")}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all col-span-2 sm:col-span-1 ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl text-xs font-bold transition-all ${
               activeTab === "ANALYSIS"
                 ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
                 : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
           >
             <TrendingUp className="h-4 w-4" />
-            5. วิเคราะห์ภาพรวม
+            6. วิเคราะห์ภาพรวม
           </button>
         </div>
 
@@ -494,7 +508,13 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Tab 2: Approvals Queue */}
+        
+        {/* Tab 2: Store Dimension Manager */}
+        {activeTab === "STORE_DIMENSION" && (
+          <StoreDimensionManager passcode={passcode} />
+        )}
+
+        {/* Tab 3: Approvals Queue */}
         {activeTab === "APPROVALS" && (
           <ApprovalQueueTable
             requests={requests}
