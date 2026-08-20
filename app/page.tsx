@@ -180,9 +180,9 @@ export default function IdentifyPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-5 sm:py-8 px-3.5 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors duration-200">
-      {/* 1. Top Header: Scaled Logo, Title & Compact Merged Management Button */}
+      {/* 1. Top Header: Scaled Logo, Title, Global House Store Brand & Compact Viewer/Admin Button */}
       <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 py-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-4">
-        {/* Scaled Logo & Title (No Card Box, No HAIER badge) */}
+        {/* Scaled Logo, Title & Global House Store Logo */}
         <div className="flex items-center gap-3 sm:gap-4">
           <img
             src="/logo.png"
@@ -196,10 +196,22 @@ export default function IdentifyPage() {
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
               {TEAM_NAME}
             </p>
+
+            {/* Store Partner: Global House */}
+            <div className="flex items-center gap-2 mt-1.5 pt-1 border-t border-slate-200/70 dark:border-slate-800">
+              <img
+                src="/global_house.jpg"
+                alt="Global House"
+                className="h-4 sm:h-5 w-auto object-contain rounded"
+              />
+              <span className="text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-400">
+                โกลบอลเฮ้าส์ (Global House)
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Compact Merged Login Button & Mode Switch */}
+        {/* Compact Viewer/Admin Button & Mode Switch */}
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <button
             type="button"
@@ -210,13 +222,13 @@ export default function IdentifyPage() {
               setAdminPasscode("");
               setIsMgmtModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition-all"
           >
             <ShieldAlert className="h-3.5 w-3.5" />
-            <span>เข้าสู่ระบบผู้บริหาร / จัดการ</span>
+            <span>Viewer/Admin</span>
           </button>
 
-          <ThemeToggle className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-sm p-1.5 rounded-lg text-xs" />
+          <ThemeToggle className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-sm" />
         </div>
       </div>
 
@@ -224,16 +236,9 @@ export default function IdentifyPage() {
       <div className="max-w-md mx-auto w-full my-6">
         <div className="rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 p-6 sm:p-8 shadow-xl shadow-slate-200/50 dark:shadow-2xl dark:shadow-black/70 transition-all">
           <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200 dark:border-blue-400/30 mb-3">
-              <Sparkles className="h-3.5 w-3.5" />
-              ระบบเข้าใช้งานสำหรับพนักงานสาขา
-            </div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               ระบุสาขาและตัวตน
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-              เลือกภูมิภาคและสาขาของคุณเพื่อเข้าสู่แดชบอร์ดรายงาน Non-Move
-            </p>
           </div>
 
           {errorMsg && (

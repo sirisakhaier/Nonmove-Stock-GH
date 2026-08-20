@@ -14,7 +14,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
 
   if (!mounted) {
     return (
-      <div className={`h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 ${className}`} />
+      <div className={`h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 ${className}`} />
     );
   }
 
@@ -23,18 +23,13 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       type="button"
       onClick={toggleTheme}
       title={theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง (Light Mode)" : "เปลี่ยนเป็นโหมดมืด (Dark Mode)"}
-      className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all ${className}`}
+      aria-label={theme === "dark" ? "Light mode" : "Dark mode"}
+      className={`inline-flex items-center justify-center h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all ${className}`}
     >
       {theme === "dark" ? (
-        <>
-          <Sun className="h-4 w-4 text-amber-400 animate-in spin-in-180 duration-300" />
-          <span>โหมดสว่าง</span>
-        </>
+        <Sun className="h-4 w-4 text-amber-400 animate-in spin-in-180 duration-300" />
       ) : (
-        <>
-          <Moon className="h-4 w-4 text-slate-700 animate-in spin-in-180 duration-300" />
-          <span>โหมดมืด</span>
-        </>
+        <Moon className="h-4 w-4 text-slate-700 dark:text-slate-300 animate-in spin-in-180 duration-300" />
       )}
     </button>
   );
