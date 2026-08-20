@@ -5,14 +5,95 @@ import * as xlsx from "xlsx";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function normalizeKey(str: string): string {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
+// Clean string and strip BOM, quotes, whitespace
 function cleanStr(val: any): string | null {
   if (val === undefined || val === null) return null;
-  const s = String(val).trim();
+  let s = String(val).trim();
+  // Strip BOM and zero-width characters
+  s = s.replace(/^[\uFEFF\uFFFE\u200B\u200C\u200D]+|[\uFEFF\uFFFE\u200B\u200C\u200D]+$/g, "");
+  // Strip outer quotes if any
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
   return s.length > 0 ? s : null;
+}
+
+function normalizeKey(str: string): string {
+  if (!str) return "";
+  let clean = cleanStr(str) || "";
+  return clean.toLowerCase().replace(/[^a-z0-9ก-๙]/g, "");
+}
+
+// RFC 4180 Compliant CSV Parser with Auto-Delimiter & UTF-8 Thai Support
+function parseCsvText(csvText: string): string[][] {
+  // Strip BOM
+  let text = csvText;
+  if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1);
+  }
+
+  // Detect delimiter from first non-empty lines
+  const firstLines = text.split(/\r\n|\n|\r/).filter((l) => l.trim().length > 0).slice(0, 5);
+  let delimiter = ",";
+  if (firstLines.length > 0) {
+    const commaCount = (firstLines[0].match(/,/g) || []).length;
+    const semiCount = (firstLines[0].match(/;/g) || []).length;
+    const tabCount = (firstLines[0].match(/\t/g) || []).length;
+    if (semiCount > commaCount && semiCount > tabCount) delimiter = ";";
+    else if (tabCount > commaCount && tabCount > semiCount) delimiter = "\t";
+  }
+
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') {
+          currentCell += '"';
+          i++; // Skip escaped quote
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentCell += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === delimiter) {
+        currentRow.push(currentCell);
+        currentCell = "";
+      } else if (char === "\r") {
+        if (nextChar === "\n") {
+          i++; // Skip \n in \r\n
+        }
+        currentRow.push(currentCell);
+        rows.push(currentRow);
+        currentRow = [];
+        currentCell = "";
+      } else if (char === "\n") {
+        currentRow.push(currentCell);
+        rows.push(currentRow);
+        currentRow = [];
+        currentCell = "";
+      } else {
+        currentCell += char;
+      }
+    }
+  }
+
+  if (currentCell.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentCell);
+    rows.push(currentRow);
+  }
+
+  return rows.filter((r) => r.some((cell) => cell.trim().length > 0));
 }
 
 export async function POST(req: NextRequest) {
@@ -38,63 +119,71 @@ export async function POST(req: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    const fileName = (file.name || "").toLowerCase();
+    const isCsv = fileName.endsWith(".csv") || fileName.endsWith(".txt");
 
-    // Read workbook with raw buffer
-    const workbook = xlsx.read(buffer, {
-      type: "buffer",
-      codepage: 65001,
-      cellDates: true,
-    });
-
-    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-      return NextResponse.json(
-        { error: "ไม่พบ Sheet ข้อมูลในไฟล์ที่อัปโหลด" },
-        { status: 400 }
-      );
-    }
-
-    // Try finding the best sheet containing store data
     let targetRows: any[][] = [];
-    let selectedSheetName = "";
+    let selectedSource = isCsv ? "CSV (UTF-8)" : "Excel";
 
-    for (const sName of workbook.SheetNames) {
-      const sheet = workbook.Sheets[sName];
-      const rows = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
-      if (rows && rows.length > 0) {
-        for (const r of rows) {
-          const rowText = (r || []).map((c) => String(c).toLowerCase()).join(" ");
-          if (
-            rowText.includes("branch") ||
-            rowText.includes("store") ||
-            rowText.includes("สาขา") ||
-            rowText.includes("cust") ||
-            rowText.includes("code")
-          ) {
-            targetRows = rows;
-            selectedSheetName = sName;
-            break;
+    if (isCsv) {
+      // 1. Decode as UTF-8 string directly (Preserves Thai characters 100%)
+      const csvText = buffer.toString("utf-8");
+      targetRows = parseCsvText(csvText);
+    } else {
+      // 2. Excel Workbook
+      const workbook = xlsx.read(buffer, {
+        type: "buffer",
+        codepage: 65001,
+        cellDates: true,
+      });
+
+      if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+        return NextResponse.json(
+          { error: "ไม่พบ Sheet ข้อมูลในไฟล์ Excel ที่อัปโหลด" },
+          { status: 400 }
+        );
+      }
+
+      // Find best sheet
+      for (const sName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sName];
+        const rows = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
+        if (rows && rows.length > 0) {
+          for (const r of rows) {
+            const rowText = (r || []).map((c) => String(c).toLowerCase()).join(" ");
+            if (
+              rowText.includes("branch") ||
+              rowText.includes("store") ||
+              rowText.includes("สาขา") ||
+              rowText.includes("cust") ||
+              rowText.includes("code")
+            ) {
+              targetRows = rows;
+              selectedSource = `Sheet: ${sName}`;
+              break;
+            }
           }
         }
+        if (targetRows.length > 0) break;
       }
-      if (targetRows.length > 0) break;
-    }
 
-    if (targetRows.length === 0) {
-      selectedSheetName = workbook.SheetNames[0];
-      targetRows = xlsx.utils.sheet_to_json<any[]>(workbook.Sheets[selectedSheetName], {
-        header: 1,
-        defval: "",
-      });
+      if (targetRows.length === 0) {
+        selectedSource = `Sheet: ${workbook.SheetNames[0]}`;
+        targetRows = xlsx.utils.sheet_to_json<any[]>(workbook.Sheets[workbook.SheetNames[0]], {
+          header: 1,
+          defval: "",
+        });
+      }
     }
 
     if (!targetRows || targetRows.length === 0) {
       return NextResponse.json(
-        { error: "ไฟล์ไม่มีข้อมูลแถวใน Sheet" },
+        { error: "ไฟล์ไม่มีข้อมูลแถว (Empty file)" },
         { status: 400 }
       );
     }
 
-    // Find the header row index
+    // Header Detection
     let headerRowIdx = -1;
     let branchColIdx = -1;
     let nameCustColIdx = -1;
@@ -107,8 +196,6 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < Math.min(targetRows.length, 15); i++) {
       const row = targetRows[i];
       if (!Array.isArray(row)) continue;
-
-      let foundBranch = -1;
 
       for (let c = 0; c < row.length; c++) {
         const raw = String(row[c] || "").trim();
@@ -130,18 +217,15 @@ export async function POST(req: NextRequest) {
           raw.includes("รหัสร้าน") ||
           raw.includes("รหัสลูกค้า")
         ) {
-          foundBranch = c;
+          headerRowIdx = i;
+          branchColIdx = c;
           break;
         }
       }
-
-      if (foundBranch !== -1) {
-        headerRowIdx = i;
-        break;
-      }
+      if (headerRowIdx !== -1) break;
     }
 
-    // If still no explicit header, detect column values like GH-114
+    // Pattern matching if no explicit header
     if (headerRowIdx === -1) {
       for (let i = 0; i < Math.min(targetRows.length, 10); i++) {
         const row = targetRows[i];
@@ -157,12 +241,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Map all columns based on header row
+    // Map columns from header row
     if (headerRowIdx !== -1) {
       const headerRow = targetRows[headerRowIdx];
       for (let c = 0; c < headerRow.length; c++) {
         const raw = String(headerRow[c] || "").trim();
         const norm = normalizeKey(raw);
+
+        if (c === branchColIdx) continue;
 
         if (
           branchColIdx === -1 &&
@@ -183,30 +269,42 @@ export async function POST(req: NextRequest) {
         ) {
           branchColIdx = c;
         } else if (
-          norm.includes("cust") ||
-          norm.includes("storenamecust") ||
-          raw.includes("ชื่อสาขา") ||
-          raw.includes("ชื่อลูกค้า")
+          nameCustColIdx === -1 &&
+          (norm.includes("cust") ||
+            norm.includes("storenamecust") ||
+            raw.includes("ชื่อสาขา") ||
+            raw.includes("ชื่อลูกค้า"))
         ) {
           nameCustColIdx = c;
-        } else if (norm === "storename" || norm === "branchname" || raw.includes("ชื่อร้าน")) {
+        } else if (
+          storeNameColIdx === -1 &&
+          (norm === "storename" || norm === "branchname" || raw.includes("ชื่อร้าน"))
+        ) {
           storeNameColIdx = c;
-        } else if (norm === "storeid" || norm === "shopid" || raw.includes("รหัสร้านค้า")) {
+        } else if (
+          storeIdColIdx === -1 &&
+          (norm === "storeid" || norm === "shopid" || raw.includes("รหัสร้านค้า"))
+        ) {
           storeIdColIdx = c;
-        } else if (norm === "province" || norm === "prov" || raw.includes("จังหวัด")) {
+        } else if (
+          provinceColIdx === -1 &&
+          (norm === "province" || norm === "prov" || raw.includes("จังหวัด"))
+        ) {
           provinceColIdx = c;
         } else if (
-          norm === "storetype" ||
-          norm === "type" ||
-          raw.includes("ประเภท") ||
-          raw.includes("ประเภทสาขา")
+          typeColIdx === -1 &&
+          (norm === "storetype" ||
+            norm === "type" ||
+            raw.includes("ประเภท") ||
+            raw.includes("ประเภทสาขา"))
         ) {
           typeColIdx = c;
         } else if (
-          norm === "region" ||
-          norm === "zone" ||
-          raw.includes("ภาค") ||
-          raw.includes("ภูมิภาค")
+          regionColIdx === -1 &&
+          (norm === "region" ||
+            norm === "zone" ||
+            raw.includes("ภาค") ||
+            raw.includes("ภูมิภาค"))
         ) {
           regionColIdx = c;
         }
@@ -229,13 +327,12 @@ export async function POST(req: NextRequest) {
       const rawBranch = cleanStr(row[branchColIdx]);
       if (!rawBranch) continue;
 
-      const lower = rawBranch.toLowerCase();
+      const normBranch = normalizeKey(rawBranch);
       if (
-        lower === "branchcode" ||
-        lower === "branch code" ||
-        lower === "รหัสสาขา" ||
-        lower === "branch" ||
-        lower === "code"
+        normBranch === "branchcode" ||
+        normBranch === "branch" ||
+        normBranch === "code" ||
+        normBranch === "รหัสสาขา"
       ) {
         continue;
       }
@@ -279,7 +376,7 @@ export async function POST(req: NextRequest) {
 
     const newBranchCodes = new Set(newStores.map((s) => s.branchCode));
 
-    // Delete obsolete stores that have no foreign key relations
+    // Delete obsolete stores without active foreign key references
     try {
       await prisma.store.deleteMany({
         where: {
@@ -298,7 +395,7 @@ export async function POST(req: NextRequest) {
       console.warn("Could not delete non-matching stores:", delErr);
     }
 
-    // Upsert all stores from new dimension
+    // Upsert all new stores
     for (const s of newStores) {
       await prisma.store.upsert({
         where: { branchCode: s.branchCode },
@@ -326,7 +423,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `อัปเดต Store Dimension สำเร็จทั้งหมด ${newStores.length.toLocaleString()} สาขา (จาก Sheet: ${selectedSheetName}, ปัจจุบันมีในระบบ ${totalStoresCount.toLocaleString()} สาขา)`,
+      message: `อัปเดต Store Dimension สำเร็จทั้งหมด ${newStores.length.toLocaleString()} สาขา (จาก ${selectedSource}, รวมในระบบ ${totalStoresCount.toLocaleString()} สาขา)`,
       importedCount: newStores.length,
       totalCount: totalStoresCount,
     });
