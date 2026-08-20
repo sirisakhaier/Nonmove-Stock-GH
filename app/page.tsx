@@ -2,222 +2,317 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, Store, Phone, User, ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
-import { validateThaiPhone } from "@/lib/validators";
+import Link from "next/link";
+import {
+  Store,
+  MapPin,
+  User,
+  Phone,
+  ArrowRight,
+  BarChart3,
+  Layers,
+  CheckCircle2,
+  ShieldAlert,
+  Sparkles,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import { isValidThaiPhone } from "@/lib/validators";
 
 export default function IdentifyPage() {
   const router = useRouter();
   const [regions, setRegions] = useState<string[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [stores, setStores] = useState<any[]>([]);
-  const [selectedStore, setSelectedStore] = useState<string>("");
-  const [name, setName] = useState<string>("");
-  const [phone, setPhone] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isLoadingRegions, setIsLoadingRegions] = useState(true);
+  const [isLoadingStores, setIsLoadingStores] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // Check if session cookie exists
   useEffect(() => {
     fetch("/api/regions")
       .then((res) => res.json())
       .then((data) => {
-        if (data.regions) setRegions(data.regions);
+        setRegions(data.regions || []);
+        setIsLoadingRegions(false);
       })
-      .catch((err) => console.error("Error loading regions:", err));
+      .catch(() => setIsLoadingRegions(false));
   }, []);
 
-  // Fetch stores when region changes
   useEffect(() => {
     if (!selectedRegion) {
       setStores([]);
-      setSelectedStore("");
+      setSelectedBranch("");
       return;
     }
+
+    setIsLoadingStores(true);
     fetch(`/api/stores?region=${encodeURIComponent(selectedRegion)}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.stores) setStores(data.stores);
+        setStores(data.stores || []);
+        setIsLoadingStores(false);
       })
-      .catch((err) => console.error("Error loading stores:", err));
+      .catch(() => setIsLoadingStores(false));
   }, [selectedRegion]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage(null);
-
     if (!selectedRegion) {
-      setErrorMessage("Please select your Region.");
+      setErrorMsg("กรุณาเลือกภูมิภาค");
       return;
     }
-    if (!selectedStore) {
-      setErrorMessage("Please select your Store / Branch.");
+    if (!selectedBranch) {
+      setErrorMsg("กรุณาเลือกสาขาของคุณ");
       return;
     }
-    if (!name.trim() || name.trim().length < 2) {
-      setErrorMessage("Please enter your Name (at least 2 characters).");
+    if (!name.trim()) {
+      setErrorMsg("กรุณาระบุชื่อ-นามสกุล");
       return;
     }
-    if (!validateThaiPhone(phone)) {
-      setErrorMessage("Please enter a valid 10-digit phone number (e.g. 0812345678).");
+    if (!isValidThaiPhone(phone)) {
+      setErrorMsg("กรุณาระบุเบอร์โทรศัพท์มือถือ 10 หลักที่ถูกต้อง (เช่น 0812345678)");
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
+    setErrorMsg("");
 
     try {
+      const branchObj = stores.find((s) => s.branchCode === selectedBranch);
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
+          branchCode: selectedBranch,
+          userName: name.trim(),
           phone: phone.trim(),
-          branchCode: selectedStore,
-          region: selectedRegion,
         }),
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to identify session");
+        throw new Error("บันทึกข้อมูลการเข้าสู่ระบบไม่สำเร็จ");
       }
 
-      router.push(`/dashboard/${selectedStore}`);
+      // Save store session in localStorage
+      localStorage.setItem(
+        "nonmove_user_session",
+        JSON.stringify({
+          branchCode: selectedBranch,
+          branchName: branchObj?.storeNameCust || selectedBranch,
+          userName: name.trim(),
+          phone: phone.trim(),
+          region: selectedRegion,
+        })
+      );
+
+      router.push(`/dashboard/${selectedBranch}`);
     } catch (err: any) {
-      setErrorMessage(err.message || "Something went wrong.");
-      setIsLoading(false);
+      setErrorMsg(err.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-slate-900 flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-      {/* Background glow decorations */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-sky-500/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
-        {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-sky-500 rounded-2xl flex items-center justify-center text-white mx-auto shadow-xl shadow-sky-500/30 mb-3">
-            <Activity className="w-8 h-8" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex flex-col justify-between py-10 px-4 sm:px-6 lg:px-8 text-white">
+      {/* Header Bar */}
+      <div className="max-w-5xl mx-auto w-full flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+            <BarChart3 className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Non-Move Stock Analysis</h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-1">
-            Store & Regional Inventory Performance Dashboard
-          </p>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-white leading-tight">
+              Non-Move Stock Analysis
+            </h1>
+            <p className="text-xs text-slate-400">ระบบบริหารจัดการและวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว</p>
+          </div>
         </div>
 
-        {/* Card Form */}
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 sm:p-8 shadow-2xl border border-slate-100">
+        {/* Quick Portal Switchers */}
+        <div className="hidden sm:flex items-center gap-2">
+          <Link
+            href="/viewer"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur hover:bg-white/20 transition-all"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            ภาพรวมผู้บริหาร (Viewer)
+          </Link>
+          <Link
+            href="/approvals"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 border border-amber-500/30 backdrop-blur hover:bg-amber-500/30 transition-all"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            ระบบอนุมัติ
+          </Link>
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-purple-500/20 px-3 py-1.5 text-xs font-semibold text-purple-300 border border-purple-500/30 backdrop-blur hover:bg-purple-500/30 transition-all"
+          >
+            <ShieldAlert className="h-3.5 w-3.5" />
+            ผู้ดูแลระบบ (Admin)
+          </Link>
+        </div>
+      </div>
+
+      {/* Main Login Card */}
+      <div className="max-w-md mx-auto w-full my-8">
+        <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/15 p-8 shadow-2xl shadow-black/40">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold border border-blue-400/30 mb-3">
+              <Sparkles className="h-3.5 w-3.5" />
+              ระบบเข้าใช้งานสำหรับพนักงานสาขา
+            </div>
+            <h2 className="text-2xl font-black text-white tracking-tight">
+              ระบุสาขาและตัวตน
+            </h2>
+            <p className="text-xs text-slate-300 mt-1.5">
+              เลือกภูมิภาคและสาขาของคุณเพื่อเข้าสู่แดชบอร์ดรายงาน Non-Move
+            </p>
+          </div>
+
+          {errorMsg && (
+            <div className="mb-5 rounded-xl bg-rose-500/20 border border-rose-500/30 p-3.5 text-xs text-rose-200 flex gap-2.5 items-start">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Region Dropdown */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                1. Select Region
-              </label>
-              <select
-                value={selectedRegion}
-                onChange={(e) => {
-                  setSelectedRegion(e.target.value);
-                  setSelectedStore("");
-                }}
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 transition"
-                required
-              >
-                <option value="">-- Select Region --</option>
-                {regions.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Store Dropdown */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                2. Select Store / Branch
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                1. เลือกภูมิภาค (Region) <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Store className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                <MapPin className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                 <select
-                  value={selectedStore}
-                  onChange={(e) => setSelectedStore(e.target.value)}
-                  disabled={!selectedRegion || stores.length === 0}
-                  className="w-full pl-10 pr-3.5 py-2.5 text-xs rounded-xl border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-slate-100 disabled:opacity-60 transition"
-                  required
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  disabled={isLoadingRegions}
+                  className="w-full rounded-xl border border-white/20 bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-white shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 >
-                  <option value="">
-                    {!selectedRegion ? "Select region first" : "-- Select Store Branch --"}
-                  </option>
-                  {stores.map((s) => (
-                    <option key={s.branchCode} value={s.branchCode}>
-                      {s.branchCode} - {s.storeNameCust || s.storeName || s.province}
+                  <option value="">-- เลือกภูมิภาค / ภาค --</option>
+                  {regions.map((reg) => (
+                    <option key={reg} value={reg} className="bg-slate-800 text-white">
+                      {reg}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Staff Name */}
+            {/* Store Branch Dropdown */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                3. Your Name
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                2. เลือกรหัสสาขา / ร้านค้า <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                <Store className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  disabled={!selectedRegion || isLoadingStores}
+                  className="w-full rounded-xl border border-white/20 bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-white shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50"
+                >
+                  <option value="">
+                    {isLoadingStores ? "กำลังโหลดรายชื่อสาขา..." : "-- เลือกรหัสสาขา --"}
+                  </option>
+                  {stores.map((s) => (
+                    <option key={s.branchCode} value={s.branchCode} className="bg-slate-800 text-white">
+                      {s.branchCode} - {s.storeNameCust}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* User Name */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                3. ชื่อผู้เข้าใช้งาน <span className="text-rose-400">*</span>
+              </label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Full Name"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium text-slate-800 transition"
-                  required
+                  placeholder="เช่น สมชาย ใจดี"
+                  className="w-full rounded-xl border border-white/20 bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
               </div>
             </div>
 
             {/* Phone Number */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                4. Phone Number
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                4. เบอร์โทรศัพท์มือถือ (10 หลัก) <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                <Phone className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                 <input
                   type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="08XXXXXXXX"
                   maxLength={10}
-                  className="w-full pl-10 pr-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium text-slate-800 transition"
-                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="08XXXXXXXX"
+                  className="w-full rounded-xl border border-white/20 bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-white font-mono placeholder-slate-500 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
               </div>
             </div>
 
-            {errorMessage && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center space-x-2 animate-shake">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs tracking-wider uppercase shadow-lg shadow-sky-600/30 transition flex items-center justify-center space-x-2 disabled:opacity-50 mt-2"
+              disabled={isSubmitting}
+              className="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/40 hover:bg-blue-500 active:scale-[0.99] transition-all disabled:opacity-50"
             >
-              <span>{isLoading ? "Entering Dashboard..." : "Enter Store Dashboard"}</span>
-              <ArrowRight className="w-4 h-4" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  กำลังเข้าสู่ระบบ...
+                </>
+              ) : (
+                <>
+                  เข้าสู่แดชบอร์ดสาขา
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center space-x-2 text-[11px] text-slate-400">
-            <ShieldCheck className="w-4 h-4 text-slate-400" />
-            <span>Store session logged for audit compliance</span>
+          {/* Quick links on mobile */}
+          <div className="mt-6 pt-5 border-t border-white/10 sm:hidden flex flex-col gap-2">
+            <Link
+              href="/viewer"
+              className="text-center py-2 text-xs font-semibold text-indigo-300 bg-white/5 rounded-xl"
+            >
+              📊 ภาพรวมผู้บริหาร (Viewer)
+            </Link>
+            <Link
+              href="/approvals"
+              className="text-center py-2 text-xs font-semibold text-amber-300 bg-white/5 rounded-xl"
+            >
+              ✅ ระบบอนุมัติคำขอ (Approvals)
+            </Link>
+            <Link
+              href="/admin"
+              className="text-center py-2 text-xs font-semibold text-purple-300 bg-white/5 rounded-xl"
+            >
+              ⚙️ จัดการระบบ (Admin)
+            </Link>
           </div>
         </div>
       </div>
-    </main>
+
+      {/* Footer Note */}
+      <div className="text-center text-xs text-slate-500">
+        ระบบวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว &copy; 2026 Non-Move Stock App. All rights reserved.
+      </div>
+    </div>
   );
 }

@@ -1,280 +1,322 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, X, Eye, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  Check,
+  X,
+  MessageSquare,
+  Image as ImageIcon,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  ChevronRight,
+  Search,
+} from "lucide-react";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { PhotoLightbox } from "./PhotoLightbox";
+import { formatCurrency } from "@/lib/validators";
 
-interface ApprovalQueueTableProps {
-  requests: any[];
-  onRefresh: () => void;
-  passcode: string;
+interface SkuRequestItem {
+  id: string;
+  branchCode: string;
+  productCode: string;
+  requestType: "EXPLAIN" | "EXCLUDE";
+  reason: string;
+  comments?: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "EXPLAINED";
+  reviewComment?: string | null;
+  reviewedBy?: string | null;
+  requestedAt: string;
+  reviewedAt?: string | null;
+  store: {
+    branchCode: string;
+    storeNameCust: string;
+    region: string;
+  };
+  product: {
+    productCode: string;
+    productName: string;
+    model?: string | null;
+    category?: string | null;
+  };
+  photos: {
+    id: string;
+    photoUrl: string;
+  }[];
 }
 
-export const ApprovalQueueTable: React.FC<ApprovalQueueTableProps> = ({
-  requests,
-  onRefresh,
-  passcode,
-}) => {
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [activeActionReq, setActiveActionReq] = useState<any | null>(null);
-  const [actionType, setActionType] = useState<"APPROVED" | "REJECTED">("APPROVED");
-  const [comment, setComment] = useState("");
-  const [reviewerName, setReviewerName] = useState("Regional Approver");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+interface ApprovalQueueProps {
+  requests: SkuRequestItem[];
+  onDecision: (id: string, decision: "APPROVED" | "REJECTED", comment?: string) => Promise<void>;
+  isLoading: boolean;
+}
 
-  const handleAction = async () => {
-    if (actionType === "REJECTED" && !comment.trim()) {
-      setErrorMsg("A rejection comment is required.");
+export function ApprovalQueueTable({ requests, onDecision, isLoading }: ApprovalQueueProps) {
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<{ id: string; decision: "APPROVED" | "REJECTED" } | null>(null);
+  const [comment, setComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("PENDING");
+  const [regionFilter, setRegionFilter] = useState<string>("ALL");
+
+  const regions = Array.from(new Set(requests.map((r) => r.store.region))).filter(Boolean);
+
+  const filteredRequests = requests.filter((r) => {
+    if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
+    if (regionFilter !== "ALL" && r.store.region !== regionFilter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return (
+        r.productCode.toLowerCase().includes(q) ||
+        r.product?.productName?.toLowerCase().includes(q) ||
+        r.product?.model?.toLowerCase().includes(q) ||
+        r.branchCode.toLowerCase().includes(q) ||
+        r.store?.storeNameCust?.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  const handleConfirmDecision = async () => {
+    if (!activeModal) return;
+    if (activeModal.decision === "REJECTED" && !comment.trim()) {
+      alert("กรุณาระบุเหตุผลการไม่อนุมัติ");
       return;
     }
-
     setIsSubmitting(true);
-    setErrorMsg(null);
-
     try {
-      const res = await fetch(`/api/requests/${activeActionReq.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: actionType,
-          reviewComment: comment,
-          reviewedByName: reviewerName,
-          passcode,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to update request");
-      }
-
-      setActiveActionReq(null);
+      await onDecision(activeModal.id, activeModal.decision, comment);
+      setActiveModal(null);
       setComment("");
-      onRefresh();
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to submit decision");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-            <tr>
-              <th className="p-3.5 pl-5">Store & Region</th>
-              <th className="p-3.5">Product & Model</th>
-              <th className="p-3.5">Type</th>
-              <th className="p-3.5">Requester & Reason</th>
-              <th className="p-3.5">Photos</th>
-              <th className="p-3.5">Status</th>
-              <th className="p-3.5 pr-5 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-            {requests.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-slate-400">
-                  No requests found matching your filter criteria.
-                </td>
-              </tr>
-            ) : (
-              requests.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50/80 transition">
-                  <td className="p-3.5 pl-5">
-                    <div className="font-bold text-slate-900">{r.branchCode}</div>
-                    <div className="text-[11px] text-slate-500">
-                      {r.store?.storeNameCust || r.store?.region}
-                    </div>
-                  </td>
+    <div className="space-y-4">
+      {/* Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ค้นหารหัสสาขา, ชื่อสาขา, รหัสสินค้า, ชื่อสินค้า..."
+            className="w-full rounded-xl border border-slate-300 pl-9 pr-3 py-2 text-xs text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
 
-                  <td className="p-3.5 max-w-xs">
-                    <div className="font-bold text-slate-900 line-clamp-1">
-                      {r.product?.productName || r.productCode}
-                    </div>
-                    <div className="text-[11px] text-sky-700 font-semibold">
-                      Model: {r.product?.model || "-"} ({r.productCode})
-                    </div>
-                  </td>
+        <select
+          value={regionFilter}
+          onChange={(e) => setRegionFilter(e.target.value)}
+          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+        >
+          <option value="ALL">ทุกภูมิภาค (Region)</option>
+          {regions.map((reg) => (
+            <option key={reg} value={reg}>
+              {reg}
+            </option>
+          ))}
+        </select>
 
-                  <td className="p-3.5">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                        r.requestType === "EXCLUDE"
-                          ? "bg-rose-50 text-rose-700 border border-rose-200"
-                          : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                      }`}
-                    >
-                      {r.requestType}
-                    </span>
-                  </td>
-
-                  <td className="p-3.5 max-w-sm">
-                    <div className="text-slate-800 font-semibold">{r.reason}</div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">
-                      By {r.requestedBy?.name || "Staff"} ({r.requestedBy?.phone || "-"}) ·{" "}
-                      {new Date(r.requestedAt).toLocaleDateString()}
-                    </div>
-                  </td>
-
-                  <td className="p-3.5">
-                    {r.photos && r.photos.length > 0 ? (
-                      <div className="flex items-center space-x-1.5">
-                        {r.photos.map((p: any) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => setSelectedPhoto(p.url)}
-                            className="relative group"
-                          >
-                            <img
-                              src={p.url}
-                              alt="Proof"
-                              className="w-9 h-9 object-cover rounded border border-slate-200 hover:ring-2 hover:ring-sky-500 transition"
-                            />
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-slate-400 text-[11px]">No photos</span>
-                    )}
-                  </td>
-
-                  <td className="p-3.5">
-                    <RequestStatusBadge
-                      status={r.status}
-                      requestType={r.requestType}
-                      reviewComment={r.reviewComment}
-                    />
-                  </td>
-
-                  <td className="p-3.5 pr-5 text-center">
-                    {r.status === "PENDING" ? (
-                      <div className="flex items-center justify-center space-x-1.5">
-                        <button
-                          onClick={() => {
-                            setActiveActionReq(r);
-                            setActionType("APPROVED");
-                          }}
-                          className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center space-x-1"
-                        >
-                          <Check className="w-3 h-3" />
-                          <span>Approve</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveActionReq(r);
-                            setActionType("REJECTED");
-                          }}
-                          className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition flex items-center space-x-1"
-                        >
-                          <X className="w-3 h-3" />
-                          <span>Reject</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-slate-400">Decided</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+        >
+          <option value="PENDING">รอการตรวจสอบ (Pending)</option>
+          <option value="APPROVED">อนุมัติแล้ว (Approved)</option>
+          <option value="REJECTED">ไม่อนุมัติ (Rejected)</option>
+          <option value="ALL">ทุกสถานะ</option>
+        </select>
       </div>
 
-      {/* Decision Modal */}
-      {activeActionReq && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-slate-900 text-base">
-                {actionType === "APPROVED" ? "✅ Approve Request" : "❌ Reject Request"}
+      {/* Requests Table */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <tr>
+                <th className="py-3 px-4 font-semibold">สาขา</th>
+                <th className="py-3 px-4 font-semibold">สินค้า</th>
+                <th className="py-3 px-4 font-semibold">ประเภทคำขอ</th>
+                <th className="py-3 px-4 font-semibold">เหตุผล / รายละเอียด</th>
+                <th className="py-3 px-4 font-semibold text-center">รูปหลักฐาน</th>
+                <th className="py-3 px-4 font-semibold text-center">สถานะ</th>
+                <th className="py-3 px-4 font-semibold text-center">การดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    ไม่พบรายการคำขอในสถานะที่เลือก
+                  </td>
+                </tr>
+              ) : (
+                filteredRequests.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <div className="font-bold text-slate-900">{r.branchCode}</div>
+                      <div className="text-[11px] text-slate-500">{r.store.storeNameCust}</div>
+                      <div className="text-[10px] text-blue-600 font-semibold">{r.store.region}</div>
+                    </td>
+                    <td className="py-3 px-4 max-w-xs">
+                      <div className="font-mono font-bold text-slate-900">{r.productCode}</div>
+                      <div className="font-medium text-slate-800 line-clamp-1">
+                        {r.product?.productName}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        รุ่น: {r.product?.model || "-"}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                        r.requestType === "EXCLUDE"
+                          ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                          : "bg-blue-50 text-blue-700 border border-blue-200"
+                      }`}>
+                        {r.requestType === "EXCLUDE" ? "ขอยกเว้น (Exclusion)" : "ชี้แจง (Explain)"}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 max-w-sm">
+                      <div className="font-semibold text-slate-900">{r.reason}</div>
+                      {r.comments && (
+                        <div className="text-slate-600 text-[11px] mt-0.5 line-clamp-2">
+                          {r.comments}
+                        </div>
+                      )}
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        ยื่นเมื่อ: {new Date(r.requestedAt).toLocaleString("th-TH")}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      {r.photos && r.photos.length > 0 ? (
+                        <div className="flex items-center justify-center gap-1">
+                          {r.photos.map((p, idx) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setSelectedPhoto(p.photoUrl)}
+                              className="relative h-9 w-9 rounded-lg overflow-hidden border border-slate-200 hover:opacity-80 transition-opacity"
+                            >
+                              <img src={p.photoUrl} alt="proof" className="h-full w-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">-</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <RequestStatusBadge status={r.status} requestType={r.requestType} />
+                      {r.reviewComment && (
+                        <div className="text-[10px] text-slate-500 mt-1 max-w-[150px] truncate mx-auto">
+                          เหตุผล: {r.reviewComment}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      {r.status === "PENDING" ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setActiveModal({ id: r.id, decision: "APPROVED" })}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            อนุมัติ
+                          </button>
+                          <button
+                            onClick={() => setActiveModal({ id: r.id, decision: "REJECTED" })}
+                            className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            ไม่อนุมัติ
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">ดำเนินการแล้ว</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Lightbox for Photo Preview */}
+      <PhotoLightbox
+        isOpen={!!selectedPhoto}
+        onClose={() => setSelectedPhoto(null)}
+        photoUrl={selectedPhoto || ""}
+      />
+
+      {/* Decision Confirmation Modal */}
+      {activeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-xl ${
+                activeModal.decision === "APPROVED" ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
+              }`}>
+                {activeModal.decision === "APPROVED" ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
+              </div>
+              <h3 className="text-base font-bold text-slate-900">
+                {activeModal.decision === "APPROVED" ? "ยืนยันการอนุมัติคำขอ" : "ยืนยันการปฏิเสธคำขอ"}
               </h3>
-              <button onClick={() => setActiveActionReq(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            <div className="text-xs text-slate-600 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <p>
-                <strong>Store:</strong> {activeActionReq.branchCode}
-              </p>
-              <p>
-                <strong>Product:</strong> {activeActionReq.product?.productName} ({activeActionReq.productCode})
-              </p>
-              <p>
-                <strong>Requester Reason:</strong> {activeActionReq.reason}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Reviewer Name</label>
-              <input
-                type="text"
-                value={reviewerName}
-                onChange={(e) => setReviewerName(e.target.value)}
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500"
-              />
-            </div>
+            <p className="text-xs text-slate-600">
+              {activeModal.decision === "APPROVED"
+                ? "เมื่ออนุมัติ สินค้านี้จะถูกยกเว้นจากการคำนวณ Non-Move Stock ของสาขา"
+                : "กรุณาระบุเหตุผลการไม่อนุมัติเพื่อให้สาขาทราบและปรับปรุงข้อมูล"
+              }
+            </p>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Review Comment {actionType === "REJECTED" ? "(Required)" : "(Optional)"}
+                ความคิดเห็นของผู้ตรวจสอบ {activeModal.decision === "REJECTED" && <span className="text-rose-500">* (จำเป็น)</span>}
               </label>
               <textarea
                 rows={3}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder={
-                  actionType === "APPROVED"
-                    ? "e.g. Approved exception for showroom display unit."
-                    : "e.g. Stock still marketable, please reposition to main promotion display."
-                }
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500"
+                placeholder="ระบุข้อความหรือคำแนะนำถึงสาขา..."
+                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
 
-            {errorMsg && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center space-x-1.5">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2">
               <button
-                onClick={() => setActiveActionReq(null)}
-                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                type="button"
+                onClick={() => { setActiveModal(null); setComment(""); }}
+                disabled={isSubmitting}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Cancel
+                ยกเลิก
               </button>
               <button
-                onClick={handleAction}
+                type="button"
+                onClick={handleConfirmDecision}
                 disabled={isSubmitting}
-                className={`px-4 py-2 rounded-lg text-xs font-bold text-white transition ${
-                  actionType === "APPROVED"
+                className={`rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors ${
+                  activeModal.decision === "APPROVED"
                     ? "bg-emerald-600 hover:bg-emerald-700"
                     : "bg-rose-600 hover:bg-rose-700"
                 }`}
               >
-                {isSubmitting ? "Processing..." : `Confirm ${actionType}`}
+                {isSubmitting ? "กำลังบันทึก..." : "ยืนยันผลการพิจารณา"}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Lightbox */}
-      <PhotoLightbox
-        isOpen={!!selectedPhoto}
-        photoUrl={selectedPhoto}
-        onClose={() => setSelectedPhoto(null)}
-      />
     </div>
   );
-};
+}

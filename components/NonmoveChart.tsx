@@ -6,86 +6,134 @@ import {
   Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Cell,
-  CartesianGrid,
 } from "recharts";
 
-interface ChartItem {
-  bucket: string;
-  count: number;
-  classification: "HIGH" | "OK";
+interface ChartProps {
+  bucketData: { bucket: string; count: number; isHigh: boolean }[];
+  categoryData: { category: string; value: number; count: number }[];
 }
 
-interface NonmoveChartProps {
-  data: ChartItem[];
-}
+export function NonmoveChart({ bucketData, categoryData }: ChartProps) {
+  const formatBaht = (val: number) => {
+    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+    return val.toLocaleString("th-TH");
+  };
 
-export const NonmoveChart: React.FC<NonmoveChartProps> = ({ data }) => {
   return (
-    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-base font-bold text-slate-900">Non-move Days Distribution</h3>
-          <p className="text-xs text-slate-500">Count of SKUs per aging non-move bucket</p>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Bucket Distribution */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">
+              การกระจายตัวตามช่วงวันไม่เคลื่อนไหว
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              จำนวนรายการสินค้า (SKU) ตามช่วงวัน Non-move
+            </p>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-sm bg-emerald-500 inline-block" />
+              <span className="text-slate-600">ปกติ (&le; 120 วัน)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-sm bg-rose-500 inline-block" />
+              <span className="text-slate-600 font-semibold">วิกฤต (&gt; 120 วัน)</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-4 text-xs font-medium">
-          <div className="flex items-center space-x-1.5">
-            <span className="w-3 h-3 rounded bg-emerald-500"></span>
-            <span className="text-slate-600">OK (&lt; 121d)</span>
-          </div>
-          <div className="flex items-center space-x-1.5">
-            <span className="w-3 h-3 rounded bg-rose-500"></span>
-            <span className="text-slate-600">High Non-move (&ge; 121d)</span>
-          </div>
+
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={bucketData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis
+                dataKey="bucket"
+                tick={{ fontSize: 11, fill: "#64748b" }}
+                angle={-25}
+                textAnchor="end"
+                interval={0}
+              />
+              <YAxis tick={{ fontSize: 11, fill: "#64748b" }} allowDecimals={false} />
+              <Tooltip
+                formatter={(value: any) => [`${value} รายการ (SKU)`, "จำนวนสินค้า"]}
+                labelFormatter={(label) => `ช่วงวัน: ${label} วัน`}
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  fontSize: "12px",
+                }}
+              />
+              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                {bucketData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.isHigh ? "#f43f5e" : "#10b981"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="h-64 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis
-              dataKey="bucket"
-              tick={{ fill: "#64748b", fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: "#e2e8f0" }}
-            />
-            <YAxis
-              tick={{ fill: "#64748b", fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: "#e2e8f0" }}
-            />
-            <Tooltip
-              cursor={{ fill: "#f8fafc" }}
-              content={({ active, payload }) => {
-                if (active && payload && payload.length) {
-                  const item = payload[0].payload as ChartItem;
-                  return (
-                    <div className="bg-slate-900 text-white p-3 rounded-lg shadow-lg text-xs space-y-1">
-                      <p className="font-bold text-slate-200">Bucket: {item.bucket} Days</p>
-                      <p className="text-sky-400 font-semibold">Models: {item.count} SKUs</p>
-                      <p className={item.classification === "HIGH" ? "text-rose-400 font-semibold" : "text-emerald-400 font-semibold"}>
-                        Status: {item.classification === "HIGH" ? "High Non-move" : "OK"}
-                      </p>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-              {data.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={entry.classification === "HIGH" ? "#f43f5e" : "#10b981"}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+      {/* Category Breakdown */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">
+              มูลค่าสต๊อกแยกตามหมวดหมู่สินค้า
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              มูลค่าสต๊อกสินค้าไม่เคลื่อนไหว (บาท)
+            </p>
+          </div>
+        </div>
+
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={categoryData.slice(0, 6)}
+              layout="vertical"
+              margin={{ top: 10, right: 30, left: 20, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 11, fill: "#64748b" }}
+                tickFormatter={formatBaht}
+              />
+              <YAxis
+                type="category"
+                dataKey="category"
+                tick={{ fontSize: 11, fill: "#475569" }}
+                width={120}
+              />
+              <Tooltip
+                formatter={(value: any) => [
+                  `฿${Number(value).toLocaleString("th-TH", { minimumFractionDigits: 2 })}`,
+                  "มูลค่าสต๊อก",
+                ]}
+                labelFormatter={(label) => `หมวดหมู่: ${label}`}
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  fontSize: "12px",
+                }}
+              />
+              <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
-};
+}

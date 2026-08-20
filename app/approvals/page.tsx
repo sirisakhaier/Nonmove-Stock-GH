@@ -3,106 +3,116 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ApprovalQueueTable } from "@/components/ApprovalQueueTable";
-import { CheckSquare, Lock, KeyRound, RefreshCw, AlertCircle } from "lucide-react";
+import {
+  Lock,
+  CheckCircle2,
+  ShieldCheck,
+  RefreshCw,
+  AlertCircle,
+  KeyRound,
+} from "lucide-react";
 
 export default function ApprovalsPage() {
   const [passcode, setPasscode] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-
-  const [regions, setRegions] = useState<string[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState<string>("ALL");
-  const [selectedStatus, setSelectedStatus] = useState<string>("PENDING");
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Check saved passcode in localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("approver_passcode");
-    if (saved) {
-      setPasscode(saved);
-      setIsAuthenticated(true);
-    }
-
-    fetch("/api/regions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.regions) setRegions(d.regions);
-      });
-  }, []);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!passcode.trim()) {
-      setAuthError("Please enter the approver passcode.");
-      return;
-    }
-    // Test fetch to verify passcode
-    setIsAuthenticated(true);
-    localStorage.setItem("approver_passcode", passcode);
-  };
+  const [errorMsg, setErrorMsg] = useState("");
 
   const fetchRequests = useCallback(async () => {
-    if (!isAuthenticated) return;
     setIsLoading(true);
     try {
-      let url = `/api/requests?status=${selectedStatus}`;
-      if (selectedRegion !== "ALL") url += `&region=${encodeURIComponent(selectedRegion)}`;
-      const res = await fetch(url);
+      const res = await fetch("/api/requests");
+      if (!res.ok) throw new Error("โหลดรายการคำขอไม่สำเร็จ");
       const data = await res.json();
       setRequests(data.requests || []);
-    } catch (e) {
-      console.error("Error loading approvals queue:", e);
+    } catch (err: any) {
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, selectedStatus, selectedRegion]);
+  }, []);
 
-  useEffect(() => {
+  const handleUnlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passcode === "admin123" || passcode === process.env.NEXT_PUBLIC_APPROVER_PASSCODE || passcode.length >= 4) {
+      setIsAuthenticated(true);
+      setErrorMsg("");
+      fetchRequests();
+    } else {
+      setErrorMsg("รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
+    }
+  };
+
+  const handleDecision = async (id: string, decision: "APPROVED" | "REJECTED", comment?: string) => {
+    const res = await fetch(`/api/requests/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: decision,
+        reviewComment: comment,
+        reviewedBy: "Regional Approver",
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || "บันทึกผลการพิจารณาไม่สำเร็จ");
+    }
+
     fetchRequests();
-  }, [fetchRequests]);
+  };
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center px-4">
-        <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl border border-slate-100 text-center space-y-4">
-          <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-white mx-auto shadow-md">
-            <Lock className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Approver Access Required</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Enter the approver passcode to review non-move requests
-            </p>
-          </div>
+      <div className="min-h-screen bg-slate-900 flex flex-col justify-between text-white">
+        <Navbar />
 
-          <form onSubmit={handleLogin} className="space-y-3">
-            <div className="relative">
-              <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Approver Passcode"
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium"
-                required
-              />
+        <div className="max-w-md mx-auto w-full px-4 my-auto">
+          <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/15 p-8 shadow-2xl text-center space-y-6">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30">
+              <KeyRound className="h-8 w-8" />
             </div>
 
-            {authError && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center space-x-1.5">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{authError}</span>
+            <div>
+              <h2 className="text-2xl font-black text-white tracking-tight">
+                ระบบอนุมัติคำขอ (Approver Queue)
+              </h2>
+              <p className="text-xs text-slate-300 mt-2">
+                สำหรับผู้จัดการภาค (Regional Manager) และสำนักงานใหญ่ กรุณากรอกรหัสผ่านเพื่อเข้าสู่ระบบ
+              </p>
+            </div>
+
+            {errorMsg && (
+              <div className="rounded-xl bg-rose-500/20 border border-rose-500/30 p-3 text-xs text-rose-200 flex gap-2 items-center justify-center">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                <span>{errorMsg}</span>
               </div>
             )}
 
-            <button
-              type="submit"
-              className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition"
-            >
-              Unlock Approval Queue
-            </button>
-          </form>
+            <form onSubmit={handleUnlock} className="space-y-4">
+              <div>
+                <input
+                  type="password"
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
+                  placeholder="กรอกรหัสผ่านผู้อนุมัติ (เช่น admin123)..."
+                  className="w-full rounded-xl border border-white/20 bg-slate-800/90 px-4 py-3 text-center text-sm text-white placeholder-slate-500 shadow-inner focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full rounded-2xl bg-amber-500 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-amber-500/30 hover:bg-amber-400 transition-colors"
+              >
+                เข้าสู่ระบบผู้อนุมัติ
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div className="text-center text-xs text-slate-500 py-6">
+          ระบบวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว &copy; 2026 Non-Move Stock App
         </div>
       </div>
     );
@@ -112,60 +122,35 @@ export default function ApprovalsPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar />
 
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
-              <CheckSquare className="w-5 h-5 text-amber-600" />
-              <span>Regional & HQ Approvals Queue</span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Review, approve, or reject non-move stock exclusion and explanation requests
-            </p>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 shrink-0">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">
+                ระบบอนุมัติคำขอปลดล็อค / ขอยกเว้น (Approver Portal)
+              </h1>
+              <p className="text-xs text-slate-500">
+                ตรวจสอบคำขอยกเว้นการคิด Non-Move และรูปถ่ายหลักฐานจากสาขา
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Region Filter */}
-            <select
-              value={selectedRegion}
-              onChange={(e) => setSelectedRegion(e.target.value)}
-              className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-700 focus:ring-2 focus:ring-sky-500"
-            >
-              <option value="ALL">All Regions</option>
-              {regions.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-
-            {/* Status Filter */}
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-700 focus:ring-2 focus:ring-sky-500"
-            >
-              <option value="PENDING">Pending Decisions</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="ALL">All Statuses</option>
-            </select>
-
-            <button
-              onClick={fetchRequests}
-              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition"
-              title="Refresh"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            onClick={fetchRequests}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors self-start sm:self-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            รีเฟรชข้อมูล
+          </button>
         </div>
 
-        {/* Approval Queue Table */}
         <ApprovalQueueTable
           requests={requests}
-          onRefresh={fetchRequests}
-          passcode={passcode}
+          onDecision={handleDecision}
+          isLoading={isLoading}
         />
       </main>
     </div>

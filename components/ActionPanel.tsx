@@ -1,335 +1,340 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Upload, CheckCircle2, Clock, XCircle, AlertCircle, Image as ImageIcon, Send } from "lucide-react";
-import { formatCurrency, formatNumber } from "@/lib/validators";
+import { X, Upload, FileText, ShieldAlert, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { RequestStatusBadge } from "./RequestStatusBadge";
+import { formatCurrency } from "@/lib/validators";
 
 interface ActionPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  product: {
+    productCode: string;
+    productName: string;
+    model: string;
+    categoryName: string;
+    subCategory: string;
+    nonmoveDaysBucket: string;
+    agingDaysBucket: string;
+    stockQty: number;
+    stockValue: number;
+    activeRequest?: any;
+  } | null;
   branchCode: string;
-  item: any | null;
   onSuccess: () => void;
 }
 
-export const ActionPanel: React.FC<ActionPanelProps> = ({
+export function ActionPanel({
   isOpen,
   onClose,
+  product,
   branchCode,
-  item,
   onSuccess,
-}) => {
+}: ActionPanelProps) {
   const [activeTab, setActiveTab] = useState<"EXPLAIN" | "EXCLUDE">("EXPLAIN");
   const [reason, setReason] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
 
-  if (!isOpen || !item) return null;
+  if (!isOpen || !product) return null;
 
-  const activeRequest = item.activeRequest;
-  const isPending = activeRequest?.status === "PENDING";
-  const isApproved = activeRequest?.status === "APPROVED";
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const filesArray = Array.from(e.target.files).slice(0, 5);
-      setSelectedFiles(filesArray);
-      const urls = filesArray.map((f) => URL.createObjectURL(f));
-      setPreviewUrls(urls);
+      const newFiles = Array.from(e.target.files);
+      setPhotos((prev) => [...prev, ...newFiles]);
+      const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
+      setPhotoPreviews((prev) => [...prev, ...newPreviews]);
     }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
-      setErrorMessage("Please enter a reason or explanation.");
+      setErrorMsg("กรุณาระบุเหตุผล");
+      return;
+    }
+
+    if (activeTab === "EXCLUDE" && photos.length === 0) {
+      setErrorMsg("การขอปลดล็อค/ยกเว้น จำเป็นต้องแนบรูปถ่ายหลักฐานอย่างน้อย 1 รูป");
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+    setErrorMsg("");
 
     try {
-      let uploadedPhotoUrls: string[] = [];
-
-      if (selectedFiles.length > 0) {
+      // 1. Upload photos if any
+      const photoUrls: string[] = [];
+      for (const photo of photos) {
         const formData = new FormData();
-        for (const file of selectedFiles) {
-          formData.append("files", file);
-        }
-        const uploadRes = await fetch("/api/uploads", {
+        formData.append("file", photo);
+        const upRes = await fetch("/api/uploads", {
           method: "POST",
           body: formData,
         });
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.error || "Failed to upload photos");
+        if (upRes.ok) {
+          const upData = await upRes.json();
+          photoUrls.push(upData.url);
         }
-        uploadedPhotoUrls = uploadData.urls || [];
       }
+
+      // 2. Submit request
+      const payload = {
+        branchCode,
+        productCode: product.productCode,
+        requestType: activeTab,
+        reason,
+        comments,
+        photos: photoUrls,
+      };
 
       const res = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          branchCode,
-          productCode: item.productCode,
-          requestType: activeTab,
-          reason,
-          photoUrls: uploadedPhotoUrls,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to submit request");
+        const data = await res.json();
+        throw new Error(data.error || "บันทึกข้อมูลไม่สำเร็จ");
       }
 
-      setSuccessMessage("Your request has been submitted and is pending approval!");
-      setReason("");
-      setSelectedFiles([]);
-      setPreviewUrls([]);
-      setTimeout(() => {
-        onSuccess();
-        onClose();
-      }, 1500);
+      onSuccess();
+      onClose();
     } catch (err: any) {
-      setErrorMessage(err.message || "Something went wrong. Please try again.");
+      setErrorMsg(err.message || "เกิดข้อผิดพลาดในการส่งข้อมูล");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const presetReasons = activeTab === "EXPLAIN" ? [
+    "สินค้าตัวโชว์หน้าร้าน (Display / Mock-up)",
+    "รอลูกค้ารับสินค้า / รอส่งมอบ",
+    "สินค้าชำรุดรอส่งเคลมศูนย์บริการ",
+    "สินค้าจัดโปรโมชั่น / รอแคมเปญ",
+    "ลูกค้าสอบถามต่อเนื่องแต่ยังไม่ปิดการขาย",
+    "อื่นๆ (ระบุในคำอธิบายเพิ่มเติม)",
+  ] : [
+    "สินค้าตัวโชว์หน้าร้าน (Display Mock-up) - มีรูปป้ายและสินค้า",
+    "สินค้าติดจองมัดจำแล้ว - มีใบเสร็จรับเงิน/มัดจำ",
+    "สินค้าชำรุดส่งเคลม - มีเอกสารส่งเคลม",
+    "ข้อผิดพลาดทางระบบสต๊อก / รอปรับยอด",
+    "อื่นๆ (ต้องมีหลักฐานชัดเจน)",
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 backdrop-blur-sm transition-opacity flex justify-end">
-      <div className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
-        {/* Header */}
-        <div className="p-5 border-b border-slate-200 flex items-start justify-between bg-slate-50">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold uppercase tracking-wider bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
-                {item.categoryName}
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 backdrop-blur-sm transition-opacity">
+      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
+        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                บันทึกข้อมูลสินค้า / การดำเนินการ
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                รหัสสินค้า: {product.productCode}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Product Summary Mini Card */}
+          <div className="bg-blue-50/70 border-b border-blue-100 p-4">
+            <div className="text-sm font-semibold text-slate-900 line-clamp-2">
+              {product.productName}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
+              <span className="bg-white px-2 py-0.5 rounded border border-blue-200">
+                รุ่น: {product.model}
               </span>
-              <span className="text-xs font-semibold text-slate-500">Barcode: {item.productCode}</span>
+              <span className="bg-white px-2 py-0.5 rounded border border-blue-200">
+                ช่วงวัน: {product.nonmoveDaysBucket} วัน
+              </span>
+              <span className="bg-white px-2 py-0.5 rounded border border-blue-200 font-semibold text-blue-700">
+                สต๊อก: {product.stockQty} ชิ้น ({formatCurrency(product.stockValue)})
+              </span>
             </div>
-            <h2 className="text-lg font-bold text-slate-900 mt-1 line-clamp-2">{item.productName}</h2>
-            <p className="text-sm text-sky-700 font-semibold mt-0.5">Model: {item.model}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition p-1.5 rounded-lg hover:bg-slate-200"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="p-6 space-y-6 flex-1">
-          {/* Key Metrics grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-            <div>
-              <span className="text-slate-500">Nonmove Days</span>
-              <p className="font-bold text-slate-900 text-sm mt-0.5">{item.nonmoveDaysBucket}</p>
-            </div>
-            <div>
-              <span className="text-slate-500">Aging Days</span>
-              <p className="font-bold text-slate-900 text-sm mt-0.5">{item.agingDaysBucket}</p>
-            </div>
-            <div>
-              <span className="text-slate-500">Stock Units</span>
-              <p className="font-bold text-slate-900 text-sm mt-0.5">{formatNumber(item.stockQty)}</p>
-            </div>
-            <div>
-              <span className="text-slate-500">Stock Value</span>
-              <p className="font-bold text-emerald-700 text-sm mt-0.5">{formatCurrency(item.stockValue)}</p>
-            </div>
-          </div>
-
-          {/* Current Request Audit History */}
-          {activeRequest && (
-            <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Current Status</span>
+            {product.activeRequest && (
+              <div className="mt-3 pt-2 border-t border-blue-100 flex items-center justify-between text-xs">
+                <span className="text-slate-600">สถานะปัจจุบัน:</span>
                 <RequestStatusBadge
-                  status={activeRequest.status}
-                  requestType={activeRequest.requestType}
-                  reviewComment={activeRequest.reviewComment}
+                  status={product.activeRequest.status}
+                  requestType={product.activeRequest.requestType}
                 />
               </div>
+            )}
+          </div>
 
-              <div className="text-xs space-y-1.5 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <p>
-                  <strong className="text-slate-700">Submitted Reason:</strong> {activeRequest.reason}
-                </p>
-                {activeRequest.reviewedByName && (
-                  <p>
-                    <strong className="text-slate-700">Reviewed by:</strong> {activeRequest.reviewedByName} (
-                    {activeRequest.reviewedAt ? new Date(activeRequest.reviewedAt).toLocaleDateString() : ""})
-                  </p>
-                )}
-                {activeRequest.reviewComment && (
-                  <p className="text-rose-700 font-medium">
-                    <strong>Reviewer Note:</strong> {activeRequest.reviewComment}
-                  </p>
-                )}
-              </div>
+          {/* Form Tabs */}
+          <div className="flex border-b border-slate-200 bg-slate-100/60 p-1.5 gap-1.5">
+            <button
+              type="button"
+              onClick={() => { setActiveTab("EXPLAIN"); setErrorMsg(""); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === "EXPLAIN"
+                  ? "bg-white text-blue-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              1. ชี้แจงเหตุผล (Explain)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab("EXCLUDE"); setErrorMsg(""); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === "EXCLUDE"
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <ShieldAlert className="h-4 w-4" />
+              2. ขอปลดล็อค/ยกเว้น (Exclusion)
+            </button>
+          </div>
 
-              {activeRequest.photos && activeRequest.photos.length > 0 && (
+          {/* Form Content */}
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+            {activeTab === "EXCLUDE" && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 flex gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
                 <div>
-                  <span className="text-xs font-semibold text-slate-600 block mb-1.5">Attached Photos:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {activeRequest.photos.map((p: any) => (
-                      <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="block">
-                        <img
-                          src={p.url}
-                          alt="Proof"
-                          className="w-14 h-14 object-cover rounded-lg border border-slate-200 hover:opacity-80 transition"
-                        />
-                      </a>
-                    ))}
+                  <span className="font-bold block mb-0.5">เงื่อนไขการขอยกเว้น (Exclusion)</span>
+                  คำขอนี้จะถูกส่งไปยังผู้จัดการภาค/สำนักงานใหญ่เพื่อตรวจสอบ และจำเป็นต้องมีรูปถ่ายหลักฐานประกอบ
+                </div>
+              </div>
+            )}
+
+            {errorMsg && (
+              <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700 flex gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {/* Reason Select */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                เหตุผลหลัก <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">-- เลือกเหตุผล --</option>
+                {presetReasons.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Detailed Comments */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                คำอธิบาย / รายละเอียดเพิ่มเติม
+              </label>
+              <textarea
+                rows={3}
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                placeholder="ระบุรายละเอียดเพิ่มเติม หรือแผนการระบายสต๊อก..."
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Photo Attachments */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                รูปถ่ายหลักฐาน {activeTab === "EXCLUDE" ? <span className="text-rose-500">* (จำเป็น)</span> : "(ถ้ามี)"}
+              </label>
+
+              <div className="mt-1 flex justify-center rounded-xl border-2 border-dashed border-slate-300 px-4 py-4 hover:border-blue-400 transition-colors">
+                <div className="text-center">
+                  <Upload className="mx-auto h-7 w-7 text-slate-400" />
+                  <div className="mt-1 text-xs text-slate-600">
+                    <label className="relative cursor-pointer rounded-md font-semibold text-blue-600 hover:text-blue-500">
+                      <span>คลิกเพื่ออัปโหลดรูปภาพ</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="sr-only"
+                      />
+                    </label>
                   </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, JPEG ไม่เกิน 10MB</p>
+                </div>
+              </div>
+
+              {/* Photo Previews */}
+              {photoPreviews.length > 0 && (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {photoPreviews.map((src, idx) => (
+                    <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 aspect-square">
+                      <img src={src} alt="preview" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(idx)}
+                        className="absolute top-1 right-1 rounded-full bg-slate-900/70 p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          )}
 
-          {/* Form to submit action */}
-          {isPending || isApproved ? (
-            <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 text-xs text-sky-800 flex items-start space-x-2.5">
-              <CheckCircle2 className="w-5 h-5 text-sky-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">Request Already Processed or In Review</p>
-                <p className="mt-0.5 text-sky-700">
-                  This SKU has an active request with status <strong>{activeRequest?.status}</strong>. You cannot submit
-                  another request unless the current one is rejected.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Tab Selector */}
-              <div className="flex rounded-lg bg-slate-100 p-1 border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("EXPLAIN")}
-                  className={`flex-1 py-2 text-xs font-bold rounded-md transition ${
-                    activeTab === "EXPLAIN"
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  📝 Explain Non-Move Reason
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("EXCLUDE")}
-                  className={`flex-1 py-2 text-xs font-bold rounded-md transition ${
-                    activeTab === "EXCLUDE"
-                      ? "bg-white text-rose-700 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  🚫 Request Exclusion
-                </button>
-              </div>
-
-              <div className="text-xs text-slate-500">
-                {activeTab === "EXPLAIN" ? (
-                  <p>
-                    Provide store-level context on why this item hasn&apos;t sold (e.g. low foot-traffic aisle, display
-                    defect, waiting on promo).
-                  </p>
-                ) : (
-                  <p>
-                    Request HQ to exclude this SKU from the non-move calculation (e.g. showroom demo unit, reserved order,
-                    returned to vendor). Photos recommended.
-                  </p>
-                )}
-              </div>
-
-              {/* Textarea Reason */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
-                  {activeTab === "EXPLAIN" ? "Explanation Note *" : "Exclusion Justification *"}
-                </label>
-                <textarea
-                  rows={3}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder={
-                    activeTab === "EXPLAIN"
-                      ? "e.g. Display piece is scratched, pending replacement part from vendor..."
-                      : "e.g. SKU is used as floor demonstration, not available for sale..."
-                  }
-                  className="w-full text-xs rounded-lg border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  required
-                />
-              </div>
-
-              {/* Photo Upload */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
-                  Photos (Optional, max 5)
-                </label>
-                <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer relative">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <ImageIcon className="w-6 h-6 text-slate-400 mx-auto mb-1" />
-                  <p className="text-xs font-medium text-slate-600">Click or drag photos here</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG up to 5MB each</p>
-                </div>
-
-                {previewUrls.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {previewUrls.map((url, i) => (
-                      <div key={i} className="relative group">
-                        <img
-                          src={url}
-                          alt="Preview"
-                          className="w-14 h-14 object-cover rounded-lg border border-slate-200 shadow-sm"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {errorMessage && (
-                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              {successMessage && (
-                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  <span>{successMessage}</span>
-                </div>
-              )}
-
+            {/* Submit Actions */}
+            <div className="pt-4 border-t border-slate-200 flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl border border-slate-300 bg-white py-2.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+              >
+                ยกเลิก
+              </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs tracking-wide shadow-md transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
-                <Send className="w-4 h-4" />
-                <span>{isSubmitting ? "Submitting..." : "Submit Action Request"}</span>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    กำลังบันทึก...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    {activeTab === "EXPLAIN" ? "บันทึกคำชี้แจง" : "ส่งคำขอยกเว้น"}
+                  </>
+                )}
               </button>
-            </form>
-          )}
+            </div>
+          </form>
         </div>
       </div>
     </div>
   );
-};
+}

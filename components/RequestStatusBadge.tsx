@@ -1,57 +1,57 @@
 import React from "react";
-import { Clock, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, FileText } from "lucide-react";
 
-interface RequestStatusBadgeProps {
-  status?: "PENDING" | "APPROVED" | "REJECTED" | null;
-  requestType?: "EXPLAIN" | "EXCLUDE" | null;
-  reviewComment?: string | null;
+interface BadgeProps {
+  status?: string | null;
+  requestType?: string | null;
+  className?: string;
 }
 
-export const RequestStatusBadge: React.FC<RequestStatusBadgeProps> = ({
-  status,
-  requestType,
-  reviewComment,
-}) => {
+export function RequestStatusBadge({ status, requestType, className = "" }: BadgeProps) {
   if (!status) {
     return (
-      <span className="inline-flex items-center space-x-1 text-xs text-slate-400 font-medium">
-        <MinusCircle className="w-3.5 h-3.5" />
-        <span>No request</span>
+      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 ${className}`}>
+        ยังไม่มีคำขอ
       </span>
     );
   }
 
-  if (status === "PENDING") {
-    return (
-      <span
-        className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
-        title="Pending review by regional manager"
-      >
-        <Clock className="w-3 h-3 text-amber-500 animate-pulse" />
-        <span>Pending ({requestType || "Review"})</span>
-      </span>
-    );
-  }
+  const typeLabel = requestType === "EXCLUDE" ? "ขอยกเว้น" : "ชี้แจง";
 
-  if (status === "APPROVED") {
-    return (
-      <span
-        className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
-        title={reviewComment ? `Approved: ${reviewComment}` : "Approved by Approver"}
-      >
-        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-        <span>Approved ({requestType || "Exclusion"})</span>
-      </span>
-    );
+  switch (status) {
+    case "PENDING":
+      return (
+        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 ${className}`}>
+          <Clock className="h-3 w-3 animate-pulse" />
+          รอการตรวจสอบ ({typeLabel})
+        </span>
+      );
+    case "APPROVED":
+      return (
+        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 ${className}`}>
+          <CheckCircle2 className="h-3 w-3" />
+          อนุมัติแล้ว ({typeLabel})
+        </span>
+      );
+    case "REJECTED":
+      return (
+        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200 ${className}`}>
+          <XCircle className="h-3 w-3" />
+          ไม่อนุมัติ ({typeLabel})
+        </span>
+      );
+    case "EXPLAINED":
+      return (
+        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 ${className}`}>
+          <FileText className="h-3 w-3" />
+          บันทึกคำชี้แจงแล้ว
+        </span>
+      );
+    default:
+      return (
+        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 ${className}`}>
+          {status}
+        </span>
+      );
   }
-
-  return (
-    <span
-      className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200"
-      title={reviewComment ? `Rejected: ${reviewComment}` : "Rejected"}
-    >
-      <XCircle className="w-3 h-3 text-rose-600" />
-      <span>Rejected ({requestType || "Request"})</span>
-    </span>
-  );
-};
+}
