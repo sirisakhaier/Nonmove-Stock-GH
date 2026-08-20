@@ -202,6 +202,15 @@ export async function GET(req: NextRequest) {
 
     const categories = allCategories.map((c) => c.categoryName).filter(Boolean);
 
+    // Get unique skuTypes including DEMO, SELLABLE, MOCK_UP
+    const allSkuTypes = await prisma.product.findMany({
+      select: { skuType: true },
+      distinct: ["skuType"],
+    });
+    const rawSkuTypes = allSkuTypes.map((p) => p.skuType?.toUpperCase()).filter(Boolean);
+    const skuTypesSet = new Set(["SELLABLE", "DEMO", "MOCK_UP", ...rawSkuTypes]);
+    const skuTypes = Array.from(skuTypesSet);
+
     return NextResponse.json({
       store: {
         branchCode,
@@ -233,6 +242,7 @@ export async function GET(req: NextRequest) {
       categoryBreakdown: categoryData,
       categoryData,
       categories,
+      skuTypes,
     });
   } catch (error: any) {
     console.error("Error in /api/nonmove/summary:", error);

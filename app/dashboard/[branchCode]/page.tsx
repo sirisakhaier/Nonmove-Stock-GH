@@ -40,6 +40,7 @@ export default function StoreDashboard() {
   });
   const [bucketChart, setBucketChart] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [skuTypes, setSkuTypes] = useState<string[]>(["SELLABLE", "DEMO", "MOCK_UP"]);
 
   // Table Data & Filters
   const [tableRows, setTableRows] = useState<any[]>([]);
@@ -85,6 +86,9 @@ export default function StoreDashboard() {
       }
       setBucketChart(data.chartData || []);
       setCategories(data.categories || []);
+      if (data.skuTypes && data.skuTypes.length > 0) {
+        setSkuTypes(data.skuTypes);
+      }
     } catch (error) {
       console.error("Error fetching summary:", error);
     }
@@ -249,6 +253,7 @@ export default function StoreDashboard() {
           selectedStatus={selectedStatus}
           onStatusChange={(st) => { setSelectedStatus(st); setPage(1); }}
           categories={categories}
+          skuTypes={skuTypes}
           highPct={highPct}
           okPct={okPct}
           onSelectProduct={(p) => {

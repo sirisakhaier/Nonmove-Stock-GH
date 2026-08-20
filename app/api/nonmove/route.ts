@@ -1,7 +1,8 @@
-export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { classifyNonmove, NONMOVE_BUCKET_ORDER, getWorstBucket } from "@/lib/nonmoveConfig";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category");
     const nonmoveDays = searchParams.get("nonmoveDaysBucket") || searchParams.get("nonmoveDays");
     const agingDays = searchParams.get("agingDaysBucket") || searchParams.get("agingDays");
-    const skuType = searchParams.get("skuType"); // SELLABLE, MOCK_UP, ALL
+    const skuType = searchParams.get("skuType");
     const search = searchParams.get("search");
     const statusFilter = searchParams.get("status");
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -21,7 +22,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "branchCode is required" }, { status: 400 });
     }
 
-    // Determine report date
     let targetDate: Date;
     if (reportDateStr) {
       targetDate = new Date(reportDateStr);
@@ -54,19 +54,34 @@ export async function GET(req: NextRequest) {
       ];
     }
 
+    // MULTI-BUCKET SUPPORT (Comma-separated or Single)
     if (nonmoveDays && nonmoveDays !== "ALL") {
-      whereClause.nonmoveDaysBucket = nonmoveDays;
+      const buckets = nonmoveDays.split(",").map((s) => s.trim()).filter(Boolean);
+      if (buckets.length === 1) {
+        whereClause.nonmoveDaysBucket = buckets[0];
+      } else if (buckets.length > 1) {
+        whereClause.nonmoveDaysBucket = { in: buckets };
+      }
     }
 
     if (agingDays && agingDays !== "ALL") {
       whereClause.agingDaysBucket = agingDays;
     }
 
+    // SKU_TYPE SUPPORT (SELLABLE, DEMO, MOCK_UP...)
     if (skuType && skuType !== "ALL") {
-      whereClause.product = {
-        ...whereClause.product,
-        skuType,
-      };
+      const types = skuType.split(",").map((s) => s.trim()).filter(Boolean);
+      if (types.length === 1) {
+        whereClause.product = {
+          ...whereClause.product,
+          skuType: { equals: types[0], mode: "insensitive" },
+        };
+      } else if (types.length > 1) {
+        whereClause.product = {
+          ...whereClause.product,
+          skuType: { in: types },
+        };
+      }
     }
 
     if (search && search.trim()) {
@@ -85,7 +100,6 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Fetch active requests for this store
     const requests = await prisma.skuRequest.findMany({
       where: {
         branchCode,
@@ -103,7 +117,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Group rows by ProductCode for model-level status
     const modelMap = new Map<string, {
       productCode: string;
       productName: string;
@@ -136,7 +149,7 @@ export async function GET(req: NextRequest) {
           productName: r.product?.productName || pCode,
           model: r.product?.model || r.designName || "-",
           skuType: r.product?.skuType || "SELLABLE",
-          categoryName: r.categoryName || r.product?.category || "Other",
+          categoryName: r.product?.category || r.categoryName || "Other",
           subCategory: r.product?.subCategory || r.typeName || "-",
           sizeGroup: r.product?.sizeGroup || "-",
           nonmoveDaysBucket: r.nonmoveDaysBucket,
@@ -161,7 +174,6 @@ export async function GET(req: NextRequest) {
 
     let modelList = Array.from(modelMap.values());
 
-    // Compute live % High vs % OK for this filtered view
     let highCount = 0;
     let okCount = 0;
     for (const m of modelList) {
@@ -174,7 +186,6 @@ export async function GET(req: NextRequest) {
     const highPct = activeCount > 0 ? Math.round((highCount / activeCount) * 100) : 0;
     const okPct = activeCount > 0 ? 100 - highPct : 0;
 
-    // Apply status filter
     if (statusFilter && statusFilter !== "ALL") {
       if (statusFilter === "HIGH") {
         modelList = modelList.filter((m) => m.classification === "HIGH" && !m.isExcluded);
@@ -185,37 +196,32 @@ export async function GET(req: NextRequest) {
       } else if (statusFilter === "NO_REQUEST") {
         modelList = modelList.filter((m) => !m.activeRequest);
       } else if (statusFilter === "PENDING") {
-        modelList = modelList.filter((m) => m.activeRequest?.status === "PENDING");
+        modelList = modelList.filter((m) => m.activeRequest && m.activeRequest.status === "PENDING");
       } else if (statusFilter === "APPROVED") {
-        modelList = modelList.filter((m) => m.activeRequest?.status === "APPROVED");
+        modelList = modelList.filter((m) => m.activeRequest && m.activeRequest.status === "APPROVED");
       } else if (statusFilter === "REJECTED") {
-        modelList = modelList.filter((m) => m.activeRequest?.status === "REJECTED");
-      } else if (statusFilter === "EXPLAINED") {
-        modelList = modelList.filter((m) => m.activeRequest?.status === "EXPLAINED" || m.activeRequest?.requestType === "EXPLAIN");
+        modelList = modelList.filter((m) => m.activeRequest && m.activeRequest.status === "REJECTED");
+      } else if (statusFilter === "REVISE") {
+        modelList = modelList.filter((m) => m.activeRequest && m.activeRequest.status === "REVISE");
       }
     }
 
-    // Sort by stockValue descending by default
-    modelList.sort((a, b) => b.stockValue - a.stockValue);
-
-    const totalCount = modelList.length;
+    const total = modelList.length;
     const startIndex = (page - 1) * limit;
-    const paginated = modelList.slice(startIndex, startIndex + limit);
+    const paginatedItems = modelList.slice(startIndex, startIndex + limit);
 
     return NextResponse.json({
-      reportDate: targetDate.toISOString().split("T")[0],
-      total: totalCount,
-      totalCount,
+      data: paginatedItems,
+      items: paginatedItems,
+      total,
       page,
       limit,
-      totalPages: Math.ceil(totalCount / limit) || 1,
-      data: paginated,
-      items: paginated,
+      totalPages: Math.ceil(total / limit) || 1,
       highPct,
       okPct,
     });
   } catch (error: any) {
     console.error("Error in /api/nonmove:", error);
-    return NextResponse.json({ error: error.message || "Failed to fetch non-move data" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to fetch nonmove items" }, { status: 500 });
   }
 }

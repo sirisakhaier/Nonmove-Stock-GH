@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Search,
   Download,
@@ -8,7 +8,11 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   FileEdit,
+  CheckSquare,
+  Square,
+  SlidersHorizontal,
 } from "lucide-react";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { formatNumber } from "@/lib/validators";
@@ -44,13 +48,14 @@ interface TableProps {
   onSearchChange: (newSearch: string) => void;
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
-  selectedBucket: string;
+  selectedBucket: string; // Comma-separated or "ALL"
   onBucketChange: (bucket: string) => void;
   selectedSkuType: string;
   onSkuTypeChange: (skuType: string) => void;
   selectedStatus: string;
   onStatusChange: (status: string) => void;
   categories: string[];
+  skuTypes?: string[];
   highPct: number;
   okPct: number;
   onSelectProduct: (product: ProductModelItem) => void;
@@ -74,12 +79,75 @@ export function ModelExplorerTable({
   selectedStatus,
   onStatusChange,
   categories,
+  skuTypes = ["SELLABLE", "DEMO", "MOCK_UP"],
   highPct,
   okPct,
   onSelectProduct,
   onExport,
 }: TableProps) {
   const totalPages = Math.ceil(total / limit) || 1;
+
+  // Multi-check Popover State
+  const [isBucketOpen, setIsBucketOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Parse currently selected buckets
+  const currentBuckets: string[] =
+    selectedBucket === "ALL" || !selectedBucket
+      ? Array.from(NONMOVE_BUCKET_ORDER)
+      : selectedBucket.split(",").map((b) => b.trim()).filter(Boolean);
+
+  const isAllBucketsSelected = currentBuckets.length === NONMOVE_BUCKET_ORDER.length;
+
+  // Close bucket popover on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setIsBucketOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleToggleBucket = (b: string) => {
+    let next: string[];
+    if (isAllBucketsSelected) {
+      // If previously all were selected, uncheck this one
+      next = (NONMOVE_BUCKET_ORDER as readonly string[]).filter((x) => x !== b);
+    } else if (currentBuckets.includes(b)) {
+      next = currentBuckets.filter((x) => x !== b);
+    } else {
+      next = [...currentBuckets, b];
+    }
+
+    if (next.length === 0 || next.length === NONMOVE_BUCKET_ORDER.length) {
+      onBucketChange("ALL");
+    } else {
+      onBucketChange(next.join(","));
+    }
+  };
+
+  const handleToggleAllBuckets = () => {
+    if (isAllBucketsSelected) {
+      // Clear all
+      onBucketChange(NONMOVE_BUCKET_ORDER[0]); // Keep at least one
+    } else {
+      onBucketChange("ALL");
+    }
+  };
+
+  // Label for the 1-line bucket dropdown
+  const bucketButtonLabel = isAllBucketsSelected
+    ? "ทุกช่วงวัน Non-move"
+    : currentBuckets.length === 1
+    ? `${currentBuckets[0]} วัน`
+    : `${currentBuckets.join(", ")} (${currentBuckets.length} ช่วง)`;
+
+  // Ensure default sku types exist
+  const combinedSkuTypes = Array.from(
+    new Set(["SELLABLE", "DEMO", "MOCK_UP", ...(skuTypes || [])])
+  );
 
   return (
     <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors duration-200">
@@ -105,7 +173,7 @@ export function ModelExplorerTable({
               </div>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              พบ {formatNumber(total)} รายการ (กดที่แถวเพื่อขอยกเว้น Non-Move)
+              พบ {formatNumber(total)} รายการ (แตะที่รายการเพื่อขอยกเว้น Non-Move)
             </p>
           </div>
 
@@ -120,7 +188,7 @@ export function ModelExplorerTable({
 
         {/* Filter Toolbar (Mobile Optimized) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          {/* Search Box */}
+          {/* 1. Search Box */}
           <div className="relative sm:col-span-2 lg:col-span-1">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
             <input
@@ -132,7 +200,7 @@ export function ModelExplorerTable({
             />
           </div>
 
-          {/* SkuType Filter */}
+          {/* 2. SKU_TYPE Dropdown (All types: SELLABLE, DEMO, MOCK_UP...) */}
           <div>
             <select
               value={selectedSkuType}
@@ -140,28 +208,70 @@ export function ModelExplorerTable({
               className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
             >
               <option value="ALL">ทุกประเภท (SKU_TYPE)</option>
-              <option value="SELLABLE">SELLABLE (ขายได้)</option>
-              <option value="MOCK_UP">MOCK_UP (โชว์/ตัวอย่าง)</option>
-            </select>
-          </div>
-
-          {/* Bucket Filter */}
-          <div>
-            <select
-              value={selectedBucket}
-              onChange={(e) => onBucketChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
-            >
-              <option value="ALL">ทุกช่วงวัน Non-move</option>
-              {NONMOVE_BUCKET_ORDER.map((b) => (
-                <option key={b} value={b}>
-                  {b} วัน
+              {combinedSkuTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Request Status Filter */}
+          {/* 3. MULTI-CHECK Non-Move Bucket Dropdown (1 line with popover checkbox list) */}
+          <div className="relative" ref={popoverRef}>
+            <button
+              type="button"
+              onClick={() => setIsBucketOpen(!isBucketOpen)}
+              className="w-full flex items-center justify-between rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+            >
+              <span className="truncate text-left font-medium pr-1">
+                {bucketButtonLabel}
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 text-slate-400 shrink-0 transition-transform ${isBucketOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {/* Multi-check Popover Menu */}
+            {isBucketOpen && (
+              <div className="absolute left-0 right-0 mt-1 z-30 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-2.5 space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                {/* Select / Deselect All */}
+                <button
+                  type="button"
+                  onClick={handleToggleAllBuckets}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors border-b border-slate-100 dark:border-slate-700/60 pb-2 mb-1"
+                >
+                  {isAllBucketsSelected ? (
+                    <CheckSquare className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  ) : (
+                    <Square className="h-4 w-4 text-slate-400 shrink-0" />
+                  )}
+                  <span>เลือกทุกช่วงวัน (Select All)</span>
+                </button>
+
+                {/* Individual Buckets Checkboxes */}
+                {NONMOVE_BUCKET_ORDER.map((b) => {
+                  const isChecked = isAllBucketsSelected || currentBuckets.includes(b);
+                  return (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => handleToggleBucket(b)}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isChecked ? (
+                          <CheckSquare className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        ) : (
+                          <Square className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        )}
+                        <span>{b} วัน</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 4. Request Status Filter */}
           <div>
             <select
               value={selectedStatus}
@@ -179,103 +289,97 @@ export function ModelExplorerTable({
         </div>
       </div>
 
-      {/* Table (Removed: หมวดหมู่, ชื่อสินค้า | Added: SKU_TYPE) */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-          <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-            <tr>
-              <th className="py-2.5 px-3 font-bold">รหัสสินค้า (ProductCode)</th>
-              <th className="py-2.5 px-3 font-bold">รุ่น (Model)</th>
-              <th className="py-2.5 px-3 font-bold text-center">ประเภท (SKU_TYPE)</th>
-              <th className="py-2.5 px-3 font-bold text-center">ช่วงวันไม่เคลื่อนไหว</th>
-              <th className="py-2.5 px-3 font-bold text-right">จำนวนชิ้น (QTY)</th>
-              <th className="py-2.5 px-3 font-bold text-center">สถานะ / ดำเนินการ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {data.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-10 text-center text-slate-400 dark:text-slate-500 font-medium">
-                  ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา
-                </td>
-              </tr>
-            ) : (
-              data.map((item) => {
-                const isHigh = item.classification === "HIGH" && !item.isExcluded;
-                return (
-                  <tr
-                    key={item.productCode}
-                    onClick={() => onSelectProduct(item)}
-                    className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/70 cursor-pointer transition-colors group"
-                  >
-                    {/* 1. รหัสสินค้า */}
-                    <td className="py-2.5 px-3 font-mono font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">
+      {/* Table (2 Lines Per Record for Maximum Mobile Space Efficiency) */}
+      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+        {data.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium text-xs">
+            ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา
+          </div>
+        ) : (
+          data.map((item) => {
+            const isHigh = item.classification === "HIGH" && !item.isExcluded;
+            return (
+              <div
+                key={item.productCode}
+                onClick={() => onSelectProduct(item)}
+                className="p-3 sm:px-5 sm:py-3.5 hover:bg-indigo-50/50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors space-y-1.5 group"
+              >
+                {/* Line 1: ProductCode · Model  |  SKU_TYPE */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-baseline gap-2 truncate">
+                    <span className="font-mono font-black text-indigo-700 dark:text-indigo-400 text-xs sm:text-sm tracking-tight shrink-0">
                       {item.productCode}
-                    </td>
-
-                    {/* 2. รุ่น (Model) from Model Dimension */}
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                    </span>
+                    <span className="text-slate-300 dark:text-slate-600">·</span>
+                    <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                       {item.model || "-"}
-                    </td>
+                    </span>
+                  </div>
 
-                    {/* 3. ประเภท (SKU_TYPE) from Model Dimension */}
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                        {item.skuType || "SELLABLE"}
-                      </span>
-                    </td>
+                  {/* SKU_TYPE Pill Badge */}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-wider shrink-0 ${
+                    item.skuType === "DEMO"
+                      ? "bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                      : item.skuType === "MOCK_UP"
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                      : "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                  }`}>
+                    {item.skuType || "SELLABLE"}
+                  </span>
+                </div>
 
-                    {/* 4. ช่วงวันไม่เคลื่อนไหว */}
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                          isHigh
-                            ? "bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/70"
-                            : item.isExcluded
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 line-through border border-emerald-300 dark:border-emerald-700"
-                            : "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/70"
-                        }`}
+                {/* Line 2: Non-Move Period Badge · Stock QTY  |  Action Button / Status */}
+                <div className="flex items-center justify-between gap-2 pt-0.5 text-xs">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Non-Move Bucket */}
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
+                        isHigh
+                          ? "bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/70"
+                          : item.isExcluded
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 line-through border border-emerald-300 dark:border-emerald-700"
+                          : "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/70"
+                      }`}
+                    >
+                      {isHigh && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
+                      {item.nonmoveDaysBucket} วัน
+                    </span>
+
+                    {/* Stock QTY */}
+                    <span className="text-slate-600 dark:text-slate-300 text-[11px] font-medium">
+                      สต๊อก: <strong className="text-slate-900 dark:text-white font-black">{formatNumber(item.stockQty)}</strong> ชิ้น
+                    </span>
+                  </div>
+
+                  {/* Right Action / Status Badge */}
+                  <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                    {item.activeRequest ? (
+                      <div
+                        onClick={() => onSelectProduct(item)}
+                        className="cursor-pointer inline-block"
+                        title="คลิกเพื่อดูรายละเอียดคำขอ"
                       >
-                        {isHigh && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
-                        {item.nonmoveDaysBucket} วัน
-                      </span>
-                    </td>
-
-                    {/* 5. จำนวนชิ้น (QTY) */}
-                    <td className="py-2.5 px-3 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
-                      {formatNumber(item.stockQty)} <span className="text-[10px] text-slate-400 font-normal">ชิ้น</span>
-                    </td>
-
-                    {/* 6. สถานะ / ดำเนินการ */}
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      {item.activeRequest ? (
-                        <div
-                          onClick={() => onSelectProduct(item)}
-                          className="cursor-pointer inline-block"
-                          title="คลิกเพื่อดูรายละเอียดคำขอ"
-                        >
-                          <RequestStatusBadge
-                            status={item.activeRequest.status}
-                            requestType={item.activeRequest.requestType}
-                          />
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onSelectProduct(item)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors"
-                        >
-                          <FileEdit className="h-3 w-3" />
-                          ขอยกเว้น
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                        <RequestStatusBadge
+                          status={item.activeRequest.status}
+                          requestType={item.activeRequest.requestType}
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onSelectProduct(item)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors"
+                      >
+                        <FileEdit className="h-3 w-3" />
+                        ขอยกเว้น
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Pagination Footer (Mobile Optimized) */}
