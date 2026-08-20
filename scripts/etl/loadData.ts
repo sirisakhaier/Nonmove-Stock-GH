@@ -1,9 +1,7 @@
 import fs from "fs";
 import path from "path";
 import * as xlsx from "xlsx";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 interface StoreRecord {
   BranchCode: string;
@@ -38,7 +36,6 @@ const toStr = (val: any): string | null => {
 };
 
 export async function loadStores() {
-  console.log("--> Loading Store Dimension...");
   const filePath = findFile([
     path.join(process.cwd(), "data/seed/Dimension Store GH.csv"),
     path.join(process.cwd(), "Dimension Store GH.csv"),
@@ -47,7 +44,6 @@ export async function loadStores() {
   ]);
 
   if (!filePath) {
-    console.warn("⚠️ Store dimension file not found. Skipping store load.");
     return;
   }
 
@@ -56,21 +52,11 @@ export async function loadStores() {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const records = xlsx.utils.sheet_to_json<StoreRecord>(sheet);
 
-  let count = 0;
-  for (const r of records) {
-    const branchCode = toStr(r.BranchCode);
-    if (!branchCode) continue;
-    await prisma.store.upsert({
-      where: { branchCode },
-      update: {
-        storeNameCust: toStr(r.STORE_NAME_CUST) || branchCode,
-        storeId: toStr(r.STORE_ID),
-        storeName: toStr(r.STORE_NAME),
-        province: toStr(r.PROVINCE),
-        storeType: toStr(r.STORE_TYPE) || "STORE",
-        region: toStr(r.REGION) || "OTHER",
-      },
-      create: {
+  const storeData = records
+    .map((r) => {
+      const branchCode = toStr(r.BranchCode);
+      if (!branchCode) return null;
+      return {
         branchCode,
         storeNameCust: toStr(r.STORE_NAME_CUST) || branchCode,
         storeId: toStr(r.STORE_ID),
@@ -78,15 +64,19 @@ export async function loadStores() {
         province: toStr(r.PROVINCE),
         storeType: toStr(r.STORE_TYPE) || "STORE",
         region: toStr(r.REGION) || "OTHER",
-      },
+      };
+    })
+    .filter(Boolean) as any[];
+
+  if (storeData.length > 0) {
+    await prisma.store.createMany({
+      data: storeData,
+      skipDuplicates: true,
     });
-    count++;
   }
-  console.log(`✅ Loaded ${count} stores.`);
 }
 
 export async function loadProducts() {
-  console.log("--> Loading Product Dimension...");
   const filePath = findFile([
     path.join(process.cwd(), "data/seed/Dimension Model GH.csv"),
     path.join(process.cwd(), "Dimension Model GH.csv"),
@@ -95,7 +85,6 @@ export async function loadProducts() {
   ]);
 
   if (!filePath) {
-    console.warn("⚠️ Product dimension file not found. Skipping product load.");
     return;
   }
 
@@ -104,21 +93,11 @@ export async function loadProducts() {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const records = xlsx.utils.sheet_to_json<ProductRecord>(sheet);
 
-  let count = 0;
-  for (const r of records) {
-    const productCode = toStr(r.ProductCode);
-    if (!productCode) continue;
-    await prisma.product.upsert({
-      where: { productCode },
-      update: {
-        productName: toStr(r.ProductName) || productCode,
-        model: toStr(r.MODEL),
-        skuType: toStr(r.SKU_TYPE) || "SELLABLE",
-        category: toStr(r.CATEGORY),
-        subCategory: toStr(r.SUB_CATEGORY),
-        sizeGroup: toStr(r.SIZE_GROUP),
-      },
-      create: {
+  const productData = records
+    .map((r) => {
+      const productCode = toStr(r.ProductCode);
+      if (!productCode) return null;
+      return {
         productCode,
         productName: toStr(r.ProductName) || productCode,
         model: toStr(r.MODEL),
@@ -126,11 +105,16 @@ export async function loadProducts() {
         category: toStr(r.CATEGORY),
         subCategory: toStr(r.SUB_CATEGORY),
         sizeGroup: toStr(r.SIZE_GROUP),
-      },
+      };
+    })
+    .filter(Boolean) as any[];
+
+  if (productData.length > 0) {
+    await prisma.product.createMany({
+      data: productData,
+      skipDuplicates: true,
     });
-    count++;
   }
-  console.log(`✅ Loaded ${count} products.`);
 }
 
 export function extractDateFromFilename(filename: string): Date {
@@ -142,68 +126,31 @@ export function extractDateFromFilename(filename: string): Date {
   return new Date();
 }
 
-export async function processNonmoveExcel(filePath: string, explicitDate?: Date) {
-  const filename = path.basename(filePath);
+export async function processNonmoveExcel(
+  input: string | Buffer,
+  customFilename?: string,
+  explicitDate?: Date
+) {
+  const filename = customFilename || (typeof input === "string" ? path.basename(input) : "NonMoveReport.xlsx");
   const reportDate = explicitDate || extractDateFromFilename(filename);
-  console.log(`--> Ingesting daily report: ${filename} (Date: ${reportDate.toISOString().split("T")[0]})`);
 
-  const workbook = xlsx.readFile(filePath, { codepage: 65001 });
+  // 1. In-memory workbook reading (Works with Buffer or File Path)
+  const workbook =
+    typeof input === "string"
+      ? xlsx.readFile(input, { codepage: 65001 })
+      : xlsx.read(input, { type: "buffer", codepage: 65001 });
+
   const firstSheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[firstSheetName];
   const rows = xlsx.utils.sheet_to_json<any>(sheet);
 
-  console.log(`Found ${rows.length} rows in ${filename}. Processing...`);
-
-  // Ensure fallback stores and products exist
-  const existingStores = new Set((await prisma.store.findMany({ select: { branchCode: true } })).map((s) => s.branchCode));
-  const existingProducts = new Set((await prisma.product.findMany({ select: { productCode: true } })).map((p) => p.productCode));
-
-  const missingStores = new Map<string, string>();
-  const missingProducts = new Map<string, string>();
-
-  for (const row of rows) {
-    const branchCode = String(row["BranchCode"] || "").trim();
-    const productCode = String(row["ProductCode"] || "").trim();
-    const branchName = String(row["BranchName"] || branchCode).trim();
-    const productName = String(row["ProductName"] || productCode).trim();
-
-    if (branchCode && !existingStores.has(branchCode)) {
-      missingStores.set(branchCode, branchName);
-    }
-    if (productCode && !existingProducts.has(productCode)) {
-      missingProducts.set(productCode, productName);
-    }
+  if (!rows || rows.length === 0) {
+    throw new Error(`ไฟล์ Excel ไม่มีข้อมูลใน Sheet แรก (${filename})`);
   }
 
-  // Insert missing stores
-  for (const [branchCode, branchName] of Array.from(missingStores.entries())) {
-    await prisma.store.upsert({
-      where: { branchCode },
-      update: {},
-      create: {
-        branchCode,
-        storeNameCust: branchName,
-        storeName: branchName,
-        storeType: "STORE",
-        region: "OTHER",
-      },
-    });
-    existingStores.add(branchCode);
-  }
-
-  // Insert missing products
-  for (const [productCode, productName] of Array.from(missingProducts.entries())) {
-    await prisma.product.upsert({
-      where: { productCode },
-      update: {},
-      create: {
-        productCode,
-        productName,
-        skuType: "SELLABLE",
-      },
-    });
-    existingProducts.add(productCode);
-  }
+  // 2. High-speed Bulk Store & Product Preparation
+  const storeMap = new Map<string, any>();
+  const productMap = new Map<string, any>();
 
   const toFloat = (val: any): number | null => {
     if (val === undefined || val === null || val === "") return null;
@@ -217,14 +164,41 @@ export async function processNonmoveExcel(filePath: string, explicitDate?: Date)
     return isNaN(num) ? 0 : num;
   };
 
-  const nonMoveData = rows
-    .filter((r) => r["BranchCode"] && r["ProductCode"])
-    .map((r) => ({
+  const nonMoveData: any[] = [];
+
+  for (const r of rows) {
+    const branchCode = String(r["BranchCode"] || "").trim();
+    const productCode = String(r["ProductCode"] || "").trim();
+    if (!branchCode || !productCode) continue;
+
+    const branchName = String(r["BranchName"] || branchCode).trim();
+    const productName = String(r["ProductName"] || productCode).trim();
+
+    if (!storeMap.has(branchCode)) {
+      storeMap.set(branchCode, {
+        branchCode,
+        storeNameCust: branchName,
+        storeName: branchName,
+        storeType: "STORE",
+        region: "OTHER",
+      });
+    }
+
+    if (!productMap.has(productCode)) {
+      productMap.set(productCode, {
+        productCode,
+        productName,
+        skuType: "SELLABLE",
+        category: r["CategoryName"] ? String(r["CategoryName"]).trim() : null,
+      });
+    }
+
+    nonMoveData.push({
       reportDate,
       nonmoveDaysBucket: String(r["Nonmove Days"] || "30-60").trim(),
       agingDaysBucket: String(r["Aging Days"] || "0-180").trim(),
-      branchCode: String(r["BranchCode"]).trim(),
-      productCode: String(r["ProductCode"]).trim(),
+      branchCode,
+      productCode,
       branchShort: r["BranchShort"] ? String(r["BranchShort"]).trim() : null,
       branchName: r["BranchName"] ? String(r["BranchName"]).trim() : null,
       stockQty: toInt(r["Stock Qty"]),
@@ -256,29 +230,52 @@ export async function processNonmoveExcel(filePath: string, explicitDate?: Date)
       designName: r["DesignName"] ? String(r["DesignName"]).trim() : null,
       typeCode: r["TypeCode"] ? String(r["TypeCode"]).trim() : null,
       typeName: r["TypeName"] ? String(r["TypeName"]).trim() : null,
-    }));
+    });
+  }
 
-  console.log(`--> Deleting existing fact rows for date: ${reportDate.toISOString().split("T")[0]}`);
+  // 3. Fast Bulk Upsert Stores & Products in 2 queries total
+  const uniqueStores = Array.from(storeMap.values());
+  const uniqueProducts = Array.from(productMap.values());
+
+  if (uniqueStores.length > 0) {
+    await prisma.store.createMany({
+      data: uniqueStores,
+      skipDuplicates: true,
+    });
+  }
+
+  if (uniqueProducts.length > 0) {
+    await prisma.product.createMany({
+      data: uniqueProducts,
+      skipDuplicates: true,
+    });
+  }
+
+  // 4. Delete existing records for this reportDate
+  const startOfDay = new Date(reportDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(reportDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
   await prisma.nonMoveRow.deleteMany({
     where: {
       reportDate: {
-        gte: new Date(reportDate.setHours(0, 0, 0, 0)),
-        lte: new Date(reportDate.setHours(23, 59, 59, 999)),
+        gte: startOfDay,
+        lte: endOfDay,
       },
     },
   });
 
-  const BATCH_SIZE = 1000;
+  // 5. High-speed Bulk Insertion in chunks of 2,000
+  const BATCH_SIZE = 2000;
   for (let i = 0; i < nonMoveData.length; i += BATCH_SIZE) {
     const chunk = nonMoveData.slice(i, i + BATCH_SIZE);
     await prisma.nonMoveRow.createMany({
       data: chunk,
       skipDuplicates: true,
     });
-    console.log(`Inserted chunk ${i + 1} - ${Math.min(i + BATCH_SIZE, nonMoveData.length)} / ${nonMoveData.length}`);
   }
 
-  console.log(`🎉 Ingestion complete for ${filename}: ${nonMoveData.length} rows inserted.`);
   return { filename, reportDate, rowsCount: nonMoveData.length };
 }
 
@@ -287,54 +284,22 @@ export async function runETL() {
     await loadStores();
     await loadProducts();
 
-    const args = process.argv.slice(2);
-    let explicitFile: string | null = null;
-    let explicitDate: Date | null = null;
+    const searchDirs = [
+      path.join(process.cwd(), "data/seed"),
+      process.cwd(),
+    ];
 
-    for (const arg of args) {
-      if (arg.startsWith("--file=")) {
-        explicitFile = arg.replace("--file=", "").trim();
-      }
-      if (arg.startsWith("--date=")) {
-        const dStr = arg.replace("--date=", "").trim();
-        explicitDate = new Date(`${dStr}T00:00:00.000Z`);
-      }
-    }
-
-    if (explicitFile && fs.existsSync(explicitFile)) {
-      await processNonmoveExcel(explicitFile, explicitDate || undefined);
-    } else {
-      const searchDirs = [
-        path.join(process.cwd(), "data/seed"),
-        path.join(process.cwd(), "Data Setup"),
-        process.cwd(),
-      ];
-
-      const seenFiles = new Set<string>();
-      for (const dir of searchDirs) {
-        if (!fs.existsSync(dir)) continue;
-        const files = fs.readdirSync(dir);
-        for (const file of files) {
-          if (/NonMoveReport[ _]?\d{8}\.xlsx/i.test(file)) {
-            const fullPath = path.join(dir, file);
-            if (!seenFiles.has(file)) {
-              seenFiles.add(file);
-              await processNonmoveExcel(fullPath);
-            }
-          }
+    for (const dir of searchDirs) {
+      if (!fs.existsSync(dir)) continue;
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        if (/NonMoveReport[ _]?\d{8}\.xlsx/i.test(file)) {
+          const fullPath = path.join(dir, file);
+          await processNonmoveExcel(fullPath);
         }
       }
     }
-
-    console.log("✅ All ETL tasks completed successfully!");
   } catch (error) {
-    console.error("❌ ETL Failed:", error);
-    process.exit(1);
-  } finally {
-    await prisma.$disconnect();
+    console.error("ETL Failed:", error);
   }
-}
-
-if (require.main === module) {
-  runETL();
 }
