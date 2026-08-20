@@ -160,31 +160,31 @@ export default function StoreDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Header Store Overview & Date Picker */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 shrink-0">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 shrink-0">
               <Store className="h-7 w-7" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
                   {storeInfo?.branchName || branchCode}
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 font-mono">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 font-mono">
                   {branchCode}
                 </span>
                 {storeInfo?.region && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                     {storeInfo.region}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 แดชบอร์ดติดตามและจัดการสต๊อกสินค้าไม่เคลื่อนไหวประจำสาขา
               </p>
             </div>
@@ -193,15 +193,15 @@ export default function StoreDashboard() {
           {/* Date Selector & Action Buttons */}
           <div className="flex items-center gap-3 self-start md:self-auto">
             {availableDates.length > 0 && (
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2 shadow-inner">
-                <Calendar className="h-4 w-4 text-slate-500" />
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2 shadow-inner">
+                <Calendar className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                 <select
                   value={selectedDate}
                   onChange={(e) => handleDateChange(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
                 >
                   {availableDates.map((d) => (
-                    <option key={d} value={d}>
+                    <option key={d} value={d} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                       รายงานวันที่: {d}
                     </option>
                   ))}
@@ -215,7 +215,7 @@ export default function StoreDashboard() {
                 fetchTableData();
               }}
               title="รีเฟรชข้อมูล"
-              className="rounded-2xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm hover:bg-slate-50 hover:text-blue-600 transition-colors"
+              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-2.5 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-blue-600 transition-colors"
             >
               <RefreshCw className="h-4 w-4" />
             </button>

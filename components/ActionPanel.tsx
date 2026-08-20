@@ -132,46 +132,46 @@ export function ActionPanel({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 backdrop-blur-sm transition-opacity">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm transition-opacity">
       <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+        <div className="w-screen max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800 transition-colors duration-200">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4 bg-slate-50 dark:bg-slate-800/60">
             <div>
-              <h2 className="text-base font-bold text-slate-900">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 บันทึกข้อมูลสินค้า / การดำเนินการ
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 รหัสสินค้า: {product.productCode}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
           {/* Product Summary Mini Card */}
-          <div className="bg-blue-50/70 border-b border-blue-100 p-4">
-            <div className="text-sm font-semibold text-slate-900 line-clamp-2">
+          <div className="bg-blue-50/70 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/40 p-4">
+            <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">
               {product.productName}
             </div>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
-              <span className="bg-white px-2 py-0.5 rounded border border-blue-200">
+            <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
+              <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
                 รุ่น: {product.model}
               </span>
-              <span className="bg-white px-2 py-0.5 rounded border border-blue-200">
+              <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
                 ช่วงวัน: {product.nonmoveDaysBucket} วัน
               </span>
-              <span className="bg-white px-2 py-0.5 rounded border border-blue-200 font-semibold text-blue-700">
+              <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 font-semibold text-blue-700 dark:text-blue-400">
                 สต๊อก: {product.stockQty} ชิ้น ({formatCurrency(product.stockValue)})
               </span>
             </div>
             {product.activeRequest && (
-              <div className="mt-3 pt-2 border-t border-blue-100 flex items-center justify-between text-xs">
-                <span className="text-slate-600">สถานะปัจจุบัน:</span>
+              <div className="mt-3 pt-2 border-t border-blue-100 dark:border-blue-900/40 flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-400">สถานะปัจจุบัน:</span>
                 <RequestStatusBadge
                   status={product.activeRequest.status}
                   requestType={product.activeRequest.requestType}
@@ -181,14 +181,14 @@ export function ActionPanel({
           </div>
 
           {/* Form Tabs */}
-          <div className="flex border-b border-slate-200 bg-slate-100/60 p-1.5 gap-1.5">
+          <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/40 p-1.5 gap-1.5">
             <button
               type="button"
               onClick={() => { setActiveTab("EXPLAIN"); setErrorMsg(""); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "EXPLAIN"
-                  ? "bg-white text-blue-700 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               <FileText className="h-4 w-4" />
@@ -197,10 +197,10 @@ export function ActionPanel({
             <button
               type="button"
               onClick={() => { setActiveTab("EXCLUDE"); setErrorMsg(""); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "EXCLUDE"
-                  ? "bg-white text-indigo-700 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               <ShieldAlert className="h-4 w-4" />
@@ -211,8 +211,8 @@ export function ActionPanel({
           {/* Form Content */}
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
             {activeTab === "EXCLUDE" && (
-              <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 flex gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
                 <div>
                   <span className="font-bold block mb-0.5">เงื่อนไขการขอยกเว้น (Exclusion)</span>
                   คำขอนี้จะถูกส่งไปยังผู้จัดการภาค/สำนักงานใหญ่เพื่อตรวจสอบ และจำเป็นต้องมีรูปถ่ายหลักฐานประกอบ
@@ -221,21 +221,21 @@ export function ActionPanel({
             )}
 
             {errorMsg && (
-              <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700 flex gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+              <div className="rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 text-xs text-rose-700 dark:text-rose-300 flex gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             {/* Reason Select */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 เหตุผลหลัก <span className="text-rose-500">*</span>
               </label>
               <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:outline-none"
               >
                 <option value="">-- เลือกเหตุผล --</option>
                 {presetReasons.map((r) => (
@@ -248,7 +248,7 @@ export function ActionPanel({
 
             {/* Detailed Comments */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 คำอธิบาย / รายละเอียดเพิ่มเติม
               </label>
               <textarea
@@ -256,21 +256,21 @@ export function ActionPanel({
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
                 placeholder="ระบุรายละเอียดเพิ่มเติม หรือแผนการระบายสต๊อก..."
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             {/* Photo Attachments */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 รูปถ่ายหลักฐาน {activeTab === "EXCLUDE" ? <span className="text-rose-500">* (จำเป็น)</span> : "(ถ้ามี)"}
               </label>
 
-              <div className="mt-1 flex justify-center rounded-xl border-2 border-dashed border-slate-300 px-4 py-4 hover:border-blue-400 transition-colors">
+              <div className="mt-1 flex justify-center rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 px-4 py-4 hover:border-blue-400 bg-slate-50/50 dark:bg-slate-800/30 transition-colors">
                 <div className="text-center">
-                  <Upload className="mx-auto h-7 w-7 text-slate-400" />
-                  <div className="mt-1 text-xs text-slate-600">
-                    <label className="relative cursor-pointer rounded-md font-semibold text-blue-600 hover:text-blue-500">
+                  <Upload className="mx-auto h-7 w-7 text-slate-400 dark:text-slate-500" />
+                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    <label className="relative cursor-pointer rounded-md font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500">
                       <span>คลิกเพื่ออัปโหลดรูปภาพ</span>
                       <input
                         type="file"
@@ -289,7 +289,7 @@ export function ActionPanel({
               {photoPreviews.length > 0 && (
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {photoPreviews.map((src, idx) => (
-                    <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 aspect-square">
+                    <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square">
                       <img src={src} alt="preview" className="h-full w-full object-cover" />
                       <button
                         type="button"
@@ -305,19 +305,19 @@ export function ActionPanel({
             </div>
 
             {/* Submit Actions */}
-            <div className="pt-4 border-t border-slate-200 flex gap-2">
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex gap-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 rounded-xl border border-slate-300 bg-white py-2.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               >
                 ยกเลิก
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 dark:bg-blue-500 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>

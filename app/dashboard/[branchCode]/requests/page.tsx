@@ -51,7 +51,7 @@ export default function MyRequestsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -60,15 +60,15 @@ export default function MyRequestsPage() {
           <div className="flex items-center gap-3">
             <Link
               href={`/dashboard/${branchCode}`}
-              className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm hover:bg-slate-100 transition-colors"
+              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">
+              <h1 className="text-xl font-bold text-slate-900 dark:text-white">
                 รายการคำขอของสาขา ({branchCode})
               </h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 ติดตามประวัติและสถานะการชี้แจง / ขอยกเว้นการคิด Non-Move Stock
               </p>
             </div>
@@ -76,7 +76,7 @@ export default function MyRequestsPage() {
         </div>
 
         {/* Filter Toolbar */}
-        <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <input
@@ -84,14 +84,14 @@ export default function MyRequestsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="ค้นหารหัสสินค้า, ชื่อสินค้า, เหตุผล..."
-              className="w-full rounded-xl border border-slate-300 pl-9 pr-3 py-2 text-xs text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:outline-none"
             />
           </div>
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+            className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm"
           >
             <option value="ALL">ทุกสถานะ</option>
             <option value="PENDING">รอการตรวจสอบ (Pending)</option>
@@ -102,60 +102,60 @@ export default function MyRequestsPage() {
         </div>
 
         {/* Requests List */}
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           {isLoading ? (
             <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
               <span>กำลังโหลดข้อมูลคำขอ...</span>
             </div>
           ) : filteredRequests.length === 0 ? (
-            <div className="py-16 text-center text-slate-400">
+            <div className="py-16 text-center text-slate-400 dark:text-slate-500">
               ไม่พบประวัติรายการคำขอของสาขานี้
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                   <tr>
-                    <th className="py-3 px-4 font-semibold">รหัสสินค้า / ชื่อสินค้า</th>
-                    <th className="py-3 px-4 font-semibold">ประเภทคำขอ</th>
-                    <th className="py-3 px-4 font-semibold">เหตุผลที่ระบุ</th>
-                    <th className="py-3 px-4 font-semibold">วันที่ยื่นคำขอ</th>
-                    <th className="py-3 px-4 font-semibold text-center">รูปหลักฐาน</th>
-                    <th className="py-3 px-4 font-semibold text-center">สถานะการพิจารณา</th>
-                    <th className="py-3 px-4 font-semibold">ข้อความจากผู้อนุมัติ</th>
+                    <th className="py-3.5 px-4 font-semibold">รหัสสินค้า / ชื่อสินค้า</th>
+                    <th className="py-3.5 px-4 font-semibold">ประเภทคำขอ</th>
+                    <th className="py-3.5 px-4 font-semibold">เหตุผลที่ระบุ</th>
+                    <th className="py-3.5 px-4 font-semibold">วันที่ยื่นคำขอ</th>
+                    <th className="py-3.5 px-4 font-semibold text-center">รูปหลักฐาน</th>
+                    <th className="py-3.5 px-4 font-semibold text-center">สถานะการพิจารณา</th>
+                    <th className="py-3.5 px-4 font-semibold">ข้อความจากผู้อนุมัติ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredRequests.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3 px-4 max-w-xs">
-                        <div className="font-mono font-bold text-slate-900">{r.productCode}</div>
-                        <div className="text-slate-800 line-clamp-1">
+                    <tr key={r.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3.5 px-4 max-w-xs">
+                        <div className="font-mono font-bold text-slate-900 dark:text-white">{r.productCode}</div>
+                        <div className="text-slate-800 dark:text-slate-200 line-clamp-1">
                           {r.product?.productName || r.productCode}
                         </div>
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
                           r.requestType === "EXCLUDE"
-                            ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                            : "bg-blue-50 text-blue-700 border border-blue-200"
+                            ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                            : "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
                         }`}>
                           {r.requestType === "EXCLUDE" ? "ขอยกเว้น (Exclusion)" : "ชี้แจง (Explain)"}
                         </span>
                       </td>
-                      <td className="py-3 px-4 max-w-sm">
-                        <div className="font-semibold text-slate-900">{r.reason}</div>
+                      <td className="py-3.5 px-4 max-w-sm">
+                        <div className="font-semibold text-slate-900 dark:text-white">{r.reason}</div>
                         {r.comments && (
-                          <div className="text-slate-500 text-[11px] mt-0.5 line-clamp-2">
+                          <div className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5 line-clamp-2">
                             {r.comments}
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap text-slate-500">
+                      <td className="py-3.5 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
                         {new Date(r.requestedAt).toLocaleString("th-TH")}
                       </td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {r.photos && r.photos.length > 0 ? (
                           <div className="flex items-center justify-center gap-1">
                             {r.photos.map((p: any) => (
@@ -163,7 +163,7 @@ export default function MyRequestsPage() {
                                 key={p.id}
                                 type="button"
                                 onClick={() => setSelectedPhoto(p.photoUrl)}
-                                className="relative h-8 w-8 rounded-lg overflow-hidden border border-slate-200 hover:opacity-80 transition-opacity"
+                                className="relative h-8 w-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 hover:opacity-80 transition-opacity"
                               >
                                 <img src={p.photoUrl} alt="proof" className="h-full w-full object-cover" />
                               </button>
@@ -173,15 +173,15 @@ export default function MyRequestsPage() {
                           <span className="text-slate-400">-</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <RequestStatusBadge status={r.status} requestType={r.requestType} />
                       </td>
-                      <td className="py-3 px-4 max-w-xs text-slate-600">
+                      <td className="py-3.5 px-4 max-w-xs text-slate-600 dark:text-slate-300">
                         {r.reviewComment ? (
-                          <div className="text-xs font-medium text-slate-800">
+                          <div className="text-xs font-medium text-slate-800 dark:text-slate-200">
                             {r.reviewComment}
                             {r.reviewedAt && (
-                              <div className="text-[10px] text-slate-400 mt-0.5">
+                              <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                                 พิจารณาเมื่อ: {new Date(r.reviewedAt).toLocaleDateString("th-TH")}
                               </div>
                             )}
