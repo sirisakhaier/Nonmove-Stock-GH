@@ -1,0 +1,146 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Store {
+  branchCode     String        @id @map("branch_code")
+  storeNameCust  String        @map("store_name_cust")
+  storeId        String?       @map("store_id")
+  storeName      String?       @map("store_name")
+  province       String?       @map("province")
+  storeType      String?       @map("store_type") // STORE | DC
+  region         String        @map("region")
+  nonMoveRows    NonMoveRow[]
+  sessions       UserSession[]
+  requests       SkuRequest[]
+
+  @@map("stores")
+}
+
+model Product {
+  productCode  String        @id @map("product_code")
+  productName  String        @map("product_name")
+  model        String?       @map("model")
+  skuType      String?       @map("sku_type") // SELLABLE | MOCK_UP
+  category     String?       @map("category")
+  subCategory  String?       @map("sub_category")
+  sizeGroup    String?       @map("size_group")
+  nonMoveRows  NonMoveRow[]
+  requests     SkuRequest[]
+
+  @@map("products")
+}
+
+model NonMoveRow {
+  id                String    @id @default(cuid())
+  reportDate        DateTime  @map("report_date") // Parsed YYYY-MM-DD from daily filename
+  nonmoveDaysBucket String    @map("nonmove_days_bucket")
+  agingDaysBucket   String    @map("aging_days_bucket")
+  branchCode        String    @map("branch_code")
+  productCode       String    @map("product_code")
+  branchShort       String?   @map("branch_short")
+  branchName        String?   @map("branch_name")
+  stockQty          Int       @map("stock_qty")
+  stockValue        Float     @map("stock_value")
+  branchCountForSku Int?      @map("branch_count_for_sku")
+  totalStockQty     Int?      @map("total_stock_qty")
+  totalStockValue   Float?    @map("total_stock_value")
+  level             Float?    @map("level")
+  fo                Float?    @map("fo")
+  maxAs12m          Float?    @map("max_as_12m")
+  allMaxAs12m       Float?    @map("all_max_as_12m")
+  mosLevel          Float?    @map("mos_level")
+  mosMaxAs          Float?    @map("mos_max_as")
+  allMosLevel       Float?    @map("all_mos_level")
+  allMosMaxAs       Float?    @map("all_mos_max_as")
+  priceNormal       Float?    @map("price_normal")
+  pricePro          Float?    @map("price_pro")
+  vendorCode        String?   @map("vendor_code")
+  vendorName        String?   @map("vendor_name")
+  assortment        String?   @map("assortment")
+  type              String?   @map("type")
+  categoryCode      String?   @map("category_code")
+  categoryName      String?   @map("category_name")
+  groupCode         String?   @map("group_code")
+  groupName         String?   @map("group_name")
+  patternCode       String?   @map("pattern_code")
+  patternName       String?   @map("pattern_name")
+  designCode        String?   @map("design_code")
+  designName        String?   @map("design_name")
+  typeCode          String?   @map("type_code")
+  typeName          String?   @map("type_name")
+
+  store    Store   @relation(fields: [branchCode], references: [branchCode])
+  product  Product @relation(fields: [productCode], references: [productCode])
+
+  @@index([branchCode, reportDate])
+  @@index([productCode])
+  @@index([reportDate])
+  @@map("nonmove_rows")
+}
+
+model UserSession {
+  id         String       @id @default(cuid())
+  name       String       @map("name")
+  phone      String       @map("phone")
+  branchCode String       @map("branch_code")
+  region     String       @map("region")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  store    Store        @relation(fields: [branchCode], references: [branchCode])
+  requests SkuRequest[]
+
+  @@map("user_sessions")
+}
+
+enum RequestType {
+  EXPLAIN
+  EXCLUDE
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model SkuRequest {
+  id            String        @id @default(cuid())
+  branchCode    String        @map("branch_code")
+  productCode   String        @map("product_code")
+  requestType   RequestType   @map("request_type")
+  reason        String        @map("reason")
+  status        RequestStatus @default(PENDING) @map("status")
+
+  requestedById String        @map("requested_by_id")
+  requestedAt   DateTime      @default(now()) @map("requested_at")
+
+  reviewedByName String?      @map("reviewed_by_name")
+  reviewedAt     DateTime?    @map("reviewed_at")
+  reviewComment  String?      @map("review_comment")
+
+  store        Store          @relation(fields: [branchCode], references: [branchCode])
+  product      Product        @relation(fields: [productCode], references: [productCode])
+  requestedBy  UserSession    @relation(fields: [requestedById], references: [id])
+  photos       RequestPhoto[]
+
+  @@index([branchCode, status])
+  @@index([productCode])
+  @@map("sku_requests")
+}
+
+model RequestPhoto {
+  id         String     @id @default(cuid())
+  requestId  String     @map("request_id")
+  url        String     @map("url")
+  uploadedAt DateTime   @default(now()) @map("uploaded_at")
+
+  request SkuRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_photos")
+}
