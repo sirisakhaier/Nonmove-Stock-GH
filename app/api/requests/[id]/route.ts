@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -33,27 +35,64 @@ export async function PATCH(
 ) {
   try {
     const body = await req.json();
-    const { status, reviewComment, reviewedByName, passcode } = body;
+    const {
+      status,
+      reviewComment,
+      reviewedByName,
+      reason,
+      photoUrls,
+      requestType,
+      isResubmission,
+    } = body;
 
-    const expectedPasscode = process.env.APPROVER_PASSCODE || "admin123";
-    if (passcode !== expectedPasscode) {
-      return NextResponse.json({ error: "Invalid approver passcode." }, { status: 401 });
+    // If this is a user re-submitting after REVISE
+    if (isResubmission || status === "PENDING") {
+      const updateData: any = {
+        status: "PENDING",
+        reason: reason ? reason.trim() : undefined,
+        requestType: requestType || undefined,
+        requestedAt: new Date(),
+      };
+
+      if (photoUrls && Array.isArray(photoUrls) && photoUrls.length > 0) {
+        updateData.photos = {
+          create: photoUrls.map((url: string) => ({ url })),
+        };
+      }
+
+      const updated = await prisma.skuRequest.update({
+        where: { id: params.id },
+        data: updateData,
+        include: {
+          store: true,
+          product: true,
+          requestedBy: true,
+          photos: true,
+        },
+      });
+
+      return NextResponse.json({ success: true, request: updated });
     }
 
-    if (!["APPROVED", "REJECTED"].includes(status)) {
-      return NextResponse.json({ error: "Status must be APPROVED or REJECTED." }, { status: 400 });
+    // Admin decision (APPROVED, REJECTED, REVISE)
+    if (!["APPROVED", "REJECTED", "REVISE"].includes(status)) {
+      return NextResponse.json({ error: "สถานะต้องเป็น APPROVED, REJECTED หรือ REVISE" }, { status: 400 });
     }
 
-    if (status === "REJECTED" && (!reviewComment || !reviewComment.trim())) {
-      return NextResponse.json({ error: "Review comment is required when rejecting a request." }, { status: 400 });
+    if ((status === "REJECTED" || status === "REVISE") && (!reviewComment || !reviewComment.trim())) {
+      return NextResponse.json({
+        error: status === "REVISE"
+          ? "กรุณาระบุรายละเอียดที่ต้องการให้สาขาแก้ไขหรือแนบเพิ่มเติม"
+          : "กรุณาระบุเหตุผลการไม่อนุมัติ"
+      }, { status: 400 });
     }
 
     const updated = await prisma.skuRequest.update({
       where: { id: params.id },
       data: {
-        status,
+        status: status as any,
         reviewComment: reviewComment?.trim() || null,
-        reviewedByName: reviewedByName?.trim() || "Regional Approver",
+        reviewedByName: reviewedByName?.trim() || "HQ Admin",
         reviewedAt: new Date(),
       },
       include: {

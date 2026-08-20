@@ -107,6 +107,8 @@ enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
+  REVISE
+  EXPLAINED
 }
 
 model SkuRequest {

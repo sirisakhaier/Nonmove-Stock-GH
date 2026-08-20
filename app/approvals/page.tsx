@@ -44,14 +44,14 @@ export default function ApprovalsPage() {
     }
   };
 
-  const handleDecision = async (id: string, decision: "APPROVED" | "REJECTED", comment?: string) => {
+  const handleDecision = async (id: string, decision: "APPROVED" | "REJECTED" | "REVISE", comment?: string) => {
     const res = await fetch(`/api/requests/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status: decision,
         reviewComment: comment,
-        reviewedBy: "Regional Approver",
+        reviewedByName: "Regional Approver",
       }),
     });
 

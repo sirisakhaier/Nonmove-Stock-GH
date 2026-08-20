@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { RequestStatusBadge } from "@/components/RequestStatusBadge";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
+import { ActionPanel } from "@/components/ActionPanel";
 import {
   FileSpreadsheet,
   ArrowLeft,
@@ -16,6 +17,8 @@ import {
   FileText,
   ShieldAlert,
   Loader2,
+  RefreshCw,
+  Edit3,
 } from "lucide-react";
 
 export default function MyRequestsPage() {
@@ -27,7 +30,12 @@ export default function MyRequestsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  useEffect(() => {
+  // Re-submit Action Drawer
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const fetchRequests = useCallback(() => {
+    setIsLoading(true);
     fetch(`/api/requests?branchCode=${branchCode}`)
       .then((res) => res.json())
       .then((data) => {
@@ -36,6 +44,26 @@ export default function MyRequestsPage() {
       })
       .catch(() => setIsLoading(false));
   }, [branchCode]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  const handleOpenEdit = (r: any) => {
+    setSelectedProduct({
+      productCode: r.productCode,
+      productName: r.product?.productName || r.productCode,
+      model: r.product?.model || "-",
+      categoryName: r.product?.category || "-",
+      subCategory: "-",
+      nonmoveDaysBucket: "-",
+      agingDaysBucket: "-",
+      stockQty: 0,
+      stockValue: 0,
+      activeRequest: r,
+    });
+    setIsDrawerOpen(true);
+  };
 
   const filteredRequests = requests.filter((r) => {
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
@@ -73,6 +101,14 @@ export default function MyRequestsPage() {
               </p>
             </div>
           </div>
+
+          <button
+            onClick={fetchRequests}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors self-start sm:self-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            รีเฟรช
+          </button>
         </div>
 
         {/* Filter Toolbar */}
@@ -84,7 +120,7 @@ export default function MyRequestsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="ค้นหารหัสสินค้า, ชื่อสินค้า, เหตุผล..."
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
@@ -95,6 +131,7 @@ export default function MyRequestsPage() {
           >
             <option value="ALL">ทุกสถานะ</option>
             <option value="PENDING">รอการตรวจสอบ (Pending)</option>
+            <option value="REVISE">ขอข้อมูลเพิ่มเติม (Revise)</option>
             <option value="APPROVED">อนุมัติแล้ว (Approved)</option>
             <option value="REJECTED">ไม่อนุมัติ (Rejected)</option>
             <option value="EXPLAINED">ชี้แจงแล้ว (Explained)</option>
@@ -105,7 +142,7 @@ export default function MyRequestsPage() {
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           {isLoading ? (
             <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
               <span>กำลังโหลดข้อมูลคำขอ...</span>
             </div>
           ) : filteredRequests.length === 0 ? (
@@ -124,6 +161,7 @@ export default function MyRequestsPage() {
                     <th className="py-3.5 px-4 font-semibold text-center">รูปหลักฐาน</th>
                     <th className="py-3.5 px-4 font-semibold text-center">สถานะการพิจารณา</th>
                     <th className="py-3.5 px-4 font-semibold">ข้อความจากผู้อนุมัติ</th>
+                    <th className="py-3.5 px-4 font-semibold text-center">การดำเนินการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -162,10 +200,10 @@ export default function MyRequestsPage() {
                               <button
                                 key={p.id}
                                 type="button"
-                                onClick={() => setSelectedPhoto(p.photoUrl)}
+                                onClick={() => setSelectedPhoto(p.url)}
                                 className="relative h-8 w-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 hover:opacity-80 transition-opacity"
                               >
-                                <img src={p.photoUrl} alt="proof" className="h-full w-full object-cover" />
+                                <img src={p.url} alt="proof" className="h-full w-full object-cover" />
                               </button>
                             ))}
                           </div>
@@ -178,16 +216,34 @@ export default function MyRequestsPage() {
                       </td>
                       <td className="py-3.5 px-4 max-w-xs text-slate-600 dark:text-slate-300">
                         {r.reviewComment ? (
-                          <div className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                          <div className="text-xs font-medium text-slate-800 dark:text-slate-200 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 p-2 rounded-xl">
                             {r.reviewComment}
                             {r.reviewedAt && (
-                              <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                              <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
                                 พิจารณาเมื่อ: {new Date(r.reviewedAt).toLocaleDateString("th-TH")}
                               </div>
                             )}
                           </div>
                         ) : (
                           <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        {r.status === "REVISE" ? (
+                          <button
+                            onClick={() => handleOpenEdit(r)}
+                            className="inline-flex items-center gap-1 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700 transition-colors animate-pulse"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            แก้ไข / แนบเพิ่ม
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenEdit(r)}
+                            className="inline-flex items-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            ดูคำขอ
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -199,10 +255,22 @@ export default function MyRequestsPage() {
         </div>
       </main>
 
+      {/* Lightbox for Photo Preview */}
       <PhotoLightbox
         isOpen={!!selectedPhoto}
         onClose={() => setSelectedPhoto(null)}
         photoUrl={selectedPhoto || ""}
+      />
+
+      {/* Action Drawer for Resubmission */}
+      <ActionPanel
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        product={selectedProduct}
+        branchCode={branchCode}
+        onSuccess={() => {
+          fetchRequests();
+        }}
       />
     </div>
   );

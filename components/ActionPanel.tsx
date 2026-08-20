@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Upload, FileText, ShieldAlert, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Upload, FileText, ShieldAlert, CheckCircle2, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { formatCurrency } from "@/lib/validators";
 
@@ -31,15 +31,37 @@ export function ActionPanel({
   branchCode,
   onSuccess,
 }: ActionPanelProps) {
-  const [activeTab, setActiveTab] = useState<"EXPLAIN" | "EXCLUDE">("EXPLAIN");
+  const [requestType, setRequestType] = useState<"EXCLUDE" | "EXPLAIN">("EXCLUDE");
   const [reason, setReason] = useState("");
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (product?.activeRequest) {
+      setRequestType(product.activeRequest.requestType || "EXCLUDE");
+      setReason(product.activeRequest.reason || "");
+      setComments(product.activeRequest.comments || "");
+      if (product.activeRequest.photos && Array.isArray(product.activeRequest.photos)) {
+        setExistingPhotos(product.activeRequest.photos.map((p: any) => p.url || p.photoUrl));
+      }
+    } else {
+      setRequestType("EXCLUDE");
+      setReason("");
+      setComments("");
+      setExistingPhotos([]);
+    }
+    setPhotos([]);
+    setPhotoPreviews([]);
+    setErrorMsg("");
+  }, [product, isOpen]);
 
   if (!isOpen || !product) return null;
+
+  const isNeedsRevision = product.activeRequest?.status === "REVISE";
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -50,7 +72,7 @@ export function ActionPanel({
     }
   };
 
-  const removePhoto = (index: number) => {
+  const removeNewPhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
   };
@@ -58,11 +80,12 @@ export function ActionPanel({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
-      setErrorMsg("กรุณาระบุเหตุผล");
+      setErrorMsg("กรุณาเลือกหรือระบุเหตุผล");
       return;
     }
 
-    if (activeTab === "EXCLUDE" && photos.length === 0) {
+    const totalPhotoCount = existingPhotos.length + photos.length;
+    if (requestType === "EXCLUDE" && totalPhotoCount === 0) {
       setErrorMsg("การขอปลดล็อค/ยกเว้น จำเป็นต้องแนบรูปถ่ายหลักฐานอย่างน้อย 1 รูป");
       return;
     }
@@ -71,8 +94,8 @@ export function ActionPanel({
     setErrorMsg("");
 
     try {
-      // 1. Upload photos if any
-      const photoUrls: string[] = [];
+      // 1. Upload new photos
+      const newPhotoUrls: string[] = [];
       for (const photo of photos) {
         const formData = new FormData();
         formData.append("file", photo);
@@ -82,29 +105,52 @@ export function ActionPanel({
         });
         if (upRes.ok) {
           const upData = await upRes.json();
-          photoUrls.push(upData.url);
+          newPhotoUrls.push(upData.url);
         }
       }
 
-      // 2. Submit request
-      const payload = {
-        branchCode,
-        productCode: product.productCode,
-        requestType: activeTab,
-        reason,
-        comments,
-        photos: photoUrls,
-      };
+      const allPhotoUrls = [...existingPhotos, ...newPhotoUrls];
 
-      const res = await fetch("/api/requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      // 2. Submit or Re-submit
+      if (isNeedsRevision && product.activeRequest?.id) {
+        // Re-submit existing request
+        const res = await fetch(`/api/requests/${product.activeRequest.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            isResubmission: true,
+            status: "PENDING",
+            requestType,
+            reason,
+            comments,
+            photoUrls: newPhotoUrls,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "บันทึกข้อมูลไม่สำเร็จ");
+        }
+      } else {
+        // Create new request
+        const payload = {
+          branchCode,
+          productCode: product.productCode,
+          requestType,
+          reason,
+          comments,
+          photoUrls: allPhotoUrls,
+        };
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "บันทึกข้อมูลไม่สำเร็จ");
+        const res = await fetch("/api/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "บันทึกข้อมูลไม่สำเร็จ");
+        }
       }
 
       onSuccess();
@@ -116,32 +162,26 @@ export function ActionPanel({
     }
   };
 
-  const presetReasons = activeTab === "EXPLAIN" ? [
+  const presetReasons = [
     "สินค้าตัวโชว์หน้าร้าน (Display / Mock-up)",
-    "รอลูกค้ารับสินค้า / รอส่งมอบ",
+    "สินค้าติดจองมัดจำแล้ว / รอลูกค้ารับมอบ",
     "สินค้าชำรุดรอส่งเคลมศูนย์บริการ",
-    "สินค้าจัดโปรโมชั่น / รอแคมเปญ",
-    "ลูกค้าสอบถามต่อเนื่องแต่ยังไม่ปิดการขาย",
+    "สินค้าจัดโปรโมชั่น / รอแคมเปญส่งเสริมการขาย",
+    "สินค้าค้างสต๊อกรอย้ายสาขา / ส่งคืนคลังหลัก",
     "อื่นๆ (ระบุในคำอธิบายเพิ่มเติม)",
-  ] : [
-    "สินค้าตัวโชว์หน้าร้าน (Display Mock-up) - มีรูปป้ายและสินค้า",
-    "สินค้าติดจองมัดจำแล้ว - มีใบเสร็จรับเงิน/มัดจำ",
-    "สินค้าชำรุดส่งเคลม - มีเอกสารส่งเคลม",
-    "ข้อผิดพลาดทางระบบสต๊อก / รอปรับยอด",
-    "อื่นๆ (ต้องมีหลักฐานชัดเจน)",
   ];
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm transition-opacity">
       <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-        <div className="w-screen max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800 transition-colors duration-200">
+        <div className="w-screen max-w-lg bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800 transition-colors duration-200">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4 bg-slate-50 dark:bg-slate-800/60">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                บันทึกข้อมูลสินค้า / การดำเนินการ
+                {isNeedsRevision ? "แก้ไขและยื่นคำขอใหม่ (Resubmit Request)" : "ยื่นคำขอชี้แจง / ปลดล็อคยกเว้น Non-Move"}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
                 รหัสสินค้า: {product.productCode}
               </p>
             </div>
@@ -154,72 +194,48 @@ export function ActionPanel({
           </div>
 
           {/* Product Summary Mini Card */}
-          <div className="bg-blue-50/70 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/40 p-4">
-            <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">
+          <div className="bg-blue-50/70 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/40 p-4 space-y-2">
+            <div className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2">
               {product.productName}
             </div>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
-              <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+            <div className="flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
+              <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 font-mono">
                 รุ่น: {product.model}
               </span>
               <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                ช่วงวัน: {product.nonmoveDaysBucket} วัน
+                หมวด: {product.categoryName}
               </span>
               <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 font-semibold text-blue-700 dark:text-blue-400">
-                สต๊อก: {product.stockQty} ชิ้น ({formatCurrency(product.stockValue)})
+                คงเหลือ: {product.stockQty} ชิ้น ({formatCurrency(product.stockValue)})
               </span>
             </div>
+
             {product.activeRequest && (
-              <div className="mt-3 pt-2 border-t border-blue-100 dark:border-blue-900/40 flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-400">สถานะปัจจุบัน:</span>
+              <div className="pt-2 border-t border-blue-100 dark:border-blue-900/40 flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-400 font-medium">สถานะปัจจุบัน:</span>
                 <RequestStatusBadge
                   status={product.activeRequest.status}
                   requestType={product.activeRequest.requestType}
                 />
               </div>
             )}
-          </div>
 
-          {/* Form Tabs */}
-          <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/40 p-1.5 gap-1.5">
-            <button
-              type="button"
-              onClick={() => { setActiveTab("EXPLAIN"); setErrorMsg(""); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                activeTab === "EXPLAIN"
-                  ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              <FileText className="h-4 w-4" />
-              1. ชี้แจงเหตุผล (Explain)
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveTab("EXCLUDE"); setErrorMsg(""); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                activeTab === "EXCLUDE"
-                  ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              <ShieldAlert className="h-4 w-4" />
-              2. ขอปลดล็อค/ยกเว้น (Exclusion)
-            </button>
-          </div>
-
-          {/* Form Content */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-            {activeTab === "EXCLUDE" && (
-              <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                <div>
-                  <span className="font-bold block mb-0.5">เงื่อนไขการขอยกเว้น (Exclusion)</span>
-                  คำขอนี้จะถูกส่งไปยังผู้จัดการภาค/สำนักงานใหญ่เพื่อตรวจสอบ และจำเป็นต้องมีรูปถ่ายหลักฐานประกอบ
+            {/* Note from Approver if REVISE */}
+            {isNeedsRevision && product.activeRequest?.reviewComment && (
+              <div className="mt-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                  <AlertCircle className="h-4 w-4" />
+                  ข้อความจากผู้อนุมัติ (สิ่งที่ต้องการให้แก้ไข/แนบเพิ่ม):
                 </div>
+                <p className="text-slate-800 dark:text-slate-200 pl-5 font-medium">
+                  &ldquo;{product.activeRequest.reviewComment}&rdquo;
+                </p>
               </div>
             )}
+          </div>
 
+          {/* Unified Form */}
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
             {errorMsg && (
               <div className="rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 text-xs text-rose-700 dark:text-rose-300 flex gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
@@ -227,17 +243,61 @@ export function ActionPanel({
               </div>
             )}
 
-            {/* Reason Select */}
+            {/* Field 1: Objective */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                เหตุผลหลัก <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                1. วัตถุประสงค์ของการยื่นเรื่อง <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRequestType("EXCLUDE")}
+                  className={`flex flex-col items-start p-3 rounded-2xl border text-left transition-all ${
+                    requestType === "EXCLUDE"
+                      ? "border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 shadow-sm ring-1 ring-indigo-500"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <ShieldAlert className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    ขอปลดล็อค / ยกเว้น
+                  </div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    ขอยกเว้นจากการคิด Non-move (ต้องมีรูปถ่ายหลักฐาน)
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRequestType("EXPLAIN")}
+                  className={`flex flex-col items-start p-3 rounded-2xl border text-left transition-all ${
+                    requestType === "EXPLAIN"
+                      ? "border-blue-500 bg-blue-50/70 dark:bg-blue-950/50 text-blue-900 dark:text-blue-200 shadow-sm ring-1 ring-blue-500"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    ชี้แจงสาเหตุ
+                  </div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    ระบุสาเหตุและแผนการระบายสินค้าประจำสาขา
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Field 2: Main Reason */}
+            <div>
+              <label className="block text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                2. เหตุผลหลัก <span className="text-rose-500">*</span>
               </label>
               <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
               >
-                <option value="">-- เลือกเหตุผล --</option>
+                <option value="">-- กรุณาเลือกเหตุผล --</option>
                 {presetReasons.map((r) => (
                   <option key={r} value={r}>
                     {r}
@@ -246,32 +306,36 @@ export function ActionPanel({
               </select>
             </div>
 
-            {/* Detailed Comments */}
+            {/* Field 3: Comments / Action Plan */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                คำอธิบาย / รายละเอียดเพิ่มเติม
+              <label className="block text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                3. คำอธิบายเพิ่มเติม / แผนการดำเนินการของสาขา
               </label>
               <textarea
                 rows={3}
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
-                placeholder="ระบุรายละเอียดเพิ่มเติม หรือแผนการระบายสต๊อก..."
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:outline-none"
+                placeholder="ระบุรายละเอียดเพิ่มเติม เช่น วันที่คาดว่าจะส่งมอบ, แผนการจัดรายการ หรือข้อมูลอื่นๆ..."
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
               />
             </div>
 
-            {/* Photo Attachments */}
+            {/* Field 4: Photo Proofs */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                รูปถ่ายหลักฐาน {activeTab === "EXCLUDE" ? <span className="text-rose-500">* (จำเป็น)</span> : "(ถ้ามี)"}
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-900 dark:text-white">
+                  4. รูปถ่ายหลักฐาน {requestType === "EXCLUDE" ? <span className="text-rose-500">* (จำเป็นต้องมีรูป)</span> : "(ถ้ามี)"}
+                </label>
+                <span className="text-[11px] text-slate-400">รวม {existingPhotos.length + photos.length} รูป</span>
+              </div>
 
-              <div className="mt-1 flex justify-center rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 px-4 py-4 hover:border-blue-400 bg-slate-50/50 dark:bg-slate-800/30 transition-colors">
+              {/* Upload Box */}
+              <div className="flex justify-center rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 px-4 py-4 hover:border-indigo-400 bg-slate-50/50 dark:bg-slate-800/30 transition-colors">
                 <div className="text-center">
-                  <Upload className="mx-auto h-7 w-7 text-slate-400 dark:text-slate-500" />
+                  <Upload className="mx-auto h-6 w-6 text-slate-400" />
                   <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    <label className="relative cursor-pointer rounded-md font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500">
-                      <span>คลิกเพื่ออัปโหลดรูปภาพ</span>
+                    <label className="cursor-pointer rounded-md font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500">
+                      <span>คลิกเพื่อถ่ายหรืออัปโหลดรูปภาพ</span>
                       <input
                         type="file"
                         multiple
@@ -281,43 +345,54 @@ export function ActionPanel({
                       />
                     </label>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, JPEG ไม่เกิน 10MB</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">รองรับ PNG, JPG, JPEG (อัปโหลดได้หลายรูป)</p>
                 </div>
               </div>
 
-              {/* Photo Previews */}
-              {photoPreviews.length > 0 && (
-                <div className="mt-3 grid grid-cols-3 gap-2">
+              {/* Photos Gallery */}
+              {(existingPhotos.length > 0 || photoPreviews.length > 0) && (
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {existingPhotos.map((src, idx) => (
+                    <div key={`existing-${idx}`} className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square group">
+                      <img src={src} alt="existing-proof" className="h-full w-full object-cover" />
+                      <span className="absolute bottom-0 inset-x-0 bg-slate-900/70 text-[9px] text-white text-center py-0.5">
+                        รูปเดิม
+                      </span>
+                    </div>
+                  ))}
                   {photoPreviews.map((src, idx) => (
-                    <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square">
-                      <img src={src} alt="preview" className="h-full w-full object-cover" />
+                    <div key={`new-${idx}`} className="relative rounded-xl overflow-hidden border border-indigo-300 dark:border-indigo-700 aspect-square group">
+                      <img src={src} alt="new-proof" className="h-full w-full object-cover" />
                       <button
                         type="button"
-                        onClick={() => removePhoto(idx)}
-                        className="absolute top-1 right-1 rounded-full bg-slate-900/70 p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeNewPhoto(idx)}
+                        className="absolute top-1 right-1 rounded-full bg-rose-600 p-1 text-white shadow-sm hover:bg-rose-700"
                       >
                         <X className="h-3 w-3" />
                       </button>
+                      <span className="absolute bottom-0 inset-x-0 bg-indigo-600/80 text-[9px] text-white text-center py-0.5">
+                        รูปใหม่
+                      </span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Submit Actions */}
+            {/* Footer Buttons */}
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex gap-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               >
                 ยกเลิก
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 dark:bg-blue-500 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 active:scale-[0.99] transition-all disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
@@ -327,7 +402,7 @@ export function ActionPanel({
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4" />
-                    {activeTab === "EXPLAIN" ? "บันทึกคำชี้แจง" : "ส่งคำขอยกเว้น"}
+                    {isNeedsRevision ? "ยื่นขอพิจารณาใหม่ (Resubmit)" : "ส่งคำขอ"}
                   </>
                 )}
               </button>
