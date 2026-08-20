@@ -179,43 +179,45 @@ export default function IdentifyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-5 sm:py-8 px-3.5 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors duration-200">
-      {/* 1. Top Header: 3-Line Symmetric Layout + Viewer/Admin & Mode Toggle */}
-      <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-4">
-        {/* 3-Line Branding Block */}
-        <div className="space-y-2">
-          {/* Line 1: Title */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-3 sm:py-5 px-3.5 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors duration-200">
+      {/* 1. Top Header: Mobile (3-Line Center) vs Large Screen (2-Line Merged) */}
+      <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-3 py-1.5 border-b border-slate-200/80 dark:border-slate-800/80 pb-2.5 sm:pb-3">
+        {/* Branding Block */}
+        <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-1.5">
+          {/* Line 1: Title (Centered on mobile, left on desktop) */}
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
             Non-Move Stock Management
           </h1>
 
-          {/* Line 2: Global House's Big Logo + Text */}
-          <div className="flex items-center gap-3">
-            <img
-              src="/global_house.jpg"
-              alt="Global House"
-              className="h-8 sm:h-9 w-auto object-contain shrink-0 rounded shadow-xs"
-            />
-            <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-              Global House (โกลบอลเฮ้าส์)
-            </span>
-          </div>
+          {/* Line 2 (Desktop: Merged 1-line with both brands) | (Mobile: Split 2 separate lines) */}
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+            {/* Global House Brand */}
+            <div className="flex items-center gap-2">
+              <img
+                src="/global_house.jpg"
+                alt="Global House"
+                className="h-7 sm:h-8 w-auto object-contain shrink-0 rounded shadow-xs"
+              />
+              <span>Global House (โกลบอลเฮ้าส์)</span>
+            </div>
 
-          {/* Line 3: Haier's Big Logo + Text */}
-          <div className="flex items-center gap-3">
-            <img
-              src="/logo.png"
-              alt="Haier"
-              className="h-8 sm:h-9 w-auto object-contain shrink-0 drop-shadow-xs"
-            />
-            <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-              Sell out team, Haier (Thailand)
-            </span>
+            {/* Dot separator for large screen */}
+            <span className="hidden sm:inline-block text-slate-300 dark:text-slate-600 font-normal">·</span>
+
+            {/* Haier Brand */}
+            <div className="flex items-center gap-2">
+              <img
+                src="/logo.png"
+                alt="Haier"
+                className="h-7 sm:h-8 w-auto object-contain shrink-0 drop-shadow-xs"
+              />
+              <span>Sell out team, Haier (Thailand)</span>
+            </div>
           </div>
         </div>
 
         {/* Compact Viewer/Admin Button & Mode Switch */}
-        <div className="flex items-center gap-2 self-end sm:self-start mt-1">
+        <div className="flex items-center gap-2 self-center sm:self-start mt-0.5">
           <button
             type="button"
             onClick={() => {
@@ -225,7 +227,7 @@ export default function IdentifyPage() {
               setAdminPasscode("");
               setIsMgmtModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 px-2.5 py-1 text-xs font-bold text-white shadow-sm transition-all"
           >
             <ShieldAlert className="h-3.5 w-3.5" />
             <span>Viewer/Admin</span>
@@ -236,25 +238,25 @@ export default function IdentifyPage() {
       </div>
 
       {/* 2. Main Login Card (Store Identification) */}
-      <div className="max-w-md mx-auto w-full my-6">
-        <div className="rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 p-6 sm:p-8 shadow-xl shadow-slate-200/50 dark:shadow-2xl dark:shadow-black/70 transition-all">
-          <div className="text-center mb-6">
+      <div className="max-w-md mx-auto w-full my-2 sm:my-3">
+        <div className="rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 p-5 sm:p-7 shadow-xl shadow-slate-200/50 dark:shadow-2xl dark:shadow-black/70 transition-all">
+          <div className="text-center mb-4 sm:mb-5">
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               ระบุสาขาและตัวตน
             </h2>
           </div>
 
           {errorMsg && (
-            <div className="mb-5 rounded-xl bg-rose-50 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 p-3.5 text-xs text-rose-700 dark:text-rose-200 flex gap-2.5 items-start">
+            <div className="mb-4 rounded-xl bg-rose-50 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 p-3 text-xs text-rose-700 dark:text-rose-200 flex gap-2.5 items-start">
               <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             {/* 1. Region Dropdown */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 1. เลือกภูมิภาค (Region) <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -263,7 +265,7 @@ export default function IdentifyPage() {
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
                   disabled={isLoadingRegions}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">-- เลือกภูมิภาค / ภาค --</option>
                   {regions.map((reg) => (
@@ -277,7 +279,7 @@ export default function IdentifyPage() {
 
             {/* 2. Store Branch Dropdown */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 2. เลือกรหัสสาขา / ร้านค้า <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -286,7 +288,7 @@ export default function IdentifyPage() {
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
                   disabled={!selectedRegion || isLoadingStores}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
                 >
                   <option value="">
                     {isLoadingStores ? "กำลังโหลดรายชื่อสาขา..." : "-- เลือกรหัสสาขา --"}
@@ -302,7 +304,7 @@ export default function IdentifyPage() {
 
             {/* 3. User Name */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 3. ชื่อผู้เข้าใช้งาน <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -312,14 +314,14 @@ export default function IdentifyPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="เช่น สมชาย ใจดี"
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
             </div>
 
             {/* 4. Phone Number */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 4. เบอร์โทรศัพท์มือถือ (10 หลัก) <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -330,7 +332,7 @@ export default function IdentifyPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
                   placeholder="08XXXXXXXX"
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white font-mono placeholder-slate-400 shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white font-mono placeholder-slate-400 shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
             </div>
@@ -339,7 +341,7 @@ export default function IdentifyPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/30 active:scale-[0.99] transition-all disabled:opacity-50"
+              className="w-full mt-1.5 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-bold text-white shadow-md shadow-blue-600/30 active:scale-[0.99] transition-all disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>
@@ -358,12 +360,12 @@ export default function IdentifyPage() {
       </div>
 
       {/* 3. Footer with Team Name & GitHub Commit Version */}
-      <div className="text-center text-xs text-slate-500 dark:text-slate-400 py-3 space-y-1">
+      <div className="text-center text-xs text-slate-500 dark:text-slate-400 py-1.5 space-y-0.5">
         <div>
           ระบบวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว &copy; 2026 <strong>{TEAM_NAME}</strong>
         </div>
-        <div className="flex items-center justify-center gap-1.5 font-mono text-[11px] text-slate-400 dark:text-slate-500">
-          <GitCommit className="h-3.5 w-3.5 text-indigo-500" />
+        <div className="flex items-center justify-center gap-1.5 font-mono text-[10px] text-slate-400 dark:text-slate-500">
+          <GitCommit className="h-3 w-3 text-indigo-500" />
           <span>Version: {APP_VERSION} (Commit: <strong className="text-slate-700 dark:text-slate-300">{commitHash}</strong>)</span>
         </div>
       </div>
