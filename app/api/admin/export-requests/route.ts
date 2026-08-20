@@ -11,6 +11,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || "ALL";
 
+    // Determine base URL from request headers
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
+    const proto = req.headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+    const baseUrl = `${proto}://${host}`;
+
     const where: any = {};
     if (status !== "ALL") {
       where.status = status;
@@ -56,7 +61,7 @@ export async function GET(req: NextRequest) {
       { header: "ข้อคิดเห็นผู้อนุมัติ", key: "reviewComment", width: 30 },
       { header: "วันที่พิจารณา", key: "reviewedAt", width: 22 },
       { header: "รูปภาพหลักฐาน (Thumbnail)", key: "imageCell", width: 22 },
-      { header: "ลิงก์รูปภาพ (Photo Links)", key: "photoUrls", width: 30 },
+      { header: "ลิงก์รูปภาพ (Photo URLs)", key: "photoUrls", width: 45 },
     ];
 
     // Header styling
@@ -82,14 +87,15 @@ export async function GET(req: NextRequest) {
       else if (r.status === "REJECTED") statusLabel = "ไม่อนุมัติ (REJECTED)";
       else if (r.status === "REVISE") statusLabel = "ขอข้อมูลเพิ่มเติม (REVISE)";
 
-      // Format Photo URLs cleanly without massive base64 text
-      const httpPhotos = r.photos.filter((p) => p.url.startsWith("http://") || p.url.startsWith("https://"));
-      const photoLinksText =
-        httpPhotos.length > 0
-          ? httpPhotos.map((p) => p.url).join(" ; ")
-          : r.photos.length > 0
-          ? `[แนบรูปภาพในไฟล์แล้ว ${r.photos.length} รูป]`
-          : "-";
+      // Generate Permanent URLs for each photo
+      const photoLinks: string[] = [];
+      for (const p of r.photos) {
+        if (p.url.startsWith("http://") || p.url.startsWith("https://")) {
+          photoLinks.push(p.url);
+        } else {
+          photoLinks.push(`${baseUrl}/api/requests/photos/${p.id}`);
+        }
+      }
 
       const row = worksheet.addRow({
         index: i + 1,
@@ -111,11 +117,11 @@ export async function GET(req: NextRequest) {
         reviewComment: r.reviewComment || "-",
         reviewedAt: r.reviewedAt ? new Date(r.reviewedAt).toLocaleString("th-TH") : "-",
         imageCell: r.photos.length > 0 ? "" : "ไม่มีรูปภาพ",
-        photoUrls: photoLinksText,
+        photoUrls: photoLinks.length > 0 ? photoLinks.join(" \n") : "-",
       });
 
       row.height = r.photos.length > 0 ? 80 : 24;
-      row.alignment = { vertical: "middle" };
+      row.alignment = { vertical: "middle", wrapText: true };
 
       // Status cell coloring
       const statusCell = row.getCell("status");
@@ -125,6 +131,16 @@ export async function GET(req: NextRequest) {
         statusCell.font = { color: { argb: "FFDC2626" }, bold: true };
       } else if (r.status === "REVISE") {
         statusCell.font = { color: { argb: "FFD97706" }, bold: true };
+      }
+
+      // If photo links exist, make the cell a hyperlink
+      if (photoLinks.length > 0) {
+        const photoCell = row.getCell("photoUrls");
+        photoCell.value = {
+          text: photoLinks.length === 1 ? photoLinks[0] : `${photoLinks.length} รูป: ${photoLinks.join(" ; ")}`,
+          hyperlink: photoLinks[0],
+        };
+        photoCell.font = { color: { argb: "FF2563EB" }, underline: true, size: 10 };
       }
 
       // Embed thumbnail image into Excel cell

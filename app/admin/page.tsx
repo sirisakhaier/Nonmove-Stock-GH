@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ApprovalQueueTable } from "@/components/ApprovalQueueTable";
+import { ExecutiveViewerDashboard } from "@/components/ExecutiveViewerDashboard";
 import {
   ShieldAlert,
   Upload,
@@ -639,55 +640,10 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Tab 5: Trend Analysis */}
+        {/* Tab 5: Executive Non-Move Analysis (Same as Viewer Module) */}
         {activeTab === "TREND" && (
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    แนวโน้มมูลค่าสต๊อกสินค้าไม่เคลื่อนไหวภาพรวมประเทศ (Nationwide Non-Move Trend)
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    พัฒนาการมูลค่าสต๊อกและสัดส่วนวิกฤต (% High) ในแต่ละรอบวันที่นำเข้ารายงาน
-                  </p>
-                </div>
-              </div>
-
-              {trendData?.historicalSnapshots?.length > 0 ? (
-                <div className="h-72 w-full pt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData.historicalSnapshots} margin={{ top: 10, right: 15, left: -10, bottom: 10 }}>
-                      <defs>
-                        <linearGradient id="colorAdminTrend" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#9333ea" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#9333ea" stopOpacity={0.0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 500 }} stroke="#334155" />
-                      <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} stroke="#334155" tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
-                      <Tooltip
-                        formatter={(val: any) => [formatCurrency(Number(val)), "มูลค่าสต๊อกรวม"]}
-                        labelFormatter={(l) => `วันที่รายงาน: ${l}`}
-                        contentStyle={{
-                          backgroundColor: "#0f172a",
-                          borderColor: "#334155",
-                          borderRadius: "14px",
-                          color: "#f8fafc",
-                          fontSize: "12px",
-                        }}
-                      />
-                      <Area type="monotone" dataKey="totalStockValue" stroke="#9333ea" strokeWidth={3} fillOpacity={1} fill="url(#colorAdminTrend)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-xs text-slate-400">
-                  กำลังประมวลผลข้อมูลแนวโน้มภาพรวม...
-                </div>
-              )}
-            </div>
+          <div className="pt-2">
+            <ExecutiveViewerDashboard />
           </div>
         )}
       </main>
