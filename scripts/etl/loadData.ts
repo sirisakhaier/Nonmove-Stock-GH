@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import * as xlsx from "xlsx";
-import { parse } from "csv-parse/sync";
-import { prisma } from "../../lib/prisma";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 interface StoreRecord {
   BranchCode: string;
@@ -31,6 +32,11 @@ function findFile(patterns: string[]): string | null {
   return null;
 }
 
+const toStr = (val: any): string | null => {
+  if (val === undefined || val === null || val === "") return null;
+  return String(val).trim() || null;
+};
+
 export async function loadStores() {
   console.log("--> Loading Store Dimension...");
   const filePath = findFile([
@@ -45,34 +51,32 @@ export async function loadStores() {
     return;
   }
 
-  const fileContent = fs.readFileSync(filePath, "utf-8");
-  const records: StoreRecord[] = parse(fileContent, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  });
+  const workbook = xlsx.readFile(filePath);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const records = xlsx.utils.sheet_to_json<StoreRecord>(sheet);
 
   let count = 0;
   for (const r of records) {
-    if (!r.BranchCode) continue;
+    const branchCode = toStr(r.BranchCode);
+    if (!branchCode) continue;
     await prisma.store.upsert({
-      where: { branchCode: r.BranchCode.trim() },
+      where: { branchCode },
       update: {
-        storeNameCust: r.STORE_NAME_CUST?.trim() || "",
-        storeId: r.STORE_ID?.trim() || null,
-        storeName: r.STORE_NAME?.trim() || null,
-        province: r.PROVINCE?.trim() || null,
-        storeType: r.STORE_TYPE?.trim() || "STORE",
-        region: r.REGION?.trim() || "OTHER",
+        storeNameCust: toStr(r.STORE_NAME_CUST) || branchCode,
+        storeId: toStr(r.STORE_ID),
+        storeName: toStr(r.STORE_NAME),
+        province: toStr(r.PROVINCE),
+        storeType: toStr(r.STORE_TYPE) || "STORE",
+        region: toStr(r.REGION) || "OTHER",
       },
       create: {
-        branchCode: r.BranchCode.trim(),
-        storeNameCust: r.STORE_NAME_CUST?.trim() || "",
-        storeId: r.STORE_ID?.trim() || null,
-        storeName: r.STORE_NAME?.trim() || null,
-        province: r.PROVINCE?.trim() || null,
-        storeType: r.STORE_TYPE?.trim() || "STORE",
-        region: r.REGION?.trim() || "OTHER",
+        branchCode,
+        storeNameCust: toStr(r.STORE_NAME_CUST) || branchCode,
+        storeId: toStr(r.STORE_ID),
+        storeName: toStr(r.STORE_NAME),
+        province: toStr(r.PROVINCE),
+        storeType: toStr(r.STORE_TYPE) || "STORE",
+        region: toStr(r.REGION) || "OTHER",
       },
     });
     count++;
@@ -94,34 +98,32 @@ export async function loadProducts() {
     return;
   }
 
-  const fileContent = fs.readFileSync(filePath, "utf-8");
-  const records: ProductRecord[] = parse(fileContent, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  });
+  const workbook = xlsx.readFile(filePath);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const records = xlsx.utils.sheet_to_json<ProductRecord>(sheet);
 
   let count = 0;
   for (const r of records) {
-    if (!r.ProductCode) continue;
+    const productCode = toStr(r.ProductCode);
+    if (!productCode) continue;
     await prisma.product.upsert({
-      where: { productCode: String(r.ProductCode).trim() },
+      where: { productCode },
       update: {
-        productName: r.ProductName?.trim() || "",
-        model: r.MODEL?.trim() || null,
-        skuType: r.SKU_TYPE?.trim() || "SELLABLE",
-        category: r.CATEGORY?.trim() || null,
-        subCategory: r.SUB_CATEGORY?.trim() || null,
-        sizeGroup: r.SIZE_GROUP?.trim() || null,
+        productName: toStr(r.ProductName) || productCode,
+        model: toStr(r.MODEL),
+        skuType: toStr(r.SKU_TYPE) || "SELLABLE",
+        category: toStr(r.CATEGORY),
+        subCategory: toStr(r.SUB_CATEGORY),
+        sizeGroup: toStr(r.SIZE_GROUP),
       },
       create: {
-        productCode: String(r.ProductCode).trim(),
-        productName: r.ProductName?.trim() || "",
-        model: r.MODEL?.trim() || null,
-        skuType: r.SKU_TYPE?.trim() || "SELLABLE",
-        category: r.CATEGORY?.trim() || null,
-        subCategory: r.SUB_CATEGORY?.trim() || null,
-        sizeGroup: r.SIZE_GROUP?.trim() || null,
+        productCode,
+        productName: toStr(r.ProductName) || productCode,
+        model: toStr(r.MODEL),
+        skuType: toStr(r.SKU_TYPE) || "SELLABLE",
+        category: toStr(r.CATEGORY),
+        subCategory: toStr(r.SUB_CATEGORY),
+        sizeGroup: toStr(r.SIZE_GROUP),
       },
     });
     count++;
