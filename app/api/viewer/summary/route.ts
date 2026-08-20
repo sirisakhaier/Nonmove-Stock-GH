@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NONMOVE_BUCKET_ORDER, classifyNonmove, getWorstBucket } from "@/lib/nonmoveConfig";
+import { NONMOVE_BUCKET_ORDER, classifyNonmove } from "@/lib/nonmoveConfig";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +9,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const region = searchParams.get("region") || "ALL";
     const dateParam = searchParams.get("date");
+    const categoryParam = searchParams.get("category") || "ALL";
 
-    // Fetch available dates
+    // 1. Fetch available dates
     const dateRecords = await prisma.nonMoveRow.findMany({
       select: { reportDate: true },
       distinct: ["reportDate"],
@@ -21,9 +22,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         availableDates: [],
         selectedDate: null,
-        kpis: { totalStores: 0, totalSkus: 0, totalStockQty: 0, totalStockValue: 0, highNonmoveRatio: 0, highCount: 0, okCount: 0 },
-        regionBreakdown: [],
-        storeRanking: [],
+        kpis: { totalSkus: 0, totalStockQty: 0, totalStockValue: 0, highNonmoveRatio: 0, highCount: 0, okCount: 0 },
+        periodBreakdown: [],
+        skuRanking: [],
+        categories: [],
       });
     }
 
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Filter by date and region
+    // 2. Filter stores by region if specified
     const storeWhere: any = {
       storeType: { not: "DC" },
       branchCode: { notIn: ["GH-001", "GH-002", "GH-003"] },
@@ -47,176 +49,197 @@ export async function GET(req: NextRequest) {
 
     const stores = await prisma.store.findMany({
       where: storeWhere,
-      select: {
-        branchCode: true,
-        storeNameCust: true,
-        region: true,
-        province: true,
-      },
+      select: { branchCode: true, storeNameCust: true, region: true, province: true },
     });
-
     const storeCodes = stores.map((s) => s.branchCode);
 
+    // 3. Fetch NonMove Rows
+    const rowWhere: any = {
+      branchCode: { in: storeCodes },
+      reportDate: { gte: startOfDay, lte: endOfDay },
+    };
+
+    if (categoryParam !== "ALL") {
+      rowWhere.categoryName = categoryParam;
+    }
+
     const rows = await prisma.nonMoveRow.findMany({
-      where: {
-        branchCode: { in: storeCodes },
-        reportDate: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
-      select: {
-        branchCode: true,
-        productCode: true,
-        stockQty: true,
-        stockValue: true,
-        nonmoveDaysBucket: true,
-        categoryName: true,
+      where: rowWhere,
+      include: {
+        product: true,
       },
     });
 
-    // Approved exclusions
-    const approvedExclusions = await prisma.skuRequest.findMany({
-      where: {
-        branchCode: { in: storeCodes },
-        status: "APPROVED",
-        requestType: "EXCLUDE",
-      },
-      select: { branchCode: true, productCode: true },
-    });
-    const exclusionSet = new Set(approvedExclusions.map((e) => `${e.branchCode}:${e.productCode}`));
-
-    // Aggregate by Store
-    const storeAgg = new Map<string, {
-      branchCode: string;
-      storeNameCust: string;
-      region: string;
-      province: string | null;
+    // 4. Period (Bucket) Aggregation
+    const periodMap = new Map<string, {
+      period: string;
       skus: Set<string>;
+      branches: Set<string>;
       stockQty: number;
       stockValue: number;
-      highCount: number;
-      okCount: number;
-      excludedCount: number;
-      bucketCounts: Record<string, number>;
+      classification: "HIGH" | "OK";
     }>();
 
-    for (const s of stores) {
-      storeAgg.set(s.branchCode, {
-        branchCode: s.branchCode,
-        storeNameCust: s.storeNameCust,
-        region: s.region,
-        province: s.province,
+    for (const b of NONMOVE_BUCKET_ORDER) {
+      periodMap.set(b, {
+        period: b,
         skus: new Set<string>(),
+        branches: new Set<string>(),
         stockQty: 0,
         stockValue: 0,
-        highCount: 0,
-        okCount: 0,
-        excludedCount: 0,
-        bucketCounts: Object.fromEntries(NONMOVE_BUCKET_ORDER.map((b) => [b, 0])),
+        classification: classifyNonmove(b),
       });
     }
 
-    // Process rows
+    let grandTotalValue = 0;
+    let grandTotalQty = 0;
+    const grandSkus = new Set<string>();
+    const grandBranches = new Set<string>();
+    const categorySet = new Set<string>();
+
+    // SKU Map for Ranking
+    const skuMap = new Map<string, {
+      productCode: string;
+      productName: string;
+      model: string;
+      category: string;
+      subCategory: string;
+      nonmoveDaysBucket: string;
+      agingDaysBucket: string;
+      stockQty: number;
+      stockValue: number;
+      branchCount: number;
+      branches: Set<string>;
+      classification: "HIGH" | "OK";
+    }>();
+
     for (const r of rows) {
-      const agg = storeAgg.get(r.branchCode);
-      if (!agg) continue;
+      const b = r.nonmoveDaysBucket || "30-60";
+      if (!periodMap.has(b)) {
+        periodMap.set(b, {
+          period: b,
+          skus: new Set<string>(),
+          branches: new Set<string>(),
+          stockQty: 0,
+          stockValue: 0,
+          classification: classifyNonmove(b),
+        });
+      }
 
-      agg.skus.add(r.productCode);
-      agg.stockQty += r.stockQty;
-      agg.stockValue += r.stockValue;
-      agg.bucketCounts[r.nonmoveDaysBucket] = (agg.bucketCounts[r.nonmoveDaysBucket] || 0) + 1;
+      const pData = periodMap.get(b)!;
+      pData.skus.add(r.productCode);
+      pData.branches.add(r.branchCode);
+      pData.stockQty += r.stockQty;
+      pData.stockValue += r.stockValue;
 
-      const isExcluded = exclusionSet.has(`${r.branchCode}:${r.productCode}`);
-      if (isExcluded) {
-        agg.excludedCount++;
+      grandTotalValue += r.stockValue;
+      grandTotalQty += r.stockQty;
+      grandSkus.add(r.productCode);
+      grandBranches.add(r.branchCode);
+      if (r.categoryName) categorySet.add(r.categoryName);
+
+      // SKU Aggregation
+      if (!skuMap.has(r.productCode)) {
+        skuMap.set(r.productCode, {
+          productCode: r.productCode,
+          productName: r.product?.productName || r.branchName || r.productCode,
+          model: r.product?.model || "-",
+          category: r.categoryName || r.product?.category || "Other",
+          subCategory: r.product?.subCategory || "-",
+          nonmoveDaysBucket: b,
+          agingDaysBucket: r.agingDaysBucket || "0-180",
+          stockQty: r.stockQty,
+          stockValue: r.stockValue,
+          branchCount: 1,
+          branches: new Set([r.branchCode]),
+          classification: classifyNonmove(b),
+        });
       } else {
-        const cls = classifyNonmove(r.nonmoveDaysBucket);
-        if (cls === "HIGH") agg.highCount++;
-        else agg.okCount++;
+        const item = skuMap.get(r.productCode)!;
+        item.stockQty += r.stockQty;
+        item.stockValue += r.stockValue;
+        item.branches.add(r.branchCode);
+        item.branchCount = item.branches.size;
       }
     }
 
-    // Company/Region totals
-    let totalStockQty = 0;
-    let totalStockValue = 0;
-    let totalHighCount = 0;
-    let totalOkCount = 0;
-    let totalExcludedCount = 0;
-    const allSkusSet = new Set<string>();
+    // Build Period Breakdown
+    let highValue = 0;
+    let highQty = 0;
+    let highSkuCount = 0;
 
-    const storeRanking = Array.from(storeAgg.values()).map((s) => {
-      totalStockQty += s.stockQty;
-      totalStockValue += s.stockValue;
-      totalHighCount += s.highCount;
-      totalOkCount += s.okCount;
-      totalExcludedCount += s.excludedCount;
-      s.skus.forEach((sku) => allSkusSet.add(sku));
+    const periodBreakdown = NONMOVE_BUCKET_ORDER.map((b) => {
+      const p = periodMap.get(b) || {
+        period: b,
+        skus: new Set<string>(),
+        branches: new Set<string>(),
+        stockQty: 0,
+        stockValue: 0,
+        classification: classifyNonmove(b),
+      };
 
-      const activeCount = s.highCount + s.okCount;
-      const highPct = activeCount > 0 ? Math.round((s.highCount / activeCount) * 100) : 0;
-      const okPct = activeCount > 0 ? 100 - highPct : 0;
+      const value = Math.round(p.stockValue);
+      const qty = p.stockQty;
+      const skuCount = p.skus.size;
+      const storeCount = p.branches.size;
+
+      if (p.classification === "HIGH") {
+        highValue += value;
+        highQty += qty;
+        highSkuCount += skuCount;
+      }
 
       return {
-        branchCode: s.branchCode,
-        storeNameCust: s.storeNameCust,
-        region: s.region,
-        province: s.province,
-        skuCount: s.skus.size,
+        period: b,
+        label: `${b} วัน`,
+        skuCount,
+        stockQty: qty,
+        stockValue: value,
+        storeCount,
+        valuePct: grandTotalValue > 0 ? Math.round((value / grandTotalValue) * 100) : 0,
+        qtyPct: grandTotalQty > 0 ? Math.round((qty / grandTotalQty) * 100) : 0,
+        skuPct: grandSkus.size > 0 ? Math.round((skuCount / grandSkus.size) * 100) : 0,
+        classification: p.classification,
+      };
+    });
+
+    const highNonmoveRatio = grandTotalValue > 0 ? Math.round((highValue / grandTotalValue) * 100) : 0;
+    const okRatio = 100 - highNonmoveRatio;
+
+    // Top SKUs Ranking
+    const skuRanking = Array.from(skuMap.values())
+      .map((s) => ({
+        productCode: s.productCode,
+        productName: s.productName,
+        model: s.model,
+        category: s.category,
+        subCategory: s.subCategory,
+        nonmoveDaysBucket: s.nonmoveDaysBucket,
+        agingDaysBucket: s.agingDaysBucket,
         stockQty: s.stockQty,
-        stockValue: s.stockValue,
-        highCount: s.highCount,
-        okCount: s.okCount,
-        highPct,
-        okPct,
-        excludedCount: s.excludedCount,
-      };
-    }).sort((a, b) => b.stockValue - a.stockValue);
-
-    const totalActive = totalHighCount + totalOkCount;
-    const overallHighPct = totalActive > 0 ? Math.round((totalHighCount / totalActive) * 100) : 0;
-    const overallOkPct = totalActive > 0 ? 100 - overallHighPct : 0;
-
-    // Regional breakdown
-    const regionMap = new Map<string, { region: string; storeCount: number; stockValue: number; stockQty: number; highCount: number; okCount: number }>();
-    for (const s of storeRanking) {
-      if (!regionMap.has(s.region)) {
-        regionMap.set(s.region, { region: s.region, storeCount: 0, stockValue: 0, stockQty: 0, highCount: 0, okCount: 0 });
-      }
-      const r = regionMap.get(s.region)!;
-      r.storeCount++;
-      r.stockValue += s.stockValue;
-      r.stockQty += s.stockQty;
-      r.highCount += s.highCount;
-      r.okCount += s.okCount;
-    }
-
-    const regionBreakdown = Array.from(regionMap.values()).map((r) => {
-      const active = r.highCount + r.okCount;
-      return {
-        ...r,
-        highPct: active > 0 ? Math.round((r.highCount / active) * 100) : 0,
-        okPct: active > 0 ? 100 - Math.round((r.highCount / active) * 100) : 0,
-      };
-    }).sort((a, b) => b.stockValue - a.stockValue);
+        stockValue: Math.round(s.stockValue),
+        branchCount: s.branchCount,
+        classification: s.classification,
+      }))
+      .sort((a, b) => b.stockValue - a.stockValue);
 
     return NextResponse.json({
       availableDates,
       selectedDate: targetDateStr,
       kpis: {
-        totalStores: stores.length,
-        activeStoresWithStock: storeRanking.filter((s) => s.stockValue > 0).length,
-        totalSkus: allSkusSet.size,
-        totalStockQty,
-        totalStockValue,
-        highNonmoveRatio: overallHighPct,
-        highCount: totalHighCount,
-        okCount: totalOkCount,
-        overallOkPct,
-        excludedCount: totalExcludedCount,
+        totalStockValue: Math.round(grandTotalValue),
+        totalStockQty: grandTotalQty,
+        totalSkus: grandSkus.size,
+        totalStores: grandBranches.size,
+        highNonmoveRatio,
+        okRatio,
+        highValue,
+        highQty,
+        highSkuCount,
       },
-      regionBreakdown,
-      storeRanking,
+      periodBreakdown,
+      skuRanking,
+      categories: Array.from(categorySet).sort(),
     });
   } catch (error: any) {
     console.error("Error in /api/viewer/summary:", error);

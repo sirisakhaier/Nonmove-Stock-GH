@@ -1,25 +1,27 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import {
   Layers,
   Calendar,
-  Store,
   MapPin,
   Flame,
   CheckCircle2,
   DollarSign,
   Package,
-  ArrowUpRight,
-  ArrowDownRight,
+  Boxes,
+  TrendingUp,
   Download,
   RefreshCw,
   Search,
-  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  Filter,
 } from "lucide-react";
 import {
+  BarChart,
+  Bar,
   AreaChart,
   Area,
   XAxis,
@@ -27,6 +29,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
+  Legend,
 } from "recharts";
 import { formatNumber, formatCurrency, formatPercent } from "@/lib/validators";
 import { TEAM_NAME } from "@/lib/version";
@@ -37,30 +41,36 @@ export default function ViewerOverviewPage() {
   const [selectedRegion, setSelectedRegion] = useState("ALL");
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [summaryData, setSummaryData] = useState<any>(null);
   const [trendData, setTrendData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { theme } = useTheme();
 
-  // Fetch regions
+  // 1. Fetch Regions
   useEffect(() => {
     fetch("/api/regions")
       .then((res) => res.json())
       .then((data) => setRegions(data.regions || []));
   }, []);
 
-  // Fetch summary & trend
-  const fetchViewerData = useCallback(async (date?: string, region?: string) => {
+  // 2. Fetch Summary & Trend
+  const fetchViewerData = useCallback(async (date?: string, region?: string, category?: string) => {
     setIsLoading(true);
     try {
       const url = new URL("/api/viewer/summary", window.location.origin);
       if (region && region !== "ALL") url.searchParams.set("region", region);
       if (date) url.searchParams.set("date", date);
+      if (category && category !== "ALL") url.searchParams.set("category", category);
+
+      const trendUrl = new URL("/api/viewer/trend", window.location.origin);
+      if (region && region !== "ALL") trendUrl.searchParams.set("region", region);
 
       const [resSummary, resTrend] = await Promise.all([
         fetch(url.toString()),
-        fetch(`/api/viewer/trend?region=${encodeURIComponent(region || "ALL")}`),
+        fetch(trendUrl.toString()),
       ]);
 
       if (resSummary.ok) {
@@ -84,58 +94,73 @@ export default function ViewerOverviewPage() {
   }, [selectedDate]);
 
   useEffect(() => {
-    fetchViewerData(selectedDate, selectedRegion);
-  }, [selectedRegion, selectedDate, fetchViewerData]);
+    fetchViewerData(selectedDate, selectedRegion, selectedCategory);
+  }, [selectedRegion, selectedDate, selectedCategory, fetchViewerData]);
 
   const kpis = summaryData?.kpis || {
-    totalStores: 0,
-    totalSkus: 0,
-    totalStockQty: 0,
     totalStockValue: 0,
+    totalStockQty: 0,
+    totalSkus: 0,
+    totalStores: 0,
     highNonmoveRatio: 0,
-    highCount: 0,
-    okCount: 0,
-    overallOkPct: 0,
+    okRatio: 0,
+    highValue: 0,
+    highQty: 0,
+    highSkuCount: 0,
   };
 
-  const storeRanking: any[] = summaryData?.storeRanking || [];
-  const regionBreakdown: any[] = summaryData?.regionBreakdown || [];
+  const periodBreakdown: any[] = summaryData?.periodBreakdown || [];
+  const skuRanking: any[] = summaryData?.skuRanking || [];
+  const categories: string[] = summaryData?.categories || [];
 
-  const filteredStores = storeRanking.filter((s) => {
+  const filteredSkus = skuRanking.filter((s) => {
+    if (selectedPeriodFilter !== "ALL" && s.nonmoveDaysBucket !== selectedPeriodFilter) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       return (
-        s.branchCode.toLowerCase().includes(q) ||
-        s.storeNameCust.toLowerCase().includes(q) ||
-        s.region.toLowerCase().includes(q) ||
-        (s.province && s.province.toLowerCase().includes(q))
+        s.productCode.toLowerCase().includes(q) ||
+        s.productName.toLowerCase().includes(q) ||
+        s.model.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q)
       );
     }
     return true;
   });
 
-  const handleExportSummary = () => {
-    if (!storeRanking.length) return;
-    const headers = ["BranchCode", "StoreName", "Region", "Province", "SKUs", "StockQty", "StockValueTHB", "HighCount", "OkCount", "HighPct", "OkPct"];
-    const rows = storeRanking.map((s) => [
-      `="${s.branchCode}"`,
-      `"${(s.storeNameCust || "").replace(/"/g, "")}"`,
-      `"${s.region}"`,
-      `"${s.province || ""}"`,
-      s.skuCount,
+  const handleExportCsv = () => {
+    if (!skuRanking.length) return;
+    const headers = [
+      "ProductCode",
+      "ProductName",
+      "Model",
+      "Category",
+      "SubCategory",
+      "NonmovePeriod",
+      "AgingPeriod",
+      "StockQty",
+      "StockValueTHB",
+      "BranchCount",
+      "RiskClassification",
+    ];
+    const rows = filteredSkus.map((s) => [
+      `="${s.productCode}"`,
+      `"${(s.productName || "").replace(/"/g, "")}"`,
+      `"${(s.model || "").replace(/"/g, "")}"`,
+      `"${s.category || ""}"`,
+      `"${s.subCategory || ""}"`,
+      `"${s.nonmoveDaysBucket} วัน"`,
+      `"${s.agingDaysBucket} วัน"`,
       s.stockQty,
       s.stockValue,
-      s.highCount,
-      s.okCount,
-      s.highPct,
-      s.okPct,
+      s.branchCount,
+      s.classification === "HIGH" ? "วิกฤต (>120 วัน)" : "ปกติ (<=120 วัน)",
     ]);
 
     const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `NonMove_Viewer_Summary_${selectedRegion}_${selectedDate}.csv`;
+    link.download = `NonMove_Period_SKU_Analysis_${selectedRegion}_${selectedDate}.csv`;
     link.click();
   };
 
@@ -145,6 +170,8 @@ export default function ViewerOverviewPage() {
   const tooltipBg = isDark ? "#0f172a" : "#ffffff";
   const tooltipBorder = isDark ? "#334155" : "#e2e8f0";
   const tooltipText = isDark ? "#f8fafc" : "#0f172a";
+
+  const delta = trendData?.delta || { stockQtyDiff: 0, stockValueDiff: 0, highPctDiff: 0 };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
@@ -160,42 +187,59 @@ export default function ViewerOverviewPage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                  ภาพรวมสต๊อกไม่เคลื่อนไหวทุกสาขา (Viewer Overview)
+                  แดชบอร์ดวิเคราะห์สต๊อกไม่เคลื่อนไหว (Executive Non-Move Dashboard)
                 </h1>
                 <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                  {selectedRegion === "ALL" ? "ทุกภูมิภาคทั่วประเทศ" : `ภาค ${selectedRegion}`}
+                  {selectedRegion === "ALL" ? "ทั่วประเทศ (Nationwide)" : `ภาค ${selectedRegion}`}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                สรุปสถานะ Non-Move Stock สำหรับผู้บริหาร และ Merchandiser · {TEAM_NAME}
+                วิเคราะห์แยกตามช่วงวันไม่เคลื่อนไหว (Period), จำนวนชิ้น (QTY), รายการ (SKU), มูลค่า (Amount) และแนวโน้มรายวัน · {TEAM_NAME}
               </p>
             </div>
           </div>
 
-          {/* Controls: Region Selector & Date Selector */}
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Controls: Region, Category, Date Selector */}
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Region Selector */}
-            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2 shadow-inner">
+            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 shadow-inner">
               <MapPin className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               <select
                 value={selectedRegion}
                 onChange={(e) => setSelectedRegion(e.target.value)}
                 className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
               >
-                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                  ทุกภูมิภาค (Nationwide)
-                </option>
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกภูมิภาค</option>
                 {regions.map((reg) => (
                   <option key={reg} value={reg} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                    {reg}
+                    ภาค {reg}
                   </option>
                 ))}
               </select>
             </div>
 
+            {/* Category Selector */}
+            {categories.length > 0 && (
+              <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 shadow-inner">
+                <Filter className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกหมวดหมู่</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Date Selector */}
             {availableDates.length > 0 && (
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2 shadow-inner">
+              <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 shadow-inner">
                 <Calendar className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                 <select
                   value={selectedDate}
@@ -212,216 +256,349 @@ export default function ViewerOverviewPage() {
             )}
 
             <button
-              onClick={() => fetchViewerData(selectedDate, selectedRegion)}
+              onClick={() => fetchViewerData(selectedDate, selectedRegion, selectedCategory)}
               className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-2.5 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-indigo-600 transition-colors"
-              title="รีเฟรช"
+              title="รีเฟรชข้อมูล"
             >
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* 1. Executive KPI Summary Cards */}
+        {/* 1. Master KPI Cards: Amount, QTY, SKU, Critical High Ratio */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Stores */}
+          {/* Total Amount (มูลค่าสต๊อกรวม) */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                จำนวนสาขาทั้งหมด
-              </span>
-              <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 p-2.5 text-indigo-600 dark:text-indigo-400">
-                <Store className="h-5 w-5" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900 dark:text-white">
-                {formatNumber(kpis.totalStores)}
-              </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">สาขา</span>
-            </div>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              สาขาที่มีสต๊อก Non-move: {kpis.activeStoresWithStock || kpis.totalStores} สาขา
-            </p>
-          </div>
-
-          {/* Total Value */}
-          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                มูลค่าสต๊อกรวม (บาท)
+                มูลค่าสต๊อกไม่เคลื่อนไหว (Amount)
               </span>
               <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 p-2.5 text-emerald-600 dark:text-emerald-400">
                 <DollarSign className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-3xl font-black text-slate-900 dark:text-white">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
                 {formatCurrency(kpis.totalStockValue)}
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              รวม {formatNumber(kpis.totalStockQty)} ชิ้น ({formatNumber(kpis.totalSkus)} SKU)
-            </p>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium">
+              {trendData?.hasComparison && (
+                <span className={delta.stockValueDiff > 0 ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-600 dark:text-emerald-400 font-bold"}>
+                  {delta.stockValueDiff > 0 ? `+${formatCurrency(delta.stockValueDiff)}` : formatCurrency(delta.stockValueDiff)} เทียบรอบก่อน
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* High Non-Move Ratio */}
+          {/* Total Units (จำนวนชิ้น QTY) */}
+          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                จำนวนชิ้นคงเหลือ (Total QTY)
+              </span>
+              <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 p-2.5 text-indigo-600 dark:text-indigo-400">
+                <Boxes className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+                {formatNumber(kpis.totalStockQty)}
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">ชิ้น</span>
+            </div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+              กระจายใน {formatNumber(kpis.totalStores)} สาขา
+            </div>
+          </div>
+
+          {/* Total SKUs (จำนวนรายการสินค้า) */}
+          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                จำนวนรายการสินค้า (Total SKUs)
+              </span>
+              <div className="rounded-2xl bg-blue-50 dark:bg-blue-950/60 p-2.5 text-blue-600 dark:text-blue-400">
+                <Package className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+                {formatNumber(kpis.totalSkus)}
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">SKU</span>
+            </div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+              โมเดลสินค้าที่ไม่เคลื่อนไหว
+            </div>
+          </div>
+
+          {/* Critical High Ratio (% วิกฤต > 120 วัน) */}
           <div className="rounded-3xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
-                สัดส่วนสินค้าค้างนานวิกฤต
+                สัดส่วนค้างนานวิกฤต (&gt; 120 วัน)
               </span>
               <div className="rounded-2xl bg-rose-100 dark:bg-rose-950/80 p-2.5 text-rose-600 dark:text-rose-400">
                 <Flame className="h-5 w-5 fill-rose-500 text-rose-500" />
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-black text-rose-700 dark:text-rose-300">
+              <span className="text-2xl sm:text-3xl font-black text-rose-700 dark:text-rose-300">
                 {formatPercent(kpis.highNonmoveRatio)}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">(High Non-move)</span>
+              <span className="text-xs text-rose-600/80 dark:text-rose-400/80 font-bold">ของมูลค่ารวม</span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-xs">
-              <span className="text-rose-600 dark:text-rose-400 font-bold">🔥 {formatNumber(kpis.highCount)} รายการ</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">✅ {formatNumber(kpis.okCount)} รายการ</span>
+            <div className="mt-1 text-xs text-rose-700 dark:text-rose-300 font-bold flex items-center justify-between">
+              <span>🔥 {formatCurrency(kpis.highValue)}</span>
+              <span>({formatNumber(kpis.highQty)} ชิ้น)</span>
             </div>
-          </div>
-
-          {/* Approved Exclusions */}
-          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                รายการที่ได้รับอนุมัติยกเว้น
-              </span>
-              <div className="rounded-2xl bg-blue-50 dark:bg-blue-950/60 p-2.5 text-blue-600 dark:text-blue-400">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-black text-blue-700 dark:text-blue-400">
-                {formatNumber(kpis.excludedCount || 0)}
-              </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">รายการ</span>
-            </div>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              ปลดล็อคจากการคิดอัตราวิกฤตแล้ว
-            </p>
           </div>
         </div>
 
-        {/* 2. NEW: Trend & Timeline Progression in Viewer */}
-        {trendData?.historicalSnapshots?.length > 0 && (
-          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                  <TrendingUp className="h-5 w-5" />
+        {/* 2. Visual Charts: Period Breakdown & Daily Trend */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Chart 1: Period Breakdown (Amount & QTY) */}
+          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  มูลค่าสต๊อกแยกตามช่วงวันไม่เคลื่อนไหว (Amount by Period)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  มูลค่าสต๊อก (บาท) จำแนกตามแต่ละ Bucket
+                </p>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded bg-emerald-500 inline-block" />
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">&le; 120 วัน</span>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    แนวโน้มมูลค่าสต๊อกภาพรวมตามรอบวัน ({selectedRegion === "ALL" ? "ทั่วประเทศ" : `ภาค ${selectedRegion}`})
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    ติดตามความคืบหน้าการระบายสต๊อกภาพรวมในแต่ละรอบวัน
-                  </p>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded bg-rose-500 inline-block" />
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">&gt; 120 วัน</span>
                 </div>
               </div>
             </div>
 
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData.historicalSnapshots} margin={{ top: 10, right: 15, left: -10, bottom: 10 }}>
-                  <defs>
-                    <linearGradient id="colorViewerTrend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
+                <BarChart data={periodBreakdown} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: tickColor, fontWeight: 500 }} stroke={gridColor} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: tickColor, fontWeight: 500 }} stroke={gridColor} angle={-15} textAnchor="end" interval={0} />
                   <YAxis tick={{ fontSize: 11, fill: tickColor }} stroke={gridColor} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
                   <Tooltip
-                    formatter={(val: any) => [formatCurrency(Number(val)), "มูลค่าสต๊อกรวม"]}
-                    labelFormatter={(l) => `วันที่รายงาน: ${l}`}
+                    formatter={(val: any, name: string) => [
+                      `฿${Number(val).toLocaleString("th-TH")}`,
+                      "มูลค่าสต๊อกรวม (Amount)",
+                    ]}
+                    labelFormatter={(l) => `ช่วงวัน: ${l}`}
                     contentStyle={{
                       backgroundColor: tooltipBg,
                       borderColor: tooltipBorder,
                       borderRadius: "14px",
-                      boxShadow: isDark ? "0 10px 25px -5px rgba(0,0,0,0.5)" : "0 10px 25px -5px rgba(0,0,0,0.1)",
                       color: tooltipText,
                       fontSize: "12px",
                     }}
                   />
-                  <Area type="monotone" dataKey="totalStockValue" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorViewerTrend)" />
-                </AreaChart>
+                  <Bar dataKey="stockValue" radius={[6, 6, 0, 0]} maxBarSize={45}>
+                    {periodBreakdown.map((entry, idx) => (
+                      <Cell key={`cell-${idx}`} fill={entry.classification === "HIGH" ? "#f43f5e" : "#10b981"} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-        )}
 
-        {/* 3. Regional Summary Cards (if Nationwide) */}
-        {selectedRegion === "ALL" && regionBreakdown.length > 0 && (
+          {/* Chart 2: Daily Trend Progression (Timeline Progression) */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                เปรียบเทียบสถานะแยกตามรายภูมิภาค (Regional Benchmark)
-              </h2>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {regionBreakdown.length} ภูมิภาค
-              </span>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  แนวโน้มมูลค่าสต๊อกตามรอบวันรายงาน (Daily Trend)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  พัฒนาการมูลค่าสต๊อกรวมและสัดส่วนวิกฤต
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-bold">
+                <TrendingUp className="h-4 w-4" />
+                Timeline
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {regionBreakdown.map((r) => (
-                <div
-                  key={r.region}
-                  onClick={() => setSelectedRegion(r.region)}
-                  className="group cursor-pointer rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors text-sm">
-                      {r.region}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{r.storeCount} สาขา</span>
-                  </div>
-                  <div className="mt-2 font-bold text-slate-800 dark:text-slate-200 text-lg">
-                    {formatCurrency(r.stockValue)}
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-xs">
-                    <span className="text-rose-600 dark:text-rose-400 font-bold">🔥 วิกฤต {r.highPct}%</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">✅ ปกติ {r.okPct}%</span>
-                  </div>
+            <div className="h-64 w-full">
+              {trendData?.historicalSnapshots?.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData.historicalSnapshots} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
+                    <defs>
+                      <linearGradient id="colorViewerTrendV2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: tickColor, fontWeight: 500 }} stroke={gridColor} />
+                    <YAxis tick={{ fontSize: 11, fill: tickColor }} stroke={gridColor} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
+                    <Tooltip
+                      formatter={(val: any, name: string) => [
+                        formatCurrency(Number(val)),
+                        name === "totalStockValue" ? "มูลค่าสต๊อกรวม" : "สัดส่วนวิกฤต (% High)",
+                      ]}
+                      labelFormatter={(l) => `วันที่: ${l}`}
+                      contentStyle={{
+                        backgroundColor: tooltipBg,
+                        borderColor: tooltipBorder,
+                        borderRadius: "14px",
+                        color: tooltipText,
+                        fontSize: "12px",
+                      }}
+                    />
+                    <Area type="monotone" dataKey="totalStockValue" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorViewerTrendV2)" name="totalStockValue" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                  กำลังโหลดข้อมูลแนวโน้ม...
                 </div>
-              ))}
+              )}
             </div>
           </div>
-        )}
+        </div>
 
-        {/* 4. Branch Performance Ranking Table */}
+        {/* 3. MASTER TABLE: Non-Move Period Breakdown Table */}
+        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                ตารางสรุปสต๊อกแยกตามช่วงวันไม่เคลื่อนไหว (Non-Move Period Breakdown)
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                จำแนกจำนวนรายการสินค้า (SKU), จำนวนชิ้น (QTY), มูลค่าสต๊อก (Amount บาท) และสัดส่วน % ตามช่วงวัน
+              </p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  <th className="py-3.5 px-5 font-bold">ช่วงวันไม่เคลื่อนไหว (Period)</th>
+                  <th className="py-3.5 px-4 font-bold text-center">ระดับความเสี่ยง</th>
+                  <th className="py-3.5 px-4 font-bold text-right">จำนวน SKU</th>
+                  <th className="py-3.5 px-4 font-bold text-right">สัดส่วน SKU (%)</th>
+                  <th className="py-3.5 px-4 font-bold text-right">จำนวนชิ้น (QTY)</th>
+                  <th className="py-3.5 px-4 font-bold text-right">สัดส่วน QTY (%)</th>
+                  <th className="py-3.5 px-4 font-bold text-right">มูลค่าสต๊อก (Amount บาท)</th>
+                  <th className="py-3.5 px-4 font-bold text-right">สัดส่วน Amount (%)</th>
+                  <th className="py-3.5 px-4 font-bold text-right">จำนวนสาขา</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {periodBreakdown.map((p) => {
+                  const isHigh = p.classification === "HIGH";
+                  return (
+                    <tr
+                      key={p.period}
+                      onClick={() => setSelectedPeriodFilter(selectedPeriodFilter === p.period ? "ALL" : p.period)}
+                      className={`hover:bg-indigo-50/50 dark:hover:bg-slate-800/70 cursor-pointer transition-colors ${
+                        selectedPeriodFilter === p.period ? "bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold" : ""
+                      }`}
+                    >
+                      <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                        {p.label}
+                      </td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                          isHigh
+                            ? "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                            : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                        }`}>
+                          {isHigh && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
+                          {isHigh ? "วิกฤต (>120 วัน)" : "ปกติ (<=120 วัน)"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                        {formatNumber(p.skuCount)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {p.skuPct}%
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                        {formatNumber(p.stockQty)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {p.qtyPct}%
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
+                        {formatCurrency(p.stockValue)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-bold whitespace-nowrap">
+                        <span className={isHigh ? "text-rose-600 dark:text-rose-400 font-bold" : "text-slate-700 dark:text-slate-300"}>
+                          {p.valuePct}%
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right text-slate-600 dark:text-slate-300 font-mono whitespace-nowrap">
+                        {p.storeCount} สาขา
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {/* Grand Total Footer */}
+              <tfoot className="bg-slate-100 dark:bg-slate-800/90 font-black text-slate-900 dark:text-white border-t-2 border-slate-300 dark:border-slate-700">
+                <tr>
+                  <td className="py-3.5 px-5 font-black text-slate-900 dark:text-white">รวมทั้งหมด (Grand Total)</td>
+                  <td className="py-3.5 px-4 text-center">-</td>
+                  <td className="py-3.5 px-4 text-right">{formatNumber(kpis.totalSkus)}</td>
+                  <td className="py-3.5 px-4 text-right">100%</td>
+                  <td className="py-3.5 px-4 text-right">{formatNumber(kpis.totalStockQty)}</td>
+                  <td className="py-3.5 px-4 text-right">100%</td>
+                  <td className="py-3.5 px-4 text-right text-indigo-600 dark:text-indigo-400 text-sm">{formatCurrency(kpis.totalStockValue)}</td>
+                  <td className="py-3.5 px-4 text-right">100%</td>
+                  <td className="py-3.5 px-4 text-right">{kpis.totalStores} สาขา</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        {/* 4. DETAIL TABLE: Top Non-Move SKU Ranking */}
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                อันดับสต๊อกไม่เคลื่อนไหวรายสาขา (Branch Performance Ranking)
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  รายการสินค้าไม่เคลื่อนไหวสูงสุด (Top Non-Move SKUs & Models)
+                </h2>
+                {selectedPeriodFilter !== "ALL" && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300">
+                    กรองช่วง: {selectedPeriodFilter} วัน
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                คลิกที่ชื่อสาขาเพื่อเข้าสู่แดชบอร์ดตรวจสอบราย SKU ของสาขานั้นโดยตรง
+                พบ {formatNumber(filteredSkus.length)} รายการ (เรียงตามมูลค่าคงเหลือสูงสุด)
               </p>
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Search Box */}
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="ค้นหารหัสสาขา, ชื่อสาขา, จังหวัด..."
-                  className="w-64 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+                  placeholder="ค้นหารหัสสินค้า, ชื่อรุ่น, หมวดหมู่..."
+                  className="w-60 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
+              {/* Export CSV */}
               <button
-                onClick={handleExportSummary}
+                onClick={handleExportCsv}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0"
               >
                 <Download className="h-4 w-4" />
@@ -435,72 +612,68 @@ export default function ViewerOverviewPage() {
               <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="py-3.5 px-4 font-bold">อันดับ</th>
-                  <th className="py-3.5 px-4 font-bold">รหัสสาขา</th>
-                  <th className="py-3.5 px-4 font-bold">ชื่อสาขา / ที่ตั้ง</th>
-                  <th className="py-3.5 px-4 font-bold">ภูมิภาค</th>
-                  <th className="py-3.5 px-4 font-bold text-right">จำนวน SKU</th>
-                  <th className="py-3.5 px-4 font-bold text-right">จำนวนชิ้น</th>
-                  <th className="py-3.5 px-4 font-bold text-right">มูลค่าสต๊อก (บาท)</th>
-                  <th className="py-3.5 px-4 font-bold text-center">สัดส่วนวิกฤต (High)</th>
-                  <th className="py-3.5 px-4 font-bold text-center">เข้าดูแดชบอร์ด</th>
+                  <th className="py-3.5 px-4 font-bold">รหัสสินค้า</th>
+                  <th className="py-3.5 px-4 font-bold">ชื่อสินค้า / รุ่น (Model)</th>
+                  <th className="py-3.5 px-4 font-bold">หมวดหมู่</th>
+                  <th className="py-3.5 px-4 font-bold text-center">ช่วงวัน Non-Move</th>
+                  <th className="py-3.5 px-4 font-bold text-right">จำนวนชิ้น (QTY)</th>
+                  <th className="py-3.5 px-4 font-bold text-right">มูลค่าสต๊อก (Amount บาท)</th>
+                  <th className="py-3.5 px-4 font-bold text-right">กระจายในสาขา</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredStores.length === 0 ? (
+                {filteredSkus.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
-                      ไม่พบข้อมูลสาขาที่ตรงกับเงื่อนไข
+                    <td colSpan={8} className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                      ไม่พบรายการสินค้าที่ตรงกับเงื่อนไข
                     </td>
                   </tr>
                 ) : (
-                  filteredStores.map((s, idx) => (
-                    <tr key={s.branchCode} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/70 transition-colors group">
-                      <td className="py-3.5 px-4 font-bold text-slate-400 whitespace-nowrap">
-                        #{idx + 1}
-                      </td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">
-                        {s.branchCode}
-                      </td>
-                      <td className="py-3.5 px-4 max-w-xs">
-                        <div className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                          {s.storeNameCust}
-                        </div>
-                        <div className="text-[11px] text-slate-400">
-                          {s.province ? `จ.${s.province}` : "-"}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          {s.region}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                        {formatNumber(s.skuCount)}
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                        {formatNumber(s.stockQty)}
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
-                        {formatCurrency(s.stockValue)}
-                      </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800">
-                          <span className="text-rose-600 dark:text-rose-400">🔥 {s.highPct}%</span>
-                          <span className="text-slate-300 dark:text-slate-600">·</span>
-                          <span className="text-emerald-600 dark:text-emerald-400">✅ {s.okPct}%</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <Link
-                          href={`/dashboard/${s.branchCode}`}
-                          className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                        >
-                          เปิดดูสาขา
-                          <ArrowUpRight className="h-3.5 w-3.5" />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
+                  filteredSkus.slice(0, 100).map((s, idx) => {
+                    const isHigh = s.classification === "HIGH";
+                    return (
+                      <tr key={s.productCode} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/70 transition-colors group">
+                        <td className="py-3.5 px-4 font-bold text-slate-400 whitespace-nowrap">
+                          #{idx + 1}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">
+                          {s.productCode}
+                        </td>
+                        <td className="py-3.5 px-4 max-w-sm">
+                          <div className="font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {s.productName}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                            รุ่น: {s.model}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            {s.category}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                            isHigh
+                              ? "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                              : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                          }`}>
+                            {isHigh && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
+                            {s.nonmoveDaysBucket} วัน
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          {formatNumber(s.stockQty)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
+                          {formatCurrency(s.stockValue)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-slate-600 dark:text-slate-300 font-mono whitespace-nowrap">
+                          {s.branchCount} สาขา
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

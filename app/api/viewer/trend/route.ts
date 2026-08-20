@@ -1,21 +1,24 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { classifyNonmove, getWorstBucket } from "@/lib/nonmoveConfig";
+import { NONMOVE_BUCKET_ORDER, classifyNonmove } from "@/lib/nonmoveConfig";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const region = searchParams.get("region");
 
-    const storeWhere: any = {};
+    const storeWhere: any = {
+      storeType: { not: "DC" },
+      branchCode: { notIn: ["GH-001", "GH-002", "GH-003"] },
+    };
     if (region && region !== "ALL") {
       storeWhere.region = region;
     }
 
     const stores = await prisma.store.findMany({
       where: storeWhere,
-      select: { branchCode: true, region: true },
+      select: { branchCode: true },
     });
     const branchCodes = stores.map((s) => s.branchCode);
 
@@ -51,43 +54,60 @@ export async function GET(req: NextRequest) {
           branchCode: { in: branchCodes },
           reportDate: { gte: start, lte: end },
         },
+        select: {
+          productCode: true,
+          stockQty: true,
+          stockValue: true,
+          nonmoveDaysBucket: true,
+        },
       });
 
-      const storeSkusMap = new Map<string, { stockQty: number; stockValue: number; buckets: string[] }>();
+      let totalStockValue = 0;
+      let totalStockQty = 0;
+      let highValue = 0;
+      let okValue = 0;
+      const skuSet = new Set<string>();
+
+      const bucketAmounts: Record<string, number> = {};
+      const bucketQtys: Record<string, number> = {};
+      for (const b of NONMOVE_BUCKET_ORDER) {
+        bucketAmounts[b] = 0;
+        bucketQtys[b] = 0;
+      }
+
       for (const r of rows) {
-        const key = `${r.branchCode}_${r.productCode}`;
-        if (!storeSkusMap.has(key)) {
-          storeSkusMap.set(key, { stockQty: r.stockQty, stockValue: r.stockValue, buckets: [r.nonmoveDaysBucket] });
+        totalStockValue += r.stockValue;
+        totalStockQty += r.stockQty;
+        skuSet.add(r.productCode);
+
+        const b = r.nonmoveDaysBucket || "30-60";
+        if (bucketAmounts[b] !== undefined) {
+          bucketAmounts[b] += r.stockValue;
+          bucketQtys[b] += r.stockQty;
+        }
+
+        if (classifyNonmove(b) === "HIGH") {
+          highValue += r.stockValue;
         } else {
-          const item = storeSkusMap.get(key)!;
-          item.stockQty += r.stockQty;
-          item.stockValue += r.stockValue;
-          item.buckets.push(r.nonmoveDaysBucket);
+          okValue += r.stockValue;
         }
       }
 
-      let highCount = 0;
-      let totalStockValue = 0;
-      let totalStockQty = 0;
-      for (const [, pData] of Array.from(storeSkusMap.entries())) {
-        totalStockValue += pData.stockValue;
-        totalStockQty += pData.stockQty;
-        const worst = getWorstBucket(pData.buckets);
-        if (classifyNonmove(worst) === "HIGH") highCount++;
-      }
-
-      const totalSkus = storeSkusMap.size;
-      const highPct = totalSkus > 0 ? Math.round((highCount / totalSkus) * 100) : 0;
+      const totalSkus = skuSet.size;
+      const highPct = totalStockValue > 0 ? Math.round((highValue / totalStockValue) * 100) : 0;
+      const okPct = 100 - highPct;
 
       historicalSnapshots.push({
         date: dStr,
         totalSkus,
         totalStockQty,
         totalStockValue: Math.round(totalStockValue),
-        highCount,
-        okCount: totalSkus - highCount,
+        highValue: Math.round(highValue),
+        okValue: Math.round(okValue),
         highPct,
-        okPct: totalSkus > 0 ? 100 - highPct : 0,
+        okPct,
+        bucketAmounts,
+        bucketQtys,
       });
     }
 

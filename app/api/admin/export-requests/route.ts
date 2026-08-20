@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     });
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = "Non-Move Stock App";
+    workbook.creator = "Sell out team, Haier (Thailand)";
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet("รายการคำขอ (Requests)", {
@@ -47,15 +47,16 @@ export async function GET(req: NextRequest) {
       { header: "หมวดหมู่", key: "category", width: 16 },
       { header: "ประเภทคำขอ", key: "requestType", width: 18 },
       { header: "เหตุผลที่ระบุ", key: "reason", width: 30 },
+      { header: "คำอธิบายเพิ่มเติม/รายละเอียด", key: "comments", width: 35 },
       { header: "ผู้ยื่นคำขอ", key: "requestedByName", width: 20 },
       { header: "เบอร์โทรศัพท์", key: "phone", width: 16 },
       { header: "วันที่ยื่นคำขอ", key: "requestedAt", width: 22 },
-      { header: "สถานะ", key: "status", width: 22 },
+      { header: "สถานะ", key: "status", width: 24 },
       { header: "ผู้อนุมัติ/ตรวจสอบ", key: "reviewedByName", width: 20 },
-      { header: "ความคิดเห็นผู้อนุมัติ", key: "reviewComment", width: 30 },
+      { header: "ข้อคิดเห็นผู้อนุมัติ", key: "reviewComment", width: 30 },
       { header: "วันที่พิจารณา", key: "reviewedAt", width: 22 },
-      { header: "รูปภาพหลักฐาน (Embedded Image)", key: "imageCell", width: 22 },
-      { header: "ลิงก์รูปภาพทั้งหมด (Photo URLs)", key: "photoUrls", width: 40 },
+      { header: "รูปภาพหลักฐาน (Thumbnail)", key: "imageCell", width: 22 },
+      { header: "ลิงก์รูปภาพ (Photo Links)", key: "photoUrls", width: 30 },
     ];
 
     // Header styling
@@ -81,7 +82,14 @@ export async function GET(req: NextRequest) {
       else if (r.status === "REJECTED") statusLabel = "ไม่อนุมัติ (REJECTED)";
       else if (r.status === "REVISE") statusLabel = "ขอข้อมูลเพิ่มเติม (REVISE)";
 
-      const photoLinks = r.photos.map((p) => p.url).join(" | ");
+      // Format Photo URLs cleanly without massive base64 text
+      const httpPhotos = r.photos.filter((p) => p.url.startsWith("http://") || p.url.startsWith("https://"));
+      const photoLinksText =
+        httpPhotos.length > 0
+          ? httpPhotos.map((p) => p.url).join(" ; ")
+          : r.photos.length > 0
+          ? `[แนบรูปภาพในไฟล์แล้ว ${r.photos.length} รูป]`
+          : "-";
 
       const row = worksheet.addRow({
         index: i + 1,
@@ -94,6 +102,7 @@ export async function GET(req: NextRequest) {
         category: r.product?.category || "-",
         requestType: typeLabel,
         reason: r.reason,
+        comments: r.comments || "-",
         requestedByName: r.requestedBy?.name || "-",
         phone: r.requestedBy?.phone || "-",
         requestedAt: new Date(r.requestedAt).toLocaleString("th-TH"),
@@ -102,7 +111,7 @@ export async function GET(req: NextRequest) {
         reviewComment: r.reviewComment || "-",
         reviewedAt: r.reviewedAt ? new Date(r.reviewedAt).toLocaleString("th-TH") : "-",
         imageCell: r.photos.length > 0 ? "" : "ไม่มีรูปภาพ",
-        photoUrls: photoLinks || "-",
+        photoUrls: photoLinksText,
       });
 
       row.height = r.photos.length > 0 ? 80 : 24;
@@ -118,35 +127,50 @@ export async function GET(req: NextRequest) {
         statusCell.font = { color: { argb: "FFD97706" }, bold: true };
       }
 
-      // Try embedding first photo image into Excel
+      // Embed thumbnail image into Excel cell
       if (r.photos.length > 0) {
         const firstPhoto = r.photos[0].url;
-        let imageBuffer: Buffer | null = null;
-        let extension: "png" | "jpeg" = firstPhoto.toLowerCase().endsWith(".png") ? "png" : "jpeg";
+        let imageBase64: string | null = null;
+        let extension: "png" | "jpeg" = "jpeg";
 
         try {
-          if (firstPhoto.startsWith("/uploads/")) {
+          // 1. Data URL (Base64)
+          if (firstPhoto.startsWith("data:image/")) {
+            const match = firstPhoto.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+            if (match) {
+              extension = match[1].toLowerCase() === "png" ? "png" : "jpeg";
+              imageBase64 = match[2];
+            }
+          }
+          // 2. Local uploads folder
+          else if (firstPhoto.startsWith("/uploads/")) {
             const localPath = path.join(process.cwd(), "public", firstPhoto);
             if (fs.existsSync(localPath)) {
-              imageBuffer = fs.readFileSync(localPath);
+              const fileBuf = fs.readFileSync(localPath);
+              extension = firstPhoto.toLowerCase().endsWith(".png") ? "png" : "jpeg";
+              imageBase64 = fileBuf.toString("base64");
             }
-          } else if (firstPhoto.startsWith("http://") || firstPhoto.startsWith("https://")) {
+          }
+          // 3. HTTP URL
+          else if (firstPhoto.startsWith("http://") || firstPhoto.startsWith("https://")) {
             const resp = await fetch(firstPhoto);
             if (resp.ok) {
               const arrayBuf = await resp.arrayBuffer();
-              imageBuffer = Buffer.from(arrayBuf);
+              extension = firstPhoto.toLowerCase().endsWith(".png") ? "png" : "jpeg";
+              imageBase64 = Buffer.from(arrayBuf).toString("base64");
             }
           }
 
-          if (imageBuffer) {
+          if (imageBase64) {
             const imageId = workbook.addImage({
-              base64: imageBuffer.toString("base64"),
+              base64: imageBase64,
               extension,
             });
 
+            // Column 18 is imageCell (index 18 is zero-based 18)
             worksheet.addImage(imageId, {
-              tl: { col: 17, row: rowIndex - 1 },
-              ext: { width: 95, height: 72 },
+              tl: { col: 18, row: rowIndex - 1 },
+              ext: { width: 92, height: 70 }, // Crisp compressed thumbnail
               editAs: "oneCell",
             });
           }
