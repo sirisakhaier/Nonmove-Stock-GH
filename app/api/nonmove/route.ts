@@ -7,15 +7,15 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchCode = searchParams.get("branchCode");
-    const reportDateStr = searchParams.get("reportDate");
+    const reportDateStr = searchParams.get("date") || searchParams.get("reportDate");
     const category = searchParams.get("category");
-    const nonmoveDays = searchParams.get("nonmoveDays");
-    const agingDays = searchParams.get("agingDays");
+    const nonmoveDays = searchParams.get("nonmoveDaysBucket") || searchParams.get("nonmoveDays");
+    const agingDays = searchParams.get("agingDaysBucket") || searchParams.get("agingDays");
     const skuType = searchParams.get("skuType"); // SELLABLE, MOCK_UP, ALL
     const search = searchParams.get("search");
-    const statusFilter = searchParams.get("status"); // ALL, HIGH, OK, EXCLUDED, PENDING
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "25", 10);
+    const statusFilter = searchParams.get("status");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "25", 10));
 
     if (!branchCode) {
       return NextResponse.json({ error: "branchCode is required" }, { status: 400 });
@@ -161,6 +161,19 @@ export async function GET(req: NextRequest) {
 
     let modelList = Array.from(modelMap.values());
 
+    // Compute live % High vs % OK for this filtered view
+    let highCount = 0;
+    let okCount = 0;
+    for (const m of modelList) {
+      if (!m.isExcluded) {
+        if (m.classification === "HIGH") highCount++;
+        else okCount++;
+      }
+    }
+    const activeCount = highCount + okCount;
+    const highPct = activeCount > 0 ? Math.round((highCount / activeCount) * 100) : 0;
+    const okPct = activeCount > 0 ? 100 - highPct : 0;
+
     // Apply status filter
     if (statusFilter && statusFilter !== "ALL") {
       if (statusFilter === "HIGH") {
@@ -169,8 +182,16 @@ export async function GET(req: NextRequest) {
         modelList = modelList.filter((m) => m.classification === "OK" && !m.isExcluded);
       } else if (statusFilter === "EXCLUDED") {
         modelList = modelList.filter((m) => m.isExcluded);
+      } else if (statusFilter === "NO_REQUEST") {
+        modelList = modelList.filter((m) => !m.activeRequest);
       } else if (statusFilter === "PENDING") {
         modelList = modelList.filter((m) => m.activeRequest?.status === "PENDING");
+      } else if (statusFilter === "APPROVED") {
+        modelList = modelList.filter((m) => m.activeRequest?.status === "APPROVED");
+      } else if (statusFilter === "REJECTED") {
+        modelList = modelList.filter((m) => m.activeRequest?.status === "REJECTED");
+      } else if (statusFilter === "EXPLAINED") {
+        modelList = modelList.filter((m) => m.activeRequest?.status === "EXPLAINED" || m.activeRequest?.requestType === "EXPLAIN");
       }
     }
 
@@ -183,10 +204,15 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       reportDate: targetDate.toISOString().split("T")[0],
+      total: totalCount,
       totalCount,
       page,
+      limit,
       totalPages: Math.ceil(totalCount / limit) || 1,
+      data: paginated,
       items: paginated,
+      highPct,
+      okPct,
     });
   } catch (error: any) {
     console.error("Error in /api/nonmove:", error);

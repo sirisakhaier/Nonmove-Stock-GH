@@ -108,8 +108,8 @@ export default function StoreDashboard() {
       if (!res.ok) throw new Error("โหลดรายการสินค้าไม่สำเร็จ");
       const data = await res.json();
 
-      setTableRows(data.data || []);
-      setTotalRows(data.total || 0);
+      setTableRows(data.data || data.items || []);
+      setTotalRows(data.total !== undefined ? data.total : (data.totalCount || 0));
       if (data.highPct !== undefined) setHighPct(data.highPct);
       if (data.okPct !== undefined) setOkPct(data.okPct);
     } catch (error) {
