@@ -84,9 +84,20 @@ export default function AdminPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("approver_passcode");
+    if (saved === "admin1234" || saved === "admin123" || saved === process.env.NEXT_PUBLIC_APPROVER_PASSCODE) {
+      setPasscode(saved);
+      setIsAuthenticated(true);
+      fetchStats();
+      fetchRequests();
+    }
+  }, [fetchStats, fetchRequests]);
+
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === "admin123" || passcode === process.env.NEXT_PUBLIC_APPROVER_PASSCODE || passcode.length >= 4) {
+    if (passcode === "admin1234" || passcode === "admin123" || passcode === process.env.NEXT_PUBLIC_APPROVER_PASSCODE) {
+      localStorage.setItem("approver_passcode", passcode);
       setIsAuthenticated(true);
       setErrorMsg("");
       fetchStats();
@@ -121,7 +132,7 @@ export default function AdminPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("passcode", passcode || "admin123");
+      formData.append("passcode", passcode || "admin1234");
 
       const res = await fetch("/api/admin/etl", {
         method: "POST",
@@ -153,7 +164,7 @@ export default function AdminPage() {
     if (!deleteTargetDate) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/admin/snapshots?date=${deleteTargetDate}&passcode=${encodeURIComponent(passcode || "admin123")}`, {
+      const res = await fetch(`/api/admin/snapshots?date=${deleteTargetDate}&passcode=${encodeURIComponent(passcode || "admin1234")}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -193,26 +204,26 @@ export default function AdminPage() {
   // If not unlocked, show Admin Passcode Screen
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col justify-between text-white">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-between text-slate-900 dark:text-white transition-colors">
         <Navbar />
 
         <div className="max-w-md mx-auto w-full px-4 my-auto">
-          <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/15 p-8 shadow-2xl text-center space-y-6">
+          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 shadow-xl text-center space-y-6">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-lg shadow-purple-600/30">
               <KeyRound className="h-8 w-8" />
             </div>
 
             <div>
-              <h2 className="text-2xl font-black text-white tracking-tight">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                 ศูนย์จัดการระบบ (Admin Hub)
               </h2>
-              <p className="text-xs text-slate-300 mt-2">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                 สำหรับผู้ดูแลระบบ กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน
               </p>
             </div>
 
             {errorMsg && (
-              <div className="rounded-xl bg-rose-500/20 border border-rose-500/30 p-3 text-xs text-rose-200">
+              <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 p-3 text-xs font-semibold text-rose-700 dark:text-rose-300">
                 {errorMsg}
               </div>
             )}
@@ -223,14 +234,14 @@ export default function AdminPage() {
                   type="password"
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="รหัสผ่าน Admin"
-                  className="w-full rounded-xl border border-white/20 dark:border-slate-700 bg-slate-800/90 dark:bg-slate-900/90 px-4 py-3 text-center text-sm text-white placeholder-slate-500 shadow-inner focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                  placeholder="กรอกรหัสผ่าน..."
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-center text-sm text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:border-purple-500 focus:outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full rounded-2xl bg-purple-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-purple-500/30 hover:bg-purple-500 transition-colors"
+                className="w-full rounded-2xl bg-purple-600 hover:bg-purple-700 py-3.5 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition-colors"
               >
                 เข้าสู่ระบบผู้ดูแลระบบ
               </button>
@@ -238,7 +249,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="text-center text-xs text-slate-500 dark:text-slate-400 py-6">
+        <div className="text-center text-xs text-slate-400 dark:text-slate-500 py-6">
           ระบบวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว &copy; 2026 Non-Move Stock App
         </div>
       </div>

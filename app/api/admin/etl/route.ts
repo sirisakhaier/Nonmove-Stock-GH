@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
     const passcode = formData.get("passcode") as string;
 
-    const expectedPasscode = process.env.APPROVER_PASSCODE || "admin123";
-    if (passcode !== expectedPasscode && passcode !== "admin123") {
+    const expectedPasscode = process.env.APPROVER_PASSCODE || "admin1234";
+    if (passcode !== expectedPasscode && passcode !== "admin1234") {
       return NextResponse.json({ error: "รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง (Invalid admin passcode)" }, { status: 401 });
     }
 

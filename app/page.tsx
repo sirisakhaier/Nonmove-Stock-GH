@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Store,
   MapPin,
@@ -17,8 +16,7 @@ import {
   GitCommit,
   Lock,
   X,
-  ChevronRight,
-  Building2,
+  KeyRound,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { isValidThaiPhone } from "@/lib/validators";
@@ -38,8 +36,13 @@ export default function IdentifyPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [commitHash, setCommitHash] = useState(getCommitHash());
 
-  // Merged Admin & Viewer Modal State
+  // Merged Management Modal (Admin & Viewer)
   const [isMgmtModalOpen, setIsMgmtModalOpen] = useState(false);
+  const [mgmtTab, setMgmtTab] = useState<"VIEWER" | "ADMIN">("VIEWER");
+  const [viewerPasscode, setViewerPasscode] = useState("");
+  const [viewerError, setViewerError] = useState("");
+  const [isViewerVerifying, setIsViewerVerifying] = useState(false);
+
   const [adminPasscode, setAdminPasscode] = useState("");
   const [adminError, setAdminError] = useState("");
   const [isAdminVerifying, setIsAdminVerifying] = useState(false);
@@ -137,71 +140,83 @@ export default function IdentifyPage() {
     }
   };
 
+  const handleViewerLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!viewerPasscode.trim()) {
+      setViewerError("กรุณากรอกรหัสผ่าน");
+      return;
+    }
+    setIsViewerVerifying(true);
+    setViewerError("");
+
+    if (viewerPasscode === "viewer1234") {
+      localStorage.setItem("viewer_passcode", viewerPasscode);
+      setIsMgmtModalOpen(false);
+      router.push("/viewer");
+    } else {
+      setViewerError("รหัสผ่านไม่ถูกต้อง");
+      setIsViewerVerifying(false);
+    }
+  };
+
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminPasscode.trim()) {
-      setAdminError("กรุณากรอกรหัสผ่าน Admin");
+      setAdminError("กรุณากรอกรหัสผ่าน");
       return;
     }
     setIsAdminVerifying(true);
     setAdminError("");
 
-    // Check passcode (standard default admin123 or check via session/api)
-    if (adminPasscode === "admin123") {
+    if (adminPasscode === "admin1234" || adminPasscode === "admin123") {
       localStorage.setItem("approver_passcode", adminPasscode);
       setIsMgmtModalOpen(false);
       router.push("/admin");
     } else {
-      setAdminError("รหัสผ่าน Admin ไม่ถูกต้อง");
+      setAdminError("รหัสผ่านไม่ถูกต้อง");
       setIsAdminVerifying(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-6 sm:py-8 px-4 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors duration-200">
-      {/* 1. Top Header: Highlighted Logo, Title & Merged Management Button */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-5 sm:py-8 px-3.5 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors duration-200">
+      {/* 1. Top Header: Scaled Logo, Title & Compact Merged Management Button */}
       <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 py-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-4">
-        {/* Highlighted Haier Logo & App Title */}
-        <div className="flex items-center gap-3.5 sm:gap-4">
-          <div className="relative p-2 rounded-2xl bg-white dark:bg-slate-800 shadow-md border border-slate-200/90 dark:border-slate-700/80 flex items-center justify-center shrink-0">
-            <img
-              src="/logo.png"
-              alt="Haier"
-              className="h-9 sm:h-11 w-auto object-contain"
-            />
-          </div>
+        {/* Scaled Logo & Title (No Card Box, No HAIER badge) */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <img
+            src="/logo.png"
+            alt="Haier"
+            className="h-12 sm:h-16 w-auto object-contain shrink-0 drop-shadow-sm"
+          />
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
-                Non-Move Stock Analysis
-              </h1>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
-                HAIER
-              </span>
-            </div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-blue-200/80 mt-0.5">
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
+              Non-Move Stock Analysis
+            </h1>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
               {TEAM_NAME}
             </p>
           </div>
         </div>
 
-        {/* Action Controls: Merged 1 Button (Admin & Viewer) + ThemeToggle */}
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
-          {/* Merged 1 Button for Admin & Viewer */}
+        {/* Compact Merged Login Button & Mode Switch */}
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <button
             type="button"
             onClick={() => {
+              setViewerError("");
+              setViewerPasscode("");
               setAdminError("");
               setAdminPasscode("");
               setIsMgmtModalOpen(true);
             }}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 dark:bg-indigo-600 px-3.5 sm:px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition-all"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-sm transition-all"
           >
-            <ShieldAlert className="h-4 w-4" />
-            <span>เข้าสู่ระบบผู้บริหาร / จัดการระบบ</span>
+            <ShieldAlert className="h-3.5 w-3.5" />
+            <span>เข้าสู่ระบบผู้บริหาร / จัดการ</span>
           </button>
 
-          <ThemeToggle className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-sm" />
+          <ThemeToggle className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-sm p-1.5 rounded-lg text-xs" />
         </div>
       </div>
 
@@ -345,7 +360,7 @@ export default function IdentifyPage() {
         </div>
       </div>
 
-      {/* 4. Unified Modal for Admin & Viewer Login */}
+      {/* 4. Unified Passcode Modal for Admin & Viewer Login */}
       {isMgmtModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
@@ -360,97 +375,130 @@ export default function IdentifyPage() {
             {/* Modal Header */}
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800 mb-2">
-                <ShieldAlert className="h-3.5 w-3.5" />
-                ศูนย์กลางผู้บริหารและจัดการระบบ
+                <KeyRound className="h-3.5 w-3.5" />
+                เข้าสู่ระบบผู้บริหาร / จัดการระบบ
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">
-                เลือกโหมดการเข้าใช้งาน
+              <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                กรุณาระบุรหัสผ่านเพื่อเข้าใช้งาน
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                กรุณาเลือกประเภทผู้ใช้งานที่ต้องการเข้าถึง
-              </p>
             </div>
 
-            {/* Option 1: Executive Viewer Mode */}
-            <div className="rounded-2xl border border-indigo-100 dark:border-indigo-950 bg-indigo-50/50 dark:bg-indigo-950/30 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-indigo-600 text-white">
-                    <Layers className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                      ภาพรวมผู้บริหาร (Executive Viewer)
-                    </h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      ดูภาพรวมสต๊อกทั่วประเทศ, ทุกสาขา และ Top 100 SKUs
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Link
-                href="/viewer"
-                onClick={() => setIsMgmtModalOpen(false)}
-                className="w-full mt-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm transition-colors"
+            {/* Tabs: Viewer vs Admin */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setMgmtTab("VIEWER");
+                  setViewerError("");
+                }}
+                className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  mgmtTab === "VIEWER"
+                    ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
               >
-                เข้าสู่ภาพรวมผู้บริหาร (Viewer)
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
+                <Layers className="h-3.5 w-3.5" />
+                ภาพรวมผู้บริหาร (Viewer)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMgmtTab("ADMIN");
+                  setAdminError("");
+                }}
+                className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  mgmtTab === "ADMIN"
+                    ? "bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-300 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
+                จัดการระบบ (Admin)
+              </button>
             </div>
 
-            {/* Divider */}
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-              <span className="flex-shrink mx-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">หรือ</span>
-              <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-            </div>
-
-            {/* Option 2: System Admin Console (Passcode Protected) */}
-            <div className="rounded-2xl border border-purple-100 dark:border-purple-950 bg-purple-50/50 dark:bg-purple-950/30 p-4 space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-purple-600 text-white">
-                  <Lock className="h-4 w-4" />
+            {/* Tab 1: Viewer Login */}
+            {mgmtTab === "VIEWER" && (
+              <form onSubmit={handleViewerLogin} className="space-y-3 pt-1">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  สำหรับผู้บริหารและทีมงานส่วนกลาง เข้าดูภาพรวมสต๊อกทั่วประเทศ
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                    จัดการระบบ (System Admin)
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    อัปโหลดข้อมูล, จัดการสาขา/Model, และตรวจสอบคำขอ
-                  </p>
-                </div>
-              </div>
 
-              {adminError && (
-                <div className="rounded-lg bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 p-2 text-[11px] font-medium text-rose-700 dark:text-rose-300">
-                  {adminError}
-                </div>
-              )}
+                {viewerError && (
+                  <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 p-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{viewerError}</span>
+                  </div>
+                )}
 
-              <form onSubmit={handleAdminLogin} className="space-y-2.5">
-                <input
-                  type="password"
-                  value={adminPasscode}
-                  onChange={(e) => setAdminPasscode(e.target.value)}
-                  placeholder="กรอกรหัสผ่าน Admin..."
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-purple-500 focus:outline-none"
-                />
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                  <input
+                    type="password"
+                    value={viewerPasscode}
+                    onChange={(e) => setViewerPasscode(e.target.value)}
+                    placeholder="กรอกรหัสผ่าน..."
+                    autoFocus
+                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isViewerVerifying}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 text-xs font-bold shadow-sm transition-colors"
+                >
+                  {isViewerVerifying ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Layers className="h-3.5 w-3.5" />
+                  )}
+                  เข้าสู่ภาพรวมผู้บริหาร (Viewer)
+                </button>
+              </form>
+            )}
+
+            {/* Tab 2: Admin Login */}
+            {mgmtTab === "ADMIN" && (
+              <form onSubmit={handleAdminLogin} className="space-y-3 pt-1">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  สำหรับผู้ดูแลระบบ อัปโหลดรายงาน จัดการข้อมูลสาขาและพิจารณาคำขอ
+                </div>
+
+                {adminError && (
+                  <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 p-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{adminError}</span>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                  <input
+                    type="password"
+                    value={adminPasscode}
+                    onChange={(e) => setAdminPasscode(e.target.value)}
+                    placeholder="กรอกรหัสผ่าน..."
+                    autoFocus
+                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
 
                 <button
                   type="submit"
                   disabled={isAdminVerifying}
-                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white py-2.5 text-xs font-bold shadow-sm transition-colors"
                 >
                   {isAdminVerifying ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <ShieldAlert className="h-3.5 w-3.5" />
                   )}
-                  ยืนยันเข้าสู่ระบบ Admin
+                  เข้าสู่ระบบจัดการ (Admin)
                 </button>
               </form>
-            </div>
+            )}
           </div>
         </div>
       )}

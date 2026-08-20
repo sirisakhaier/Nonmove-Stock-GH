@@ -9,7 +9,7 @@ export async function DELETE(req: NextRequest) {
     const dateStr = searchParams.get("date");
     const passcode = req.headers.get("x-admin-passcode") || searchParams.get("passcode");
 
-    const expectedPasscode = process.env.APPROVER_PASSCODE || "admin123";
+    const expectedPasscode = process.env.APPROVER_PASSCODE || "admin1234";
     if (passcode !== expectedPasscode) {
       return NextResponse.json({ error: "รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง" }, { status: 401 });
     }
