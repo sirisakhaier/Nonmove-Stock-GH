@@ -9,6 +9,7 @@ import {
   LogOut,
   Layers,
   ShieldAlert,
+  TrendingUp,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { TEAM_NAME } from "@/lib/version";
@@ -66,28 +67,43 @@ export function Navbar() {
         <nav className="flex items-center gap-2 text-sm font-medium">
           {branchCode && !isViewerPage && !isAdminPage && (
             <>
+              {/* Menu 1: รายละเอียด (Details) */}
               <Link
                 href={`/dashboard/${branchCode}`}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                  pathname.startsWith("/dashboard/") && !pathname.includes("/requests")
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  pathname === `/dashboard/${branchCode}`
                     ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800"
                     : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">แดชบอร์ดสาขา</span>
-                <span className="sm:hidden">แดชบอร์ด</span>
+                <span>รายละเอียด</span>
               </Link>
+
+              {/* Menu 2: แนวโน้ม (Trend) */}
+              <Link
+                href={`/dashboard/${branchCode}/trend`}
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  pathname.includes("/trend")
+                    ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800"
+                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>แนวโน้ม</span>
+              </Link>
+
+              {/* Menu 3: คำขอของฉัน (Requests) */}
               <Link
                 href={`/dashboard/${branchCode}/requests`}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                   pathname.includes("/requests")
                     ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800"
                     : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">รายการคำขอของฉัน</span>
+                <span className="hidden sm:inline">รายการคำขอ</span>
                 <span className="sm:hidden">คำขอ</span>
               </Link>
             </>

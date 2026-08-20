@@ -232,10 +232,7 @@ export default function StoreDashboard() {
         {/* 2. Visual Aging Distribution Chart */}
         <NonmoveChart bucketData={bucketChart} />
 
-        {/* 3. NEW: Day-by-Day Gap & Trend Analysis */}
-        <NonmoveTrendAnalysis branchCode={branchCode} selectedDate={selectedDate} />
-
-        {/* 4. Model Explorer Table */}
+        {/* 3. Model Explorer Table */}
         <ModelExplorerTable
           data={tableRows}
           total={totalRows}
