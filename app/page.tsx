@@ -180,40 +180,42 @@ export default function IdentifyPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-5 sm:py-8 px-3.5 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors duration-200">
-      {/* 1. Top Header: Scaled Logo, Title, Global House Store Brand & Compact Viewer/Admin Button */}
-      <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 py-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-4">
-        {/* Dual Brand: Haier × Global House (Same Size, Same Format Style) */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <img
-              src="/logo.png"
-              alt="Haier"
-              className="h-10 sm:h-12 w-auto object-contain shrink-0 drop-shadow-sm rounded-lg"
-            />
-            <span className="text-slate-300 dark:text-slate-600 font-light text-base sm:text-lg">×</span>
+      {/* 1. Top Header: 3-Line Symmetric Layout + Viewer/Admin & Mode Toggle */}
+      <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-4">
+        {/* 3-Line Branding Block */}
+        <div className="space-y-2">
+          {/* Line 1: Title */}
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
+            Non-Move Stock Management
+          </h1>
+
+          {/* Line 2: Global House's Big Logo + Text */}
+          <div className="flex items-center gap-3">
             <img
               src="/global_house.jpg"
               alt="Global House"
-              className="h-10 sm:h-12 w-auto object-contain shrink-0 drop-shadow-sm rounded-lg"
+              className="h-8 sm:h-9 w-auto object-contain shrink-0 rounded shadow-xs"
             />
+            <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+              Global House (โกลบอลเฮ้าส์)
+            </span>
           </div>
 
-          <div className="sm:border-l sm:border-slate-200 sm:dark:border-slate-800 sm:pl-4">
-            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
-              Non-Move Stock Analysis
-            </h1>
-            <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5 flex-wrap">
-              <span className="font-bold text-slate-800 dark:text-slate-200">ไฮเออร์ (Haier)</span>
-              <span className="text-slate-300 dark:text-slate-600">·</span>
-              <span className="font-bold text-emerald-800 dark:text-emerald-400">โกลบอลเฮ้าส์ (Global House)</span>
-              <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">·</span>
-              <span className="text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">{TEAM_NAME}</span>
-            </div>
+          {/* Line 3: Haier's Big Logo + Text */}
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="Haier"
+              className="h-8 sm:h-9 w-auto object-contain shrink-0 drop-shadow-xs"
+            />
+            <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+              Sell out team, Haier (Thailand)
+            </span>
           </div>
         </div>
 
         {/* Compact Viewer/Admin Button & Mode Switch */}
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 self-end sm:self-start mt-1">
           <button
             type="button"
             onClick={() => {
@@ -223,7 +225,7 @@ export default function IdentifyPage() {
               setAdminPasscode("");
               setIsMgmtModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all"
           >
             <ShieldAlert className="h-3.5 w-3.5" />
             <span>Viewer/Admin</span>
