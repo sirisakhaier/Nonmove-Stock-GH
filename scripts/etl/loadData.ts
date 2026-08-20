@@ -51,7 +51,8 @@ export async function loadStores() {
     return;
   }
 
-  const workbook = xlsx.readFile(filePath);
+  const fileContent = fs.readFileSync(filePath, "utf-8");
+  const workbook = xlsx.read(fileContent, { type: "string", codepage: 65001 });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const records = xlsx.utils.sheet_to_json<StoreRecord>(sheet);
 
@@ -98,7 +99,8 @@ export async function loadProducts() {
     return;
   }
 
-  const workbook = xlsx.readFile(filePath);
+  const fileContent = fs.readFileSync(filePath, "utf-8");
+  const workbook = xlsx.read(fileContent, { type: "string", codepage: 65001 });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const records = xlsx.utils.sheet_to_json<ProductRecord>(sheet);
 
@@ -145,7 +147,7 @@ export async function processNonmoveExcel(filePath: string, explicitDate?: Date)
   const reportDate = explicitDate || extractDateFromFilename(filename);
   console.log(`--> Ingesting daily report: ${filename} (Date: ${reportDate.toISOString().split("T")[0]})`);
 
-  const workbook = xlsx.readFile(filePath);
+  const workbook = xlsx.readFile(filePath, { codepage: 65001 });
   const firstSheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[firstSheetName];
   const rows = xlsx.utils.sheet_to_json<any>(sheet);
