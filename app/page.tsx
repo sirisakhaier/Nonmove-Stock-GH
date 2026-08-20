@@ -88,13 +88,16 @@ export default function IdentifyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           branchCode: selectedBranch,
+          name: name.trim(),
           userName: name.trim(),
           phone: phone.trim(),
+          region: selectedRegion,
         }),
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error("บันทึกข้อมูลการเข้าสู่ระบบไม่สำเร็จ");
+        throw new Error(data.error || "บันทึกข้อมูลการเข้าสู่ระบบไม่สำเร็จ");
       }
 
       // Save store session in localStorage
