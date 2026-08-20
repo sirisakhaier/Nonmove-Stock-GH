@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
       const q = search.trim();
       whereClause.OR = [
         { productCode: { contains: q, mode: "insensitive" } },
-        { productName: { contains: q, mode: "insensitive" } },
+        { product: { productName: { contains: q, mode: "insensitive" } } },
         { product: { model: { contains: q, mode: "insensitive" } } },
       ];
     }
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
       if (!existing) {
         modelMap.set(pCode, {
           productCode: pCode,
-          productName: r.product?.productName || r.productName || pCode,
+          productName: r.product?.productName || pCode,
           model: r.product?.model || r.designName || "-",
           skuType: r.product?.skuType || "SELLABLE",
           categoryName: r.categoryName || r.product?.category || "Other",

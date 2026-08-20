@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       if (!modelMap.has(p)) {
         modelMap.set(p, {
           ProductCode: p,
-          ProductName: r.product?.productName || r.productName,
+          ProductName: r.product?.productName || p,
           Model: r.product?.model || "-",
           Category: r.categoryName || r.product?.category || "-",
           SubCategory: r.product?.subCategory || "-",
