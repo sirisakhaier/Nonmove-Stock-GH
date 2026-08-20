@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
 
     const categoryBreakdown: Record<string, { value: number; count: number }> = {};
 
-    for (const [pCode, data] of modelMap.entries()) {
+    for (const [pCode, data] of Array.from(modelMap.entries())) {
       totalSkus++;
       totalStockQty += data.stockQty;
       totalStockValue += data.stockValue;

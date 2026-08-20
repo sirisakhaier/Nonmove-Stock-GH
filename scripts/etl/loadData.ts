@@ -172,7 +172,7 @@ export async function processNonmoveExcel(filePath: string, explicitDate?: Date)
   }
 
   // Insert missing stores
-  for (const [branchCode, branchName] of missingStores.entries()) {
+  for (const [branchCode, branchName] of Array.from(missingStores.entries())) {
     await prisma.store.upsert({
       where: { branchCode },
       update: {},
@@ -188,7 +188,7 @@ export async function processNonmoveExcel(filePath: string, explicitDate?: Date)
   }
 
   // Insert missing products
-  for (const [productCode, productName] of missingProducts.entries()) {
+  for (const [productCode, productName] of Array.from(missingProducts.entries())) {
     await prisma.product.upsert({
       where: { productCode },
       update: {},
