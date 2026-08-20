@@ -127,24 +127,21 @@ export function ModelExplorerTable({
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="ค้นหารหัส, ชื่อ, รุ่น..."
+              placeholder="ค้นหารหัสสินค้า, รุ่น (Model)..."
               className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-8 pr-2.5 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
-          {/* Category Filter */}
+          {/* SkuType Filter */}
           <div>
             <select
-              value={selectedCategory}
-              onChange={(e) => onCategoryChange(e.target.value)}
+              value={selectedSkuType}
+              onChange={(e) => onSkuTypeChange(e.target.value)}
               className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
             >
-              <option value="ALL">ทุกหมวดหมู่ (Category)</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
+              <option value="ALL">ทุกประเภท (SKU_TYPE)</option>
+              <option value="SELLABLE">SELLABLE (ขายได้)</option>
+              <option value="MOCK_UP">MOCK_UP (โชว์/ตัวอย่าง)</option>
             </select>
           </div>
 
@@ -182,15 +179,14 @@ export function ModelExplorerTable({
         </div>
       </div>
 
-      {/* Table (Responsive with revised columns) */}
+      {/* Table (Removed: หมวดหมู่, ชื่อสินค้า | Added: SKU_TYPE) */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
           <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
             <tr>
-              <th className="py-2.5 px-3 font-bold">รหัสสินค้า</th>
-              <th className="py-2.5 px-3 font-bold">ชื่อสินค้า</th>
+              <th className="py-2.5 px-3 font-bold">รหัสสินค้า (ProductCode)</th>
               <th className="py-2.5 px-3 font-bold">รุ่น (Model)</th>
-              <th className="py-2.5 px-3 font-bold">หมวดหมู่ (Category)</th>
+              <th className="py-2.5 px-3 font-bold text-center">ประเภท (SKU_TYPE)</th>
               <th className="py-2.5 px-3 font-bold text-center">ช่วงวันไม่เคลื่อนไหว</th>
               <th className="py-2.5 px-3 font-bold text-right">จำนวนชิ้น (QTY)</th>
               <th className="py-2.5 px-3 font-bold text-center">สถานะ / ดำเนินการ</th>
@@ -199,7 +195,7 @@ export function ModelExplorerTable({
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-slate-400 dark:text-slate-500 font-medium">
+                <td colSpan={6} className="py-10 text-center text-slate-400 dark:text-slate-500 font-medium">
                   ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา
                 </td>
               </tr>
@@ -217,26 +213,19 @@ export function ModelExplorerTable({
                       {item.productCode}
                     </td>
 
-                    {/* 2. ชื่อสินค้า */}
-                    <td className="py-2.5 px-3 max-w-xs">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                        {item.productName}
-                      </div>
-                    </td>
-
-                    {/* 3. รุ่น (Model) from Model Dimension */}
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {/* 2. รุ่น (Model) from Model Dimension */}
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                       {item.model || "-"}
                     </td>
 
-                    {/* 4. หมวดหมู่ (Category) from Model Dimension */}
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                        {item.categoryName || "Other"}
+                    {/* 3. ประเภท (SKU_TYPE) from Model Dimension */}
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                        {item.skuType || "SELLABLE"}
                       </span>
                     </td>
 
-                    {/* 5. ช่วงวันไม่เคลื่อนไหว */}
+                    {/* 4. ช่วงวันไม่เคลื่อนไหว */}
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
@@ -252,12 +241,12 @@ export function ModelExplorerTable({
                       </span>
                     </td>
 
-                    {/* 6. จำนวนชิ้น (QTY) */}
+                    {/* 5. จำนวนชิ้น (QTY) */}
                     <td className="py-2.5 px-3 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
                       {formatNumber(item.stockQty)} <span className="text-[10px] text-slate-400 font-normal">ชิ้น</span>
                     </td>
 
-                    {/* 7. สถานะ / ดำเนินการ */}
+                    {/* 6. สถานะ / ดำเนินการ */}
                     <td className="py-2.5 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       {item.activeRequest ? (
                         <div

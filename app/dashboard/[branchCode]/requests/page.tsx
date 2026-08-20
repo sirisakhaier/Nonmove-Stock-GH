@@ -154,7 +154,7 @@ export default function MyRequestsPage() {
               <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
                 <thead className="bg-slate-50 dark:bg-slate-800/60 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                   <tr>
-                    <th className="py-3.5 px-4 font-semibold">รหัสสินค้า / ชื่อสินค้า</th>
+                    <th className="py-3.5 px-4 font-semibold">รหัสสินค้า / รุ่น (Model)</th>
                     <th className="py-3.5 px-4 font-semibold">ประเภทคำขอ</th>
                     <th className="py-3.5 px-4 font-semibold">เหตุผลที่ระบุ</th>
                     <th className="py-3.5 px-4 font-semibold">วันที่ยื่นคำขอ</th>
@@ -169,8 +169,8 @@ export default function MyRequestsPage() {
                     <tr key={r.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3.5 px-4 max-w-xs">
                         <div className="font-mono font-bold text-slate-900 dark:text-white">{r.productCode}</div>
-                        <div className="text-slate-800 dark:text-slate-200 line-clamp-1">
-                          {r.product?.productName || r.productCode}
+                        <div className="text-slate-800 dark:text-slate-200 font-mono font-semibold text-xs">
+                          {r.product?.model || "-"}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 whitespace-nowrap">
