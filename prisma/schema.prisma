@@ -75,7 +75,7 @@ model NonMoveRow {
   typeCode          String?   @map("type_code")
   typeName          String?   @map("type_name")
 
-  store    Store   @relation(fields: [branchCode], references: [branchCode])
+  store    Store   @relation(fields: [branchCode], references: [branchCode], onDelete: Cascade)
   product  Product @relation(fields: [productCode], references: [productCode])
 
   @@index([branchCode, reportDate])
@@ -92,7 +92,7 @@ model UserSession {
   region     String       @map("region")
   createdAt  DateTime     @default(now()) @map("created_at")
 
-  store    Store        @relation(fields: [branchCode], references: [branchCode])
+  store    Store        @relation(fields: [branchCode], references: [branchCode], onDelete: Cascade)
   requests SkuRequest[]
 
   @@map("user_sessions")
@@ -127,7 +127,7 @@ model SkuRequest {
   reviewedAt     DateTime?    @map("reviewed_at")
   reviewComment  String?      @map("review_comment")
 
-  store        Store          @relation(fields: [branchCode], references: [branchCode])
+  store        Store          @relation(fields: [branchCode], references: [branchCode], onDelete: Cascade)
   product      Product        @relation(fields: [productCode], references: [productCode])
   requestedBy  UserSession    @relation(fields: [requestedById], references: [id])
   photos       RequestPhoto[]

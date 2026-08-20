@@ -121,49 +121,25 @@ export function StoreDimensionManager({ passcode }: { passcode: string }) {
 
   return (
     <div className="space-y-8">
-      {/* 1. Download Template & Current Stores Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Template Card */}
-        <div className="rounded-3xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 p-6 shadow-sm flex flex-col justify-between space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400 font-bold text-sm">
-              <FileSpreadsheet className="h-5 w-5" />
-              <h3>แม่แบบไฟล์ Store Dimension (Template)</h3>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              ดาวน์โหลดไฟล์แม่แบบ Excel ที่มีโครงสร้างคอลัมน์มาตรฐาน (BranchCode, STORE_NAME_CUST, STORE_ID, PROVINCE, REGION) พร้อมข้อมูลตัวอย่าง
-            </p>
+      {/* 1. Current Stores Export Header Card */}
+      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 text-slate-900 dark:text-white font-bold text-base">
+            <Store className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <h3>ฐานข้อมูลสาขาปัจจุบัน (Current Store Dimension)</h3>
           </div>
-          <a
-            href="/api/admin/stores/template"
-            download
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 py-3 px-4 text-xs font-bold text-white shadow-md shadow-indigo-500/20 hover:bg-indigo-700 transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            ดาวน์โหลดแม่แบบ Excel (Template)
-          </a>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            ปัจจุบันมีสาขาในระบบทั้งหมด {formatNumber(stores.length)} สาขา สามารถส่งออกเพื่อสำรองหรือนำไปแก้ไขได้
+          </p>
         </div>
-
-        {/* Current Stores Export Card */}
-        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm flex flex-col justify-between space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2.5 text-slate-900 dark:text-white font-bold text-sm">
-              <Store className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              <h3>ส่งออกข้อมูลสาขาปัจจุบัน (Current Store Dimension)</h3>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              ดาวน์โหลดข้อมูลสาขาทั้งหมดที่มีอยู่ในระบบปัจจุบัน ({stores.length} สาขา) เพื่อนำไปแก้ไขและอัปโหลดกลับเข้าระบบ
-            </p>
-          </div>
-          <a
-            href="/api/admin/stores/export"
-            download
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-3 px-4 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            ส่งออกข้อมูลสาขาปัจจุบัน ({stores.length} สาขา)
-          </a>
-        </div>
+        <a
+          href="/api/admin/stores/export"
+          download
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-3 px-5 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0"
+        >
+          <Download className="h-4 w-4" />
+          ส่งออกข้อมูลสาขาปัจจุบัน ({formatNumber(stores.length)} สาขา)
+        </a>
       </div>
 
       {/* 2. Upload & Replace Store Dimension Form */}

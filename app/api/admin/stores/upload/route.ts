@@ -5,13 +5,10 @@ import * as xlsx from "xlsx";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Clean string and strip BOM, quotes, whitespace
 function cleanStr(val: any): string | null {
   if (val === undefined || val === null) return null;
   let s = String(val).trim();
-  // Strip BOM and zero-width characters
   s = s.replace(/^[\uFEFF\uFFFE\u200B\u200C\u200D]+|[\uFEFF\uFFFE\u200B\u200C\u200D]+$/g, "");
-  // Strip outer quotes if any
   if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
     s = s.slice(1, -1).trim();
   }
@@ -24,15 +21,12 @@ function normalizeKey(str: string): string {
   return clean.toLowerCase().replace(/[^a-z0-9ก-๙]/g, "");
 }
 
-// RFC 4180 Compliant CSV Parser with Auto-Delimiter & UTF-8 Thai Support
 function parseCsvText(csvText: string): string[][] {
-  // Strip BOM
   let text = csvText;
   if (text.charCodeAt(0) === 0xfeff) {
     text = text.slice(1);
   }
 
-  // Detect delimiter from first non-empty lines
   const firstLines = text.split(/\r\n|\n|\r/).filter((l) => l.trim().length > 0).slice(0, 5);
   let delimiter = ",";
   if (firstLines.length > 0) {
@@ -56,7 +50,7 @@ function parseCsvText(csvText: string): string[][] {
       if (char === '"') {
         if (nextChar === '"') {
           currentCell += '"';
-          i++; // Skip escaped quote
+          i++;
         } else {
           inQuotes = false;
         }
@@ -71,7 +65,7 @@ function parseCsvText(csvText: string): string[][] {
         currentCell = "";
       } else if (char === "\r") {
         if (nextChar === "\n") {
-          i++; // Skip \n in \r\n
+          i++;
         }
         currentRow.push(currentCell);
         rows.push(currentRow);
@@ -126,11 +120,9 @@ export async function POST(req: NextRequest) {
     let selectedSource = isCsv ? "CSV (UTF-8)" : "Excel";
 
     if (isCsv) {
-      // 1. Decode as UTF-8 string directly (Preserves Thai characters 100%)
       const csvText = buffer.toString("utf-8");
       targetRows = parseCsvText(csvText);
     } else {
-      // 2. Excel Workbook
       const workbook = xlsx.read(buffer, {
         type: "buffer",
         codepage: 65001,
@@ -144,7 +136,6 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Find best sheet
       for (const sName of workbook.SheetNames) {
         const sheet = workbook.Sheets[sName];
         const rows = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
@@ -225,7 +216,6 @@ export async function POST(req: NextRequest) {
       if (headerRowIdx !== -1) break;
     }
 
-    // Pattern matching if no explicit header
     if (headerRowIdx === -1) {
       for (let i = 0; i < Math.min(targetRows.length, 10); i++) {
         const row = targetRows[i];
@@ -241,7 +231,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Map columns from header row
     if (headerRowIdx !== -1) {
       const headerRow = targetRows[headerRowIdx];
       for (let c = 0; c < headerRow.length; c++) {
@@ -316,7 +305,6 @@ export async function POST(req: NextRequest) {
       if (headerRowIdx === -1) headerRowIdx = 0;
     }
 
-    // Collect Stores from data rows
     const storeMap = new Map<string, any>();
     const startIdx = headerRowIdx >= 0 ? headerRowIdx + 1 : 0;
 
@@ -368,7 +356,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "ไม่พบข้อมูลรหัสสาขา (BranchCode) ในไฟล์ กรุณาตรวจสอบว่ามีคอลัมน์ BranchCode หรือสามารถดาวน์โหลดแม่แบบจากปุ่ม 'ดาวน์โหลดแม่แบบ Excel' ได้ครับ",
+            "ไม่พบข้อมูลรหัสสาขา (BranchCode) ในไฟล์ กรุณาตรวจสอบว่ามีคอลัมน์ BranchCode ในไฟล์ CSV / Excel ครับ",
         },
         { status: 400 }
       );
@@ -376,26 +364,16 @@ export async function POST(req: NextRequest) {
 
     const newBranchCodes = new Set(newStores.map((s) => s.branchCode));
 
-    // Delete obsolete stores without active foreign key references
-    try {
-      await prisma.store.deleteMany({
-        where: {
-          branchCode: {
-            notIn: Array.from(newBranchCodes),
-          },
-          requests: {
-            none: {},
-          },
-          nonMoveRows: {
-            none: {},
-          },
+    // 1. DELETE ALL STORES THAT ARE NOT IN THE NEW UPLOADED FILE
+    await prisma.store.deleteMany({
+      where: {
+        branchCode: {
+          notIn: Array.from(newBranchCodes),
         },
-      });
-    } catch (delErr) {
-      console.warn("Could not delete non-matching stores:", delErr);
-    }
+      },
+    });
 
-    // Upsert all new stores
+    // 2. UPSERT ALL NEW STORES FROM THE UPLOADED FILE
     for (const s of newStores) {
       await prisma.store.upsert({
         where: { branchCode: s.branchCode },
@@ -423,7 +401,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `อัปเดต Store Dimension สำเร็จทั้งหมด ${newStores.length.toLocaleString()} สาขา (จาก ${selectedSource}, รวมในระบบ ${totalStoresCount.toLocaleString()} สาขา)`,
+      message: `อัปเดตและแทนที่ Store Dimension สำเร็จ ${newStores.length.toLocaleString()} สาขา (ลบสาขาที่ไม่มีในไฟล์ออกทั้งหมด, ปัจจุบันในระบบมี ${totalStoresCount.toLocaleString()} สาขา)`,
       importedCount: newStores.length,
       totalCount: totalStoresCount,
     });
