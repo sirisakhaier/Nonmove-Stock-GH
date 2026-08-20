@@ -53,14 +53,27 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { branchCode, productCode, requestType, reason, photoUrls, requestedById } = body;
+    const {
+      branchCode,
+      productCode,
+      requestType,
+      reason,
+      comments,
+      photoUrls,
+      photos,
+      requestedById,
+    } = body;
 
-    if (!branchCode || !productCode || !requestType || !reason) {
+    if (!branchCode || !productCode || !reason) {
       return NextResponse.json(
-        { error: "branchCode, productCode, requestType, and reason are required." },
+        { error: "branchCode, productCode, and reason are required." },
         { status: 400 }
       );
     }
+
+    // Combine photos list
+    const rawPhotos = photoUrls || photos || [];
+    const normalizedPhotos = rawPhotos.map((p: any) => (typeof p === "string" ? p : p.url || p.photoUrl)).filter(Boolean);
 
     // Ensure session exists or create fallback
     let finalSessionId = requestedById;
@@ -84,23 +97,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create SkuRequest
+    // Create SkuRequest with comments and photos
     const request = await prisma.skuRequest.create({
       data: {
         branchCode,
         productCode,
-        requestType,
+        requestType: requestType === "EXPLAIN" ? "EXPLAIN" : "EXCLUDE",
         reason: reason.trim(),
+        comments: comments ? String(comments).trim() : null,
         status: "PENDING",
         requestedById: finalSessionId,
         photos: {
-          create: (photoUrls || []).map((url: string) => ({ url })),
+          create: normalizedPhotos.map((url: string) => ({ url })),
         },
       },
       include: {
         photos: true,
         product: true,
         store: true,
+        requestedBy: true,
       },
     });
 

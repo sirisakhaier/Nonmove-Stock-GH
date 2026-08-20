@@ -138,9 +138,9 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
           onChange={(e) => setRegionFilter(e.target.value)}
           className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm"
         >
-          <option value="ALL">ทุกภูมิภาค (Region)</option>
+          <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกภูมิภาค (Region)</option>
           {regions.map((reg) => (
-            <option key={reg} value={reg}>
+            <option key={reg} value={reg} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
               {reg}
             </option>
           ))}
@@ -151,11 +151,11 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm"
         >
-          <option value="PENDING">รอการตรวจสอบ (Pending)</option>
-          <option value="REVISE">ขอข้อมูลเพิ่มเติม (Revise)</option>
-          <option value="APPROVED">อนุมัติแล้ว (Approved)</option>
-          <option value="REJECTED">ไม่อนุมัติ (Rejected)</option>
-          <option value="ALL">ทุกสถานะคำขอ</option>
+          <option value="PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">รอการตรวจสอบ (Pending)</option>
+          <option value="REVISE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ขอข้อมูลเพิ่มเติม (Revise)</option>
+          <option value="APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">อนุมัติแล้ว (Approved)</option>
+          <option value="REJECTED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ไม่อนุมัติ (Rejected)</option>
+          <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกสถานะคำขอ</option>
         </select>
       </div>
 
@@ -163,21 +163,20 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-            <thead className="bg-slate-50 dark:bg-slate-800/60 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
               <tr>
-                <th className="py-3.5 px-4 font-semibold">สาขา</th>
-                <th className="py-3.5 px-4 font-semibold">สินค้า</th>
-                <th className="py-3.5 px-4 font-semibold">ประเภทคำขอ</th>
-                <th className="py-3.5 px-4 font-semibold">เหตุผลที่ระบุ</th>
-                <th className="py-3.5 px-4 font-semibold text-center">รูปหลักฐาน</th>
-                <th className="py-3.5 px-4 font-semibold text-center">สถานะ</th>
-                <th className="py-3.5 px-4 font-semibold text-center">เปิดดูรายละเอียด / พิจารณา</th>
+                <th className="py-3.5 px-4 font-bold">สาขา</th>
+                <th className="py-3.5 px-4 font-bold">สินค้า</th>
+                <th className="py-3.5 px-4 font-bold">เหตุผลที่ขอยกเว้น</th>
+                <th className="py-3.5 px-4 font-bold text-center">รูปหลักฐาน</th>
+                <th className="py-3.5 px-4 font-bold text-center">สถานะ</th>
+                <th className="py-3.5 px-4 font-bold text-center">เปิดดูรายละเอียด / พิจารณา</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-slate-500">
+                  <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
                     ไม่พบรายการคำขอในสถานะที่เลือก
                   </td>
                 </tr>
@@ -186,7 +185,7 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
                   <tr
                     key={r.id}
                     onClick={() => handleOpenDetail(r)}
-                    className="hover:bg-indigo-50/40 dark:hover:bg-slate-800/60 cursor-pointer transition-colors group"
+                    className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/70 cursor-pointer transition-colors group"
                   >
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <div className="font-bold text-slate-900 dark:text-white">{r.branchCode}</div>
@@ -195,24 +194,20 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
                     </td>
                     <td className="py-3.5 px-4 max-w-xs">
                       <div className="font-mono font-bold text-slate-900 dark:text-white">{r.productCode}</div>
-                      <div className="font-medium text-slate-800 dark:text-slate-200 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
                         {r.product?.productName}
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400">
                         รุ่น: {r.product?.model || "-"}
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
-                        r.requestType === "EXCLUDE"
-                          ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                          : "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                      }`}>
-                        {r.requestType === "EXCLUDE" ? "ขอยกเว้น (Exclusion)" : "ชี้แจง (Explain)"}
-                      </span>
-                    </td>
                     <td className="py-3.5 px-4 max-w-sm">
-                      <div className="font-semibold text-slate-900 dark:text-white line-clamp-1">{r.reason}</div>
+                      <div className="font-bold text-slate-900 dark:text-white line-clamp-1">{r.reason}</div>
+                      {r.comments && (
+                        <div className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5 line-clamp-1">
+                          หมายเหตุ: {r.comments}
+                        </div>
+                      )}
                       <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                         ยื่นเมื่อ: {new Date(r.requestedAt).toLocaleString("th-TH")}
                       </div>
@@ -223,7 +218,7 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
                           {r.photos.slice(0, 2).map((p) => (
                             <div
                               key={p.id}
-                              className="relative h-8 w-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700"
+                              className="relative h-8 w-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm"
                             >
                               <img src={p.url} alt="proof" className="h-full w-full object-cover" />
                             </div>
@@ -237,7 +232,7 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                      <RequestStatusBadge status={r.status} requestType={r.requestType} />
+                      <RequestStatusBadge status={r.status} requestType="EXCLUDE" />
                     </td>
                     <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <button
@@ -245,7 +240,7 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
                           e.stopPropagation();
                           handleOpenDetail(r);
                         }}
-                        className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-colors"
+                        className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         ดูรายละเอียด
@@ -266,7 +261,7 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
         photoUrl={selectedPhoto || ""}
       />
 
-      {/* Full Detail & Decision Modal */}
+      {/* Full Detail & Decision Modal (Keep all user inputs visible) */}
       {selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6 my-8 max-h-[90vh] overflow-y-auto">
@@ -274,7 +269,7 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300 font-mono">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 font-mono">
                     {selectedRequest.branchCode}
                   </span>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -293,9 +288,9 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
               </button>
             </div>
 
-            {/* Product & Request Info Grid */}
+            {/* Product & Submitter Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Product Info Box */}
+              {/* Product Box */}
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4 space-y-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">ข้อมูลสินค้า</span>
                 <div className="font-bold text-sm text-slate-900 dark:text-white">
@@ -308,10 +303,10 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
                 </div>
               </div>
 
-              {/* Submitter Info Box */}
+              {/* Submitter Box */}
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4 space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">ผู้ยื่นคำขอ</span>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">ข้อมูลผู้ยื่นคำขอ</span>
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
                   <User className="h-4 w-4 text-slate-400" />
                   {selectedRequest.requestedBy?.name || "พนักงานสาขา"}
                 </div>
@@ -326,23 +321,30 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
               </div>
             </div>
 
-            {/* Request Reason & Description */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2">
+            {/* Request Reason & Complete User Remark Message */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">เหตุผลและการชี้แจง</span>
-                <RequestStatusBadge status={selectedRequest.status} requestType={selectedRequest.requestType} />
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">เหตุผลและการชี้แจงจากสาขา</span>
+                <RequestStatusBadge status={selectedRequest.status} requestType="EXCLUDE" />
               </div>
-              <div className="font-bold text-sm text-slate-900 dark:text-white">
-                {selectedRequest.reason}
+
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 block mb-0.5">เหตุผลหลัก:</span>
+                <div className="font-bold text-sm text-slate-900 dark:text-white">
+                  {selectedRequest.reason}
+                </div>
               </div>
-              {selectedRequest.comments && (
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                  {selectedRequest.comments}
-                </p>
-              )}
+
+              {/* Remark Message from Submitter */}
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-slate-400 block">คำอธิบาย / รายละเอียดเพิ่มเติมจากสาขา:</span>
+                <div className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  {selectedRequest.comments ? selectedRequest.comments : "ไม่มีคำอธิบายเพิ่มเติม"}
+                </div>
+              </div>
             </div>
 
-            {/* Photo Gallery */}
+            {/* Photo Gallery (Keep all photos clearly visible) */}
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
                 รูปถ่ายหลักฐาน ({selectedRequest.photos?.length || 0} รูป) - คลิกเพื่อดูภาพขยาย

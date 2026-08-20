@@ -40,7 +40,9 @@ export async function PATCH(
       reviewComment,
       reviewedByName,
       reason,
+      comments,
       photoUrls,
+      photos,
       requestType,
       isResubmission,
     } = body;
@@ -50,13 +52,17 @@ export async function PATCH(
       const updateData: any = {
         status: "PENDING",
         reason: reason ? reason.trim() : undefined,
+        comments: comments ? String(comments).trim() : undefined,
         requestType: requestType || undefined,
         requestedAt: new Date(),
       };
 
-      if (photoUrls && Array.isArray(photoUrls) && photoUrls.length > 0) {
+      const rawPhotos = photoUrls || photos || [];
+      const normalizedPhotos = rawPhotos.map((p: any) => (typeof p === "string" ? p : p.url || p.photoUrl)).filter(Boolean);
+
+      if (normalizedPhotos.length > 0) {
         updateData.photos = {
-          create: photoUrls.map((url: string) => ({ url })),
+          create: normalizedPhotos.map((url: string) => ({ url })),
         };
       }
 

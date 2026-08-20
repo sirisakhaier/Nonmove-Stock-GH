@@ -13,14 +13,24 @@ import {
   DollarSign,
   Package,
   ArrowUpRight,
+  ArrowDownRight,
   Download,
   RefreshCw,
   Search,
-  ChevronRight,
   TrendingUp,
-  AlertTriangle,
 } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { formatNumber, formatCurrency, formatPercent } from "@/lib/validators";
+import { TEAM_NAME } from "@/lib/version";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function ViewerOverviewPage() {
   const [regions, setRegions] = useState<string[]>([]);
@@ -29,7 +39,9 @@ export default function ViewerOverviewPage() {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [search, setSearch] = useState("");
   const [summaryData, setSummaryData] = useState<any>(null);
+  const [trendData, setTrendData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { theme } = useTheme();
 
   // Fetch regions
   useEffect(() => {
@@ -38,7 +50,7 @@ export default function ViewerOverviewPage() {
       .then((data) => setRegions(data.regions || []));
   }, []);
 
-  // Fetch summary
+  // Fetch summary & trend
   const fetchViewerData = useCallback(async (date?: string, region?: string) => {
     setIsLoading(true);
     try {
@@ -46,14 +58,23 @@ export default function ViewerOverviewPage() {
       if (region && region !== "ALL") url.searchParams.set("region", region);
       if (date) url.searchParams.set("date", date);
 
-      const res = await fetch(url.toString());
-      if (!res.ok) throw new Error("โหลดข้อมูลภาพรวมไม่สำเร็จ");
-      const data = await res.json();
+      const [resSummary, resTrend] = await Promise.all([
+        fetch(url.toString()),
+        fetch(`/api/viewer/trend?region=${encodeURIComponent(region || "ALL")}`),
+      ]);
 
-      setSummaryData(data);
-      setAvailableDates(data.availableDates || []);
-      if (!selectedDate && data.selectedDate) {
-        setSelectedDate(data.selectedDate);
+      if (resSummary.ok) {
+        const data = await resSummary.json();
+        setSummaryData(data);
+        setAvailableDates(data.availableDates || []);
+        if (!selectedDate && data.selectedDate) {
+          setSelectedDate(data.selectedDate);
+        }
+      }
+
+      if (resTrend.ok) {
+        const tData = await resTrend.json();
+        setTrendData(tData);
       }
     } catch (err) {
       console.error("Error fetching viewer summary:", err);
@@ -118,6 +139,13 @@ export default function ViewerOverviewPage() {
     link.click();
   };
 
+  const isDark = theme === "dark";
+  const gridColor = isDark ? "#334155" : "#f1f5f9";
+  const tickColor = isDark ? "#94a3b8" : "#64748b";
+  const tooltipBg = isDark ? "#0f172a" : "#ffffff";
+  const tooltipBorder = isDark ? "#334155" : "#e2e8f0";
+  const tooltipText = isDark ? "#f8fafc" : "#0f172a";
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
       <Navbar />
@@ -134,12 +162,12 @@ export default function ViewerOverviewPage() {
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
                   ภาพรวมสต๊อกไม่เคลื่อนไหวทุกสาขา (Viewer Overview)
                 </h1>
-                <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                   {selectedRegion === "ALL" ? "ทุกภูมิภาคทั่วประเทศ" : `ภาค ${selectedRegion}`}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                สรุปสถานะ Non-Move Stock สำหรับผู้บริหาร, ผู้จัดการภาค และ Merchandiser
+                สรุปสถานะ Non-Move Stock สำหรับผู้บริหาร และ Merchandiser · {TEAM_NAME}
               </p>
             </div>
           </div>
@@ -198,18 +226,18 @@ export default function ViewerOverviewPage() {
           {/* Total Stores */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 จำนวนสาขาทั้งหมด
               </span>
-              <div className="rounded-xl bg-indigo-50 dark:bg-indigo-950/50 p-2.5 text-indigo-600 dark:text-indigo-400">
+              <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 p-2.5 text-indigo-600 dark:text-indigo-400">
                 <Store className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-slate-900 dark:text-white">
+              <span className="text-3xl font-black text-slate-900 dark:text-white">
                 {formatNumber(kpis.totalStores)}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">สาขา</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">สาขา</span>
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               สาขาที่มีสต๊อก Non-move: {kpis.activeStoresWithStock || kpis.totalStores} สาขา
@@ -219,15 +247,15 @@ export default function ViewerOverviewPage() {
           {/* Total Value */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 มูลค่าสต๊อกรวม (บาท)
               </span>
-              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/50 p-2.5 text-emerald-600 dark:text-emerald-400">
+              <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 p-2.5 text-emerald-600 dark:text-emerald-400">
                 <DollarSign className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-3xl font-bold text-slate-900 dark:text-white">
+              <span className="text-3xl font-black text-slate-900 dark:text-white">
                 {formatCurrency(kpis.totalStockValue)}
               </span>
             </div>
@@ -237,42 +265,42 @@ export default function ViewerOverviewPage() {
           </div>
 
           {/* High Non-Move Ratio */}
-          <div className="rounded-3xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 p-5 shadow-sm">
+          <div className="rounded-3xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
                 สัดส่วนสินค้าค้างนานวิกฤต
               </span>
-              <div className="rounded-xl bg-rose-100 dark:bg-rose-950/60 p-2.5 text-rose-600 dark:text-rose-400">
+              <div className="rounded-2xl bg-rose-100 dark:bg-rose-950/80 p-2.5 text-rose-600 dark:text-rose-400">
                 <Flame className="h-5 w-5 fill-rose-500 text-rose-500" />
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-rose-700 dark:text-rose-300">
+              <span className="text-3xl font-black text-rose-700 dark:text-rose-300">
                 {formatPercent(kpis.highNonmoveRatio)}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">(High Non-move)</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">(High Non-move)</span>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs">
-              <span className="text-rose-600 dark:text-rose-400 font-semibold">🔥 {formatNumber(kpis.highCount)} รายการ</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✅ {formatNumber(kpis.okCount)} รายการ</span>
+              <span className="text-rose-600 dark:text-rose-400 font-bold">🔥 {formatNumber(kpis.highCount)} รายการ</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">✅ {formatNumber(kpis.okCount)} รายการ</span>
             </div>
           </div>
 
           {/* Approved Exclusions */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 รายการที่ได้รับอนุมัติยกเว้น
               </span>
-              <div className="rounded-xl bg-blue-50 dark:bg-blue-950/50 p-2.5 text-blue-600 dark:text-blue-400">
+              <div className="rounded-2xl bg-blue-50 dark:bg-blue-950/60 p-2.5 text-blue-600 dark:text-blue-400">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-blue-700 dark:text-blue-400">
+              <span className="text-3xl font-black text-blue-700 dark:text-blue-400">
                 {formatNumber(kpis.excludedCount || 0)}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">รายการ</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">รายการ</span>
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               ปลดล็อคจากการคิดอัตราวิกฤตแล้ว
@@ -280,14 +308,64 @@ export default function ViewerOverviewPage() {
           </div>
         </div>
 
-        {/* 2. Regional Summary Cards (if Nationwide) */}
+        {/* 2. NEW: Trend & Timeline Progression in Viewer */}
+        {trendData?.historicalSnapshots?.length > 0 && (
+          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    แนวโน้มมูลค่าสต๊อกภาพรวมตามรอบวัน ({selectedRegion === "ALL" ? "ทั่วประเทศ" : `ภาค ${selectedRegion}`})
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    ติดตามความคืบหน้าการระบายสต๊อกภาพรวมในแต่ละรอบวัน
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData.historicalSnapshots} margin={{ top: 10, right: 15, left: -10, bottom: 10 }}>
+                  <defs>
+                    <linearGradient id="colorViewerTrend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: tickColor, fontWeight: 500 }} stroke={gridColor} />
+                  <YAxis tick={{ fontSize: 11, fill: tickColor }} stroke={gridColor} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
+                  <Tooltip
+                    formatter={(val: any) => [formatCurrency(Number(val)), "มูลค่าสต๊อกรวม"]}
+                    labelFormatter={(l) => `วันที่รายงาน: ${l}`}
+                    contentStyle={{
+                      backgroundColor: tooltipBg,
+                      borderColor: tooltipBorder,
+                      borderRadius: "14px",
+                      boxShadow: isDark ? "0 10px 25px -5px rgba(0,0,0,0.5)" : "0 10px 25px -5px rgba(0,0,0,0.1)",
+                      color: tooltipText,
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Area type="monotone" dataKey="totalStockValue" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorViewerTrend)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Regional Summary Cards (if Nationwide) */}
         {selectedRegion === "ALL" && regionBreakdown.length > 0 && (
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 เปรียบเทียบสถานะแยกตามรายภูมิภาค (Regional Benchmark)
               </h2>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {regionBreakdown.length} ภูมิภาค
               </span>
             </div>
@@ -309,8 +387,8 @@ export default function ViewerOverviewPage() {
                     {formatCurrency(r.stockValue)}
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs">
-                    <span className="text-rose-600 dark:text-rose-400 font-semibold">🔥 วิกฤต {r.highPct}%</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✅ ปกติ {r.okPct}%</span>
+                    <span className="text-rose-600 dark:text-rose-400 font-bold">🔥 วิกฤต {r.highPct}%</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">✅ ปกติ {r.okPct}%</span>
                   </div>
                 </div>
               ))}
@@ -318,7 +396,7 @@ export default function ViewerOverviewPage() {
           </div>
         )}
 
-        {/* 3. Branch Performance Ranking Table */}
+        {/* 4. Branch Performance Ranking Table */}
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -344,7 +422,7 @@ export default function ViewerOverviewPage() {
 
               <button
                 onClick={handleExportSummary}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0"
               >
                 <Download className="h-4 w-4" />
                 ส่งออก CSV
@@ -354,29 +432,29 @@ export default function ViewerOverviewPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-800/60 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="py-3.5 px-4 font-semibold">อันดับ</th>
-                  <th className="py-3.5 px-4 font-semibold">รหัสสาขา</th>
-                  <th className="py-3.5 px-4 font-semibold">ชื่อสาขา / ที่ตั้ง</th>
-                  <th className="py-3.5 px-4 font-semibold">ภูมิภาค</th>
-                  <th className="py-3.5 px-4 font-semibold text-right">จำนวน SKU</th>
-                  <th className="py-3.5 px-4 font-semibold text-right">จำนวนชิ้น</th>
-                  <th className="py-3.5 px-4 font-semibold text-right">มูลค่าสต๊อก (บาท)</th>
-                  <th className="py-3.5 px-4 font-semibold text-center">สัดส่วนวิกฤต (High)</th>
-                  <th className="py-3.5 px-4 font-semibold text-center">เข้าดูแดชบอร์ด</th>
+                  <th className="py-3.5 px-4 font-bold">อันดับ</th>
+                  <th className="py-3.5 px-4 font-bold">รหัสสาขา</th>
+                  <th className="py-3.5 px-4 font-bold">ชื่อสาขา / ที่ตั้ง</th>
+                  <th className="py-3.5 px-4 font-bold">ภูมิภาค</th>
+                  <th className="py-3.5 px-4 font-bold text-right">จำนวน SKU</th>
+                  <th className="py-3.5 px-4 font-bold text-right">จำนวนชิ้น</th>
+                  <th className="py-3.5 px-4 font-bold text-right">มูลค่าสต๊อก (บาท)</th>
+                  <th className="py-3.5 px-4 font-bold text-center">สัดส่วนวิกฤต (High)</th>
+                  <th className="py-3.5 px-4 font-bold text-center">เข้าดูแดชบอร์ด</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredStores.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
                       ไม่พบข้อมูลสาขาที่ตรงกับเงื่อนไข
                     </td>
                   </tr>
                 ) : (
                   filteredStores.map((s, idx) => (
-                    <tr key={s.branchCode} className="hover:bg-indigo-50/40 dark:hover:bg-slate-800/60 transition-colors group">
+                    <tr key={s.branchCode} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/70 transition-colors group">
                       <td className="py-3.5 px-4 font-bold text-slate-400 whitespace-nowrap">
                         #{idx + 1}
                       </td>
@@ -392,7 +470,7 @@ export default function ViewerOverviewPage() {
                         </div>
                       </td>
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                           {s.region}
                         </span>
                       </td>
@@ -402,7 +480,7 @@ export default function ViewerOverviewPage() {
                       <td className="py-3.5 px-4 text-right font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                         {formatNumber(s.stockQty)}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
                         {formatCurrency(s.stockValue)}
                       </td>
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
@@ -415,7 +493,7 @@ export default function ViewerOverviewPage() {
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <Link
                           href={`/dashboard/${s.branchCode}`}
-                          className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                          className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                         >
                           เปิดดูสาขา
                           <ArrowUpRight className="h-3.5 w-3.5" />
@@ -429,6 +507,11 @@ export default function ViewerOverviewPage() {
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="text-center text-xs text-slate-400 dark:text-slate-500 py-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors">
+        <div>&copy; 2026 Non-Move Stock App · <strong>{TEAM_NAME}</strong></div>
+      </footer>
     </div>
   );
 }

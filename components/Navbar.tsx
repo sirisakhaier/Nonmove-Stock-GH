@@ -29,7 +29,7 @@ export function Navbar() {
     }
   }, [pathname]);
 
-  const handleLogout = () => {
+  const handleExit = () => {
     localStorage.removeItem("nonmove_user_session");
     document.cookie = "user_session=; path=/; max-age=0;";
     router.push("/");
@@ -38,6 +38,7 @@ export function Navbar() {
   const branchCode = storeInfo?.branchCode;
   const isViewerPage = pathname.startsWith("/viewer");
   const isAdminPage = pathname.startsWith("/admin");
+  const isRootPage = pathname === "/";
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-sm transition-colors duration-200">
@@ -45,7 +46,6 @@ export function Navbar() {
         {/* Logo / Brand with Haier Logo */}
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-3 group">
-            {/* Haier Logo (Authentic size & color) */}
             <img
               src="/logo.png"
               alt="Haier"
@@ -62,7 +62,7 @@ export function Navbar() {
           </Link>
         </div>
 
-        {/* Navigation Links: Store User Only (No Viewer/Admin in store bar) */}
+        {/* Navigation Links */}
         <nav className="flex items-center gap-2 text-sm font-medium">
           {branchCode && !isViewerPage && !isAdminPage && (
             <>
@@ -110,38 +110,33 @@ export function Navbar() {
           )}
         </nav>
 
-        {/* Right Info / Actions & ThemeToggle */}
+        {/* Right Info / Actions, ThemeToggle & Always-visible EXIT Button */}
         <div className="flex items-center gap-2.5">
           {/* Light / Dark Mode Toggle with text */}
           <ThemeToggle />
 
-          {storeInfo?.branchCode ? (
-            <div className="flex items-center gap-2">
-              <div className="text-right hidden sm:block">
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  {storeInfo.branchName || storeInfo.branchCode}
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {storeInfo.userName ? `ผู้ใช้งาน: ${storeInfo.userName}` : storeInfo.branchCode}
-                </div>
+          {/* User Session Info if logged in */}
+          {storeInfo?.branchCode && !isViewerPage && !isAdminPage && (
+            <div className="text-right hidden md:block">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                {storeInfo.branchName || storeInfo.branchCode}
               </div>
-              <button
-                onClick={handleLogout}
-                title="เปลี่ยนสาขา"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">เปลี่ยนสาขา</span>
-              </button>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                {storeInfo.userName ? `ผู้ใช้งาน: ${storeInfo.userName}` : storeInfo.branchCode}
+              </div>
             </div>
-          ) : (
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 dark:bg-blue-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition-colors"
+          )}
+
+          {/* Prominent Exit Button (Top of every page) */}
+          {!isRootPage && (
+            <button
+              onClick={handleExit}
+              title="ออกจากระบบ / กลับหน้าแรก"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-300 shadow-sm hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white transition-all"
             >
-              <Store className="h-3.5 w-3.5" />
-              เข้าสู่ระบบสาขา
-            </Link>
+              <LogOut className="h-3.5 w-3.5" />
+              <span>ออก (Exit)</span>
+            </button>
           )}
         </div>
       </div>

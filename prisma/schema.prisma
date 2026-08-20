@@ -117,6 +117,7 @@ model SkuRequest {
   productCode   String        @map("product_code")
   requestType   RequestType   @map("request_type")
   reason        String        @map("reason")
+  comments      String?       @map("comments")
   status        RequestStatus @default(PENDING) @map("status")
 
   requestedById String        @map("requested_by_id")
