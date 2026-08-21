@@ -13,7 +13,6 @@ import {
   RefreshCw,
   FileUp,
   Boxes,
-  AlertTriangle,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +47,8 @@ export function ModelDimensionManager({ passcode }: { passcode: string }) {
       const res = await fetch("/api/admin/models");
       if (res.ok) {
         const data = await res.json();
-        setModels(data.models || []);
+        const list = data.models || data.products || [];
+        setModels(list);
         setCategories(data.categories || []);
       }
     } catch (err) {
@@ -290,7 +290,7 @@ export function ModelDimensionManager({ passcode }: { passcode: string }) {
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
                 >
-                  <option value="ALL">ทุกหมวดหมู่</option>
+                  <option value="ALL">ทุก Category</option>
                   {categories.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -348,7 +348,7 @@ export function ModelDimensionManager({ passcode }: { passcode: string }) {
                 <TableHead>รุ่นสินค้า (Model)</TableHead>
                 <TableHead>ชื่อสินค้า (ProductName)</TableHead>
                 <TableHead className="text-center">ประเภท (SKU_TYPE)</TableHead>
-                <TableHead>หมวดหมู่ (Category)</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>กลุ่มสินค้า (SubCategory)</TableHead>
                 <TableHead className="text-center">ขนาด (SizeGroup)</TableHead>
               </TableRow>

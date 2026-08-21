@@ -13,6 +13,7 @@ import {
   CheckSquare,
   Square,
   SlidersHorizontal,
+  Check,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -168,7 +169,7 @@ export function ModelExplorerTable({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              ทั้งหมด ({formatNumber(total)})
+              ทั้งหมด ({formatNumber(total)} SKU)
             </button>
             <button
               onClick={() => onStatusChange("HIGH")}
@@ -222,13 +223,13 @@ export function ModelExplorerTable({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
           {/* Category Filter */}
           <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs">
-            <span className="text-[11px] font-semibold text-muted-foreground shrink-0">หมวดหมู่:</span>
+            <span className="text-[11px] font-semibold text-muted-foreground shrink-0">Category:</span>
             <select
               value={selectedCategory}
               onChange={(e) => onCategoryChange(e.target.value)}
               className="w-full bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
             >
-              <option value="ALL">ทุกหมวดหมู่ (All)</option>
+              <option value="ALL">ทุก Category (All)</option>
               {categories.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -252,7 +253,7 @@ export function ModelExplorerTable({
             </button>
 
             {isBucketOpen && (
-              <div className="absolute z-50 left-0 mt-1 w-56 rounded-md border border-border bg-card p-2 shadow-lg space-y-1 animate-in fade-in-80 text-xs">
+              <div className="absolute z-50 left-0 mt-1 w-60 rounded-md border border-border bg-card p-2.5 shadow-lg space-y-1.5 animate-in fade-in-80 text-xs">
                 <div className="flex items-center justify-between pb-1.5 border-b border-border">
                   <span className="font-semibold text-foreground text-[11px]">ช่วงวันไม่เคลื่อนไหว</span>
                   <button
@@ -263,24 +264,38 @@ export function ModelExplorerTable({
                     {isAllBucketsSelected ? "เลือกเฉพาะวิกฤต" : "เลือกทั้งหมด"}
                   </button>
                 </div>
-                {NONMOVE_BUCKET_ORDER.map((b) => {
-                  const isChecked = currentBuckets.includes(b);
-                  return (
-                    <button
-                      key={b}
-                      type="button"
-                      onClick={() => handleToggleBucket(b)}
-                      className="w-full flex items-center justify-between px-2 py-1 rounded-sm text-left hover:bg-muted transition-colors"
-                    >
-                      <span className="text-foreground font-medium">{b} วัน</span>
-                      {isChecked ? (
-                        <CheckSquare className="h-3.5 w-3.5 text-primary" />
-                      ) : (
-                        <Square className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </button>
-                  );
-                })}
+                <div className="space-y-0.5">
+                  {NONMOVE_BUCKET_ORDER.map((b) => {
+                    const isChecked = currentBuckets.includes(b);
+                    return (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => handleToggleBucket(b)}
+                        className="w-full flex items-center justify-between px-2 py-1.5 rounded-sm text-left hover:bg-muted transition-colors"
+                      >
+                        <span className="text-foreground font-medium">{b} วัน</span>
+                        {isChecked ? (
+                          <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                        ) : (
+                          <Square className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-1.5 border-t border-border flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsBucketOpen(false)}
+                    className="h-7 text-xs font-semibold px-3"
+                  >
+                    <Check className="h-3 w-3 mr-1" />
+                    ยืนยันการเลือก
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -394,7 +409,7 @@ export function ModelExplorerTable({
         {/* 4. Pagination */}
         <div className="flex items-center justify-between p-3 border-t border-border bg-card text-xs text-muted-foreground">
           <div>
-            หน้า <span className="font-medium text-foreground">{page}</span> จาก <span className="font-medium text-foreground">{totalPages}</span> ({formatNumber(total)} รายการ)
+            หน้า <span className="font-medium text-foreground">{page}</span> จาก <span className="font-medium text-foreground">{totalPages}</span> ({formatNumber(total)} SKU)
           </div>
 
           <div className="flex items-center gap-1.5">

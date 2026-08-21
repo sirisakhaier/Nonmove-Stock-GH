@@ -321,7 +321,7 @@ export default function IdentifyPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="08XXXXXXXX (10 หลัก)"
+                  placeholder="0XXXXXXXXX (10 หลัก)"
                   maxLength={10}
                   required
                 />

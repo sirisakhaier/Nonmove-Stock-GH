@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
     ).sort();
 
     return NextResponse.json({
+      models: products,
       products,
       totalCount,
       categories,
