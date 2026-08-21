@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Download,
   BarChart3,
+  CalendarCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -111,9 +112,21 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Executive Viewer Navigation */}
+          {/* Executive Viewer Navigation (3 Tabs: 1-Day Analysis, Overview & Trend, RAW Data) */}
           {isViewerPage && (
             <div className="flex items-center p-1 rounded-lg bg-muted/60 border border-border gap-1">
+              <Link
+                href="/viewer/one-day"
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  pathname.startsWith("/viewer/one-day")
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/80"
+                }`}
+              >
+                <CalendarCheck className="h-3.5 w-3.5" />
+                <span>วิเคราะห์ 1 วัน (1-Day)</span>
+              </Link>
+
               <Link
                 href="/viewer"
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
@@ -123,7 +136,7 @@ export function Navbar() {
                 }`}
               >
                 <BarChart3 className="h-3.5 w-3.5" />
-                <span>ภาพรวมและวิเคราะห์ (Analyse)</span>
+                <span>ภาพรวม &amp; แนวโน้ม</span>
               </Link>
 
               <Link
@@ -135,7 +148,7 @@ export function Navbar() {
                 }`}
               >
                 <Download className="h-3.5 w-3.5" />
-                <span>ดาวน์โหลด RAW Data</span>
+                <span>RAW Data</span>
               </Link>
             </div>
           )}
