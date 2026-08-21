@@ -2,7 +2,10 @@
 
 import React, { useState } from "react";
 import { Navbar } from "@/components/Navbar";
-import { Upload, FileSpreadsheet, KeyRound, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, KeyRound, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function AdminUploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -14,11 +17,11 @@ export default function AdminUploadPage() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
-      setErrorMessage("Please select an Excel (.xlsx) file.");
+      setErrorMessage("กรุณาเลือกไฟล์ Excel (.xlsx, .xls)");
       return;
     }
     if (!passcode) {
-      setErrorMessage("Please enter the admin passcode.");
+      setErrorMessage("กรุณากรอกรหัสผ่าน Admin");
       return;
     }
 
@@ -38,106 +41,106 @@ export default function AdminUploadPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to process Excel feed.");
+        throw new Error(data.error || "นำเข้าข้อมูลไม่สำเร็จ");
       }
 
-      setResultMessage(data.message || "File successfully ingested!");
+      setResultMessage(data.message || "นำเข้าไฟล์รายงานเรียบร้อยแล้ว!");
       setFile(null);
     } catch (err: any) {
-      setErrorMessage(err.message || "Upload and ETL failed.");
+      setErrorMessage(err.message || "เกิดข้อผิดพลาดในการอัปโหลด");
     } finally {
       setIsUploading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors">
       <Navbar />
 
-      <main className="max-w-2xl w-full mx-auto px-4 py-10 space-y-6 flex-1">
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm space-y-6">
-          <div className="text-center space-y-1.5">
-            <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mx-auto">
-              <Upload className="w-6 h-6" />
+      <main className="max-w-xl w-full mx-auto px-4 py-10 space-y-6 flex-1">
+        <Card className="border-border shadow-xs">
+          <CardHeader className="p-6 pb-3 text-center border-b border-border">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground mb-2">
+              <FileSpreadsheet className="h-6 w-6" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Upload Daily NonMoveReport</h1>
-            <p className="text-xs text-slate-500">
-              Ingest a new daily <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">NonMoveReport YYYYMMDD.xlsx</code> Excel feed
-            </p>
-          </div>
+            <CardTitle className="text-lg font-bold">
+              อัปโหลดไฟล์รายงาน Non-Move Stock
+            </CardTitle>
+            <CardDescription className="text-xs mt-1">
+              นำเข้าไฟล์ Excel ข้อมูลสินค้าไม่เคลื่อนไหวเข้าสู่ฐานข้อมูลระบบ
+            </CardDescription>
+          </CardHeader>
 
-          <form onSubmit={handleUpload} className="space-y-4">
-            {/* File Drop Area */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                1. Select Excel File
-              </label>
-              <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 transition relative cursor-pointer">
+          <CardContent className="p-6 space-y-4">
+            <form onSubmit={handleUpload} className="space-y-4">
+              {/* File input */}
+              <div className="border border-dashed border-input rounded-lg p-6 text-center bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer">
                 <input
                   type="file"
-                  accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  id="file-upload"
+                  accept=".xlsx, .xls"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  required
+                  className="hidden"
                 />
-                <FileSpreadsheet className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-                {file ? (
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">{file.name}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <label htmlFor="file-upload" className="cursor-pointer block space-y-2">
+                  <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
+                  <div className="text-xs font-medium text-foreground">
+                    {file ? file.name : "คลิกเพื่อเลือกไฟล์ Excel (.xlsx, .xls)"}
                   </div>
-                ) : (
-                  <div>
-                    <p className="text-xs font-medium text-slate-600">Click or drag NonMoveReport YYYYMMDD.xlsx here</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Date will be parsed from filename automatically</p>
-                  </div>
-                )}
+                  <span className="text-[11px] text-muted-foreground block">
+                    ขนาดไฟล์ไม่เกิน 50MB
+                  </span>
+                </label>
               </div>
-            </div>
 
-            {/* Admin Passcode */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                2. Admin Passcode
-              </label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                <input
+              {/* Passcode input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">รหัสผ่าน Admin</label>
+                <Input
                   type="password"
+                  placeholder="กรอกรหัสผ่าน Admin..."
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Admin passcode"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 font-medium"
-                  required
+                  className="text-xs"
                 />
               </div>
-            </div>
 
-            {errorMessage && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
+              {errorMessage && (
+                <div className="p-3 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
 
-            {resultMessage && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 flex items-center space-x-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>{resultMessage}</span>
-              </div>
-            )}
+              {resultMessage && (
+                <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>{resultMessage}</span>
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={isUploading || !file}
-              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs tracking-wider uppercase shadow-lg shadow-emerald-600/30 transition disabled:opacity-50 flex items-center justify-center space-x-2"
-            >
-              <Upload className="w-4 h-4" />
-              <span>{isUploading ? "Parsing & Ingesting Data..." : "Start Daily Ingestion"}</span>
-            </button>
-          </form>
-        </div>
+              <Button
+                type="submit"
+                disabled={isUploading}
+                className="w-full font-semibold"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    กำลังประมวลผล...
+                  </>
+                ) : (
+                  "เริ่มนำเข้าข้อมูล"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </main>
+
+      <footer className="border-t border-border bg-card py-4 text-center text-xs text-muted-foreground">
+        Non-Move Stock Management &copy; 2026
+      </footer>
     </div>
   );
 }
