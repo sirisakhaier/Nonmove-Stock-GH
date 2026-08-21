@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
         },
         chartData: NONMOVE_BUCKET_ORDER.map((b) => ({ bucket: b, count: 0, classification: classifyNonmove(b), isHigh: classifyNonmove(b) === "HIGH" })),
         categoryBreakdown: [],
-        categories: [],
+        categories: ["WM", "RF", "AC", "TV", "FREEZER", "WH", "SDA"],
+        skuTypes: ["SELLABLE", "DEMO", "MOCK_UP"],
       });
     }
 
@@ -79,8 +80,8 @@ export async function GET(req: NextRequest) {
 
     if (category && category !== "ALL") {
       whereClause.OR = [
-        { categoryName: category },
-        { product: { category } },
+        { product: { category: { equals: category, mode: "insensitive" } } },
+        { categoryName: { equals: category, mode: "insensitive" } },
       ];
     }
 
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest) {
 
     for (const r of rows) {
       const p = r.productCode;
-      const cat = r.categoryName || r.product?.category || "Other";
+      const cat = r.product?.category || r.categoryName || "Other";
       if (!modelMap.has(p)) {
         modelMap.set(p, {
           stockQty: r.stockQty,
@@ -187,22 +188,37 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b.value - a.value);
 
-    // Get unique categories for filter dropdown
-    const allCategories = await prisma.nonMoveRow.findMany({
+    // Get unique categories for filter dropdown: fetch from Master Product Dimension first
+    const productCategories = await prisma.product.findMany({
       where: {
-        branchCode,
-        reportDate: {
-          gte: startOfDay,
-          lte: endOfDay,
+        productCode: {
+          in: rows.map((r) => r.productCode),
         },
       },
-      select: { categoryName: true },
-      distinct: ["categoryName"],
+      select: { category: true },
+      distinct: ["category"],
     });
 
-    const categories = allCategories.map((c) => c.categoryName).filter(Boolean);
+    const rawCats = productCategories
+      .map((p) => p.category?.trim().toUpperCase())
+      .filter((c): c is string => Boolean(c) && c !== "OTHER" && c !== "OTHER ");
 
-    // Get unique skuTypes including DEMO, SELLABLE, MOCK_UP
+    const catSet = new Set(rawCats);
+    for (const r of rows) {
+      const c = r.product?.category?.trim().toUpperCase() || r.categoryName?.trim().toUpperCase();
+      if (c && c !== "OTHER" && c !== "OTHER ") {
+        catSet.add(c);
+      }
+    }
+
+    // Default standard Haier categories if empty
+    if (catSet.size === 0) {
+      ["WM", "RF", "AC", "TV", "FREEZER", "WH", "SDA"].forEach((c) => catSet.add(c));
+    }
+
+    const categories = Array.from(catSet).sort();
+
+    // Get unique skuTypes
     const allSkuTypes = await prisma.product.findMany({
       select: { skuType: true },
       distinct: ["skuType"],

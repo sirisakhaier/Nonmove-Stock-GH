@@ -104,13 +104,18 @@ export function ModelExplorerTable({
   const [isBucketOpen, setIsBucketOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Parse currently selected buckets
-  const currentBuckets: string[] =
+  // Parse currently active buckets
+  const activeBuckets: string[] =
     selectedBucket === "ALL" || !selectedBucket
       ? Array.from(NONMOVE_BUCKET_ORDER)
       : selectedBucket.split(",").map((b) => b.trim()).filter(Boolean);
 
-  const isAllBucketsSelected = currentBuckets.length === NONMOVE_BUCKET_ORDER.length;
+  // Local pending buckets inside the open dropdown
+  const [pendingBuckets, setPendingBuckets] = useState<string[]>(activeBuckets);
+
+  useEffect(() => {
+    setPendingBuckets(activeBuckets);
+  }, [selectedBucket]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -124,34 +129,38 @@ export function ModelExplorerTable({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isBucketOpen]);
 
-  const handleToggleBucket = (b: string) => {
+  const handleTogglePendingBucket = (b: string) => {
     let newSelected: string[];
-    if (currentBuckets.includes(b)) {
-      newSelected = currentBuckets.filter((item) => item !== b);
+    if (pendingBuckets.includes(b)) {
+      newSelected = pendingBuckets.filter((item) => item !== b);
       if (newSelected.length === 0) return;
     } else {
-      newSelected = [...currentBuckets, b];
+      newSelected = [...pendingBuckets, b];
     }
+    setPendingBuckets(newSelected);
+  };
 
-    if (newSelected.length === NONMOVE_BUCKET_ORDER.length) {
-      onBucketChange("ALL");
+  const handleSelectAllPending = () => {
+    if (pendingBuckets.length === NONMOVE_BUCKET_ORDER.length) {
+      setPendingBuckets([">360", "180-360", "120-180"]);
     } else {
-      onBucketChange(newSelected.join(","));
+      setPendingBuckets(Array.from(NONMOVE_BUCKET_ORDER));
     }
   };
 
-  const handleSelectAllBuckets = () => {
-    if (isAllBucketsSelected) {
-      onBucketChange(">360,180-360,120-180");
-    } else {
+  const handleApplyBuckets = () => {
+    if (pendingBuckets.length === NONMOVE_BUCKET_ORDER.length) {
       onBucketChange("ALL");
+    } else {
+      onBucketChange(pendingBuckets.join(","));
     }
+    setIsBucketOpen(false);
   };
 
   const getBucketDisplayText = () => {
-    if (isAllBucketsSelected) return "ทุกช่วงวัน (All)";
-    if (currentBuckets.length === 1) return `${currentBuckets[0]} วัน`;
-    return `เลือก ${currentBuckets.length} ช่วงวัน`;
+    if (activeBuckets.length === NONMOVE_BUCKET_ORDER.length) return "ทุกช่วงวัน (All)";
+    if (activeBuckets.length === 1) return `${activeBuckets[0]} วัน`;
+    return `เลือก ${activeBuckets.length} ช่วงวัน`;
   };
 
   return (
@@ -242,7 +251,10 @@ export function ModelExplorerTable({
           <div className="relative" ref={popoverRef}>
             <button
               type="button"
-              onClick={() => setIsBucketOpen(!isBucketOpen)}
+              onClick={() => {
+                setPendingBuckets(activeBuckets);
+                setIsBucketOpen(!isBucketOpen);
+              }}
               className="w-full flex items-center justify-between gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground hover:bg-muted/40 transition-colors"
             >
               <div className="flex items-center gap-1.5 truncate">
@@ -258,20 +270,20 @@ export function ModelExplorerTable({
                   <span className="font-semibold text-foreground text-[11px]">ช่วงวันไม่เคลื่อนไหว</span>
                   <button
                     type="button"
-                    onClick={handleSelectAllBuckets}
+                    onClick={handleSelectAllPending}
                     className="text-[10px] text-primary hover:underline font-medium"
                   >
-                    {isAllBucketsSelected ? "เลือกเฉพาะวิกฤต" : "เลือกทั้งหมด"}
+                    {pendingBuckets.length === NONMOVE_BUCKET_ORDER.length ? "เลือกเฉพาะวิกฤต" : "เลือกทั้งหมด"}
                   </button>
                 </div>
                 <div className="space-y-0.5">
                   {NONMOVE_BUCKET_ORDER.map((b) => {
-                    const isChecked = currentBuckets.includes(b);
+                    const isChecked = pendingBuckets.includes(b);
                     return (
                       <button
                         key={b}
                         type="button"
-                        onClick={() => handleToggleBucket(b)}
+                        onClick={() => handleTogglePendingBucket(b)}
                         className="w-full flex items-center justify-between px-2 py-1.5 rounded-sm text-left hover:bg-muted transition-colors"
                       >
                         <span className="text-foreground font-medium">{b} วัน</span>
@@ -289,7 +301,7 @@ export function ModelExplorerTable({
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => setIsBucketOpen(false)}
+                    onClick={handleApplyBuckets}
                     className="h-7 text-xs font-semibold px-3"
                   >
                     <Check className="h-3 w-3 mr-1" />

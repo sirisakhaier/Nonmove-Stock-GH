@@ -57,6 +57,20 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  select {
+    @apply bg-background text-foreground;
+  }
+
+  select option {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+
+  .dark select option {
+    background-color: #0f172a;
+    color: #f8fafc;
+  }
 }
 
 /* Custom scrollbar */

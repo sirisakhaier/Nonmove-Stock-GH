@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const branchCode = searchParams.get("branchCode");
     const reportDateStr = searchParams.get("date") || searchParams.get("reportDate");
     const category = searchParams.get("category");
-    const nonmoveDays = searchParams.get("nonmoveDaysBucket") || searchParams.get("nonmoveDays");
+    const nonmoveDays = searchParams.get("bucket") || searchParams.get("nonmoveDaysBucket") || searchParams.get("nonmoveDays");
     const agingDays = searchParams.get("agingDaysBucket") || searchParams.get("agingDays");
     const skuType = searchParams.get("skuType");
     const search = searchParams.get("search");
@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
 
     if (category && category !== "ALL") {
       whereClause.OR = [
-        { categoryName: category },
-        { product: { category } },
+        { product: { category: { equals: category, mode: "insensitive" } } },
+        { categoryName: { equals: category, mode: "insensitive" } },
       ];
     }
 
@@ -174,6 +174,12 @@ export async function GET(req: NextRequest) {
 
     let modelList = Array.from(modelMap.values());
 
+    // Filter by bucket if specified
+    if (nonmoveDays && nonmoveDays !== "ALL") {
+      const allowedBuckets = new Set(nonmoveDays.split(",").map((s) => s.trim()).filter(Boolean));
+      modelList = modelList.filter((m) => allowedBuckets.has(m.nonmoveDaysBucket));
+    }
+
     let highCount = 0;
     let okCount = 0;
     for (const m of modelList) {
@@ -211,12 +217,10 @@ export async function GET(req: NextRequest) {
     const paginatedItems = modelList.slice(startIndex, startIndex + limit);
 
     return NextResponse.json({
-      data: paginatedItems,
       items: paginatedItems,
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit) || 1,
       highPct,
       okPct,
     });
