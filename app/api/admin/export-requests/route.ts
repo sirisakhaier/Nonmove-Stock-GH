@@ -75,12 +75,12 @@ export async function GET(req: NextRequest) {
       { header: "จำนวนรูป", key: "photoCount", width: 12 },
     ];
 
-    // Add Photo Thumbnail Columns (Photo 1, Photo 2, ...)
+    // Add Photo Thumbnail Columns (Photo 1, Photo 2, ...) with spacious width for clear images
     for (let p = 1; p <= maxPhotos; p++) {
       baseColumns.push({
         header: `รูปภาพหลักฐาน ${p} (Photo ${p})`,
         key: `photoImg_${p}`,
-        width: 18,
+        width: 22,
       });
     }
 
@@ -161,7 +161,8 @@ export async function GET(req: NextRequest) {
 
       const row = worksheet.addRow(rowData);
 
-      row.height = r.photos.length > 0 ? 80 : 24;
+      // Set spacious row height so embedded pictures look clear and high-resolution
+      row.height = r.photos.length > 0 ? 85 : 24;
       row.alignment = { vertical: "middle", wrapText: true };
 
       // Status cell coloring
@@ -174,7 +175,7 @@ export async function GET(req: NextRequest) {
         statusCell.font = { color: { argb: "FFD97706" }, bold: true };
       }
 
-      // If photo links exist, make the cell a hyperlink
+      // If photo links exist, make the cell a clickable hyperlink
       if (photoLinks.length > 0) {
         const photoCell = row.getCell("photoUrls");
         photoCell.value = {
@@ -184,33 +185,64 @@ export async function GET(req: NextRequest) {
         photoCell.font = { color: { argb: "FF2563EB" }, underline: true, size: 10 };
       }
 
-      // Embed photo thumbnails if local files exist
+      // Embed photo thumbnails (supporting Base64 Data URLs, Remote HTTP URLs, and Local files)
       for (let pIdx = 0; pIdx < r.photos.length && pIdx < maxPhotos; pIdx++) {
         const photo = r.photos[pIdx];
-        if (photo.url && !photo.url.startsWith("http")) {
-          const cleanRelPath = photo.url.startsWith("/") ? photo.url.slice(1) : photo.url;
-          const localFilePath = path.join(process.cwd(), "public", cleanRelPath);
+        if (!photo?.url) continue;
 
-          if (fs.existsSync(localFilePath)) {
-            try {
+        let imageId: number | null = null;
+
+        try {
+          if (photo.url.startsWith("data:image/")) {
+            // Case 1: Base64 Data URL (stored directly in DB)
+            const match = photo.url.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+            if (match) {
+              const rawExt = match[1].toLowerCase();
+              const validExt = rawExt.includes("png") ? "png" : rawExt.includes("gif") ? "gif" : "jpeg";
+              const base64Content = match[2];
+              const buffer = Buffer.from(base64Content, "base64");
+              imageId = workbook.addImage({
+                buffer: buffer as any,
+                extension: validExt as "jpeg" | "png" | "gif",
+              } as any);
+            }
+          } else if (photo.url.startsWith("http://") || photo.url.startsWith("https://")) {
+            // Case 2: Remote URL
+            const fetchRes = await fetch(photo.url);
+            if (fetchRes.ok) {
+              const arrayBuffer = await fetchRes.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              const validExt = photo.url.toLowerCase().includes(".png") ? "png" : "jpeg";
+              imageId = workbook.addImage({
+                buffer: buffer as any,
+                extension: validExt as "jpeg" | "png" | "gif",
+              } as any);
+            }
+          } else {
+            // Case 3: Local file path
+            const cleanRelPath = photo.url.startsWith("/") ? photo.url.slice(1) : photo.url;
+            const localFilePath = path.join(process.cwd(), "public", cleanRelPath);
+
+            if (fs.existsSync(localFilePath)) {
               const ext = path.extname(localFilePath).toLowerCase().replace(".", "");
-              const validExt = ext === "jpg" || ext === "jpeg" ? "jpeg" : ext === "png" ? "png" : "gif";
-
-              const imageId = workbook.addImage({
+              const validExt = ext === "png" || ext === "gif" ? ext : "jpeg";
+              imageId = workbook.addImage({
                 filename: localFilePath,
                 extension: validExt as "jpeg" | "png" | "gif",
-              });
-
-              const colIdx = photoStartColIdx + pIdx;
-              worksheet.addImage(imageId, {
-                tl: { col: colIdx + 0.1, row: rowIndex - 1 + 0.1 } as any,
-                br: { col: colIdx + 0.9, row: rowIndex - 1 + 0.9 } as any,
-                editAs: "oneCell",
               } as any);
-            } catch (err) {
-              console.error("Error embedding image into excel:", err);
             }
           }
+
+          if (imageId !== null) {
+            const colIdx = photoStartColIdx + pIdx;
+            worksheet.addImage(imageId, {
+              tl: { col: colIdx + 0.05, row: rowIndex - 1 + 0.05 } as any,
+              br: { col: colIdx + 0.95, row: rowIndex - 1 + 0.95 } as any,
+              editAs: "oneCell",
+            } as any);
+          }
+        } catch (imgErr) {
+          console.error(`Error embedding photo ${pIdx + 1} for request ${r.id}:`, imgErr);
         }
       }
     }
