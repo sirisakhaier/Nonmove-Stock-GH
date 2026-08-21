@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   TrendingUp,
   Download,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,15 +68,16 @@ export function Navbar() {
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="flex items-center gap-1 text-xs font-medium">
+        <nav className="flex items-center gap-1.5 text-xs font-medium">
+          {/* Store User Navigation */}
           {branchCode && !isViewerPage && !isAdminPage && (
-            <>
+            <div className="flex items-center p-1 rounded-lg bg-muted/60 border border-border gap-1">
               <Link
                 href={`/dashboard/${branchCode}`}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   pathname === `/dashboard/${branchCode}`
-                    ? "bg-secondary text-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/80"
                 }`}
               >
                 <Store className="h-3.5 w-3.5" />
@@ -84,10 +86,10 @@ export function Navbar() {
 
               <Link
                 href={`/dashboard/${branchCode}/trend`}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   pathname.includes("/trend")
-                    ? "bg-secondary text-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/80"
                 }`}
               >
                 <TrendingUp className="h-3.5 w-3.5" />
@@ -96,38 +98,40 @@ export function Navbar() {
 
               <Link
                 href={`/dashboard/${branchCode}/requests`}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   pathname.includes("/requests")
-                    ? "bg-secondary text-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/80"
                 }`}
               >
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">รายการคำขอ</span>
                 <span className="sm:hidden">คำขอ</span>
               </Link>
-            </>
+            </div>
           )}
 
+          {/* Executive Viewer Navigation */}
           {isViewerPage && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center p-1 rounded-lg bg-muted/60 border border-border gap-1">
               <Link
                 href="/viewer"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   pathname === "/viewer"
-                    ? "bg-secondary text-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/80"
                 }`}
               >
-                <Layers className="h-3.5 w-3.5" />
-                <span>ภาพรวมและวิเคราะห์</span>
+                <BarChart3 className="h-3.5 w-3.5" />
+                <span>ภาพรวมและวิเคราะห์ (Analyse)</span>
               </Link>
+
               <Link
                 href="/viewer/raw-data"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   pathname.startsWith("/viewer/raw-data")
-                    ? "bg-secondary text-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/80"
                 }`}
               >
                 <Download className="h-3.5 w-3.5" />
@@ -136,11 +140,12 @@ export function Navbar() {
             </div>
           )}
 
+          {/* Admin Management Navigation Badge */}
           {isAdminPage && (
-            <Badge variant="outline" className="gap-1.5 font-medium">
-              <ShieldAlert className="h-3 w-3 text-slate-600 dark:text-slate-400" />
-              <span>Admin Hub</span>
-            </Badge>
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs shadow-xs border border-primary/20">
+              <ShieldAlert className="h-4 w-4 text-primary-foreground" />
+              <span>Admin Management Hub</span>
+            </div>
           )}
         </nav>
 

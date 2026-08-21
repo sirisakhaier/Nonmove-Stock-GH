@@ -14,6 +14,8 @@ import {
   RefreshCw,
   FileUp,
   AlertTriangle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,13 +29,18 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { formatNumber } from "@/lib/validators";
+import { formatNumber, formatCurrency } from "@/lib/validators";
 
 export function StoreDimensionManager({ passcode }: { passcode: string }) {
   const [stores, setStores] = useState<any[]>([]);
   const [isLoadingStores, setIsLoadingStores] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("ALL");
+
+  // Join Check State
+  const [joinCheck, setJoinCheck] = useState<any>(null);
+  const [isLoadingJoin, setIsLoadingJoin] = useState(false);
+  const [showUnmatchedDetails, setShowUnmatchedDetails] = useState(false);
 
   // Upload State
   const [file, setFile] = useState<File | null>(null);
@@ -55,9 +62,25 @@ export function StoreDimensionManager({ passcode }: { passcode: string }) {
     }
   }, []);
 
+  const fetchJoinCheck = useCallback(async () => {
+    setIsLoadingJoin(true);
+    try {
+      const res = await fetch("/api/admin/stores/join-check");
+      if (res.ok) {
+        const data = await res.json();
+        setJoinCheck(data);
+      }
+    } catch (err) {
+      console.error("Error checking store join:", err);
+    } finally {
+      setIsLoadingJoin(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStores();
-  }, [fetchStores]);
+    fetchJoinCheck();
+  }, [fetchStores, fetchJoinCheck]);
 
   const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -106,6 +129,7 @@ export function StoreDimensionManager({ passcode }: { passcode: string }) {
       });
       setFile(null);
       fetchStores();
+      fetchJoinCheck();
     } catch (err: any) {
       setUploadStatus({
         success: false,
@@ -116,7 +140,7 @@ export function StoreDimensionManager({ passcode }: { passcode: string }) {
     }
   };
 
-  const regions = Array.from(new Set(stores.map((s) => s.region))).filter(Boolean);
+  const regions = Array.from(new Set(stores.map((s) => s.region))).filter((r) => r && r !== "OTHER");
 
   const filteredStores = stores.filter((s) => {
     if (selectedRegion !== "ALL" && s.region !== selectedRegion) return false;
@@ -134,6 +158,92 @@ export function StoreDimensionManager({ passcode }: { passcode: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Join Validation Error Alert Banner */}
+      {joinCheck && (
+        <Card className={`shadow-xs border ${
+          joinCheck.unmatchedCount > 0
+            ? "border-rose-300 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/20"
+            : "border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20"
+        }`}>
+          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              {joinCheck.unmatchedCount > 0 ? (
+                <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              )}
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-xs sm:text-sm text-foreground">
+                    {joinCheck.unmatchedCount > 0
+                      ? `ตรวจพบ ${joinCheck.unmatchedCount} สาขาในรายงานสต๊อกที่ไม่พบใน Store Master (Join Error)`
+                      : "การเชื่อมโยง Store Master สมบูรณ์ 100% (ทุกสาขาในรายงานตรงกับ Master)"}
+                  </span>
+                  <Badge variant={joinCheck.unmatchedCount > 0 ? "destructive" : "success"} className="text-[10px]">
+                    Join Rate: {joinCheck.matchRatePct}%
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  สาขาในรายงานสต๊อก: {joinCheck.totalStockBranches} สาขา · สาขาใน Store Master: {joinCheck.totalMasterStores} สาขา
+                  {joinCheck.unmatchedCount > 0 && ` (มูลค่าสต๊อกที่ไม่สามารถ Join ได้: ${formatCurrency(joinCheck.unmatchedValue)})`}
+                </p>
+              </div>
+            </div>
+
+            {joinCheck.unmatchedCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowUnmatchedDetails(!showUnmatchedDetails)}
+                className="h-8 text-xs gap-1 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100/50 self-start sm:self-auto shrink-0"
+              >
+                <span>{showUnmatchedDetails ? "ซ่อนรายละเอียด" : "ดูรายการที่ Join ไม่ได้"}</span>
+                {showUnmatchedDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </Button>
+            )}
+          </div>
+
+          {/* Expandable Unmatched Stores Table */}
+          {showUnmatchedDetails && joinCheck.unmatchedList && joinCheck.unmatchedList.length > 0 && (
+            <div className="border-t border-rose-200 dark:border-rose-900/50 bg-background">
+              <div className="p-3 bg-rose-100/50 dark:bg-rose-950/40 text-[11px] font-semibold text-rose-800 dark:text-rose-300">
+                รายชื่อสาขาที่พบในไฟล์รายงาน Non-Move แต่ไม่มีรหัสใน Store Master:
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">#</TableHead>
+                    <TableHead>รหัสสาขา (BranchCode)</TableHead>
+                    <TableHead>ชื่อสาขาที่พบในรายงาน</TableHead>
+                    <TableHead className="text-right">จำนวน SKU</TableHead>
+                    <TableHead className="text-right">จำนวนชิ้น</TableHead>
+                    <TableHead className="text-right">มูลค่ารวม (บาท)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {joinCheck.unmatchedList.map((item: any, idx: number) => (
+                    <TableRow key={item.branchCode} className="hover:bg-muted/40">
+                      <TableCell className="font-mono text-muted-foreground text-[11px]">{idx + 1}</TableCell>
+                      <TableCell className="font-mono font-bold text-rose-600 dark:text-rose-400 text-xs">
+                        {item.branchCode}
+                      </TableCell>
+                      <TableCell className="text-foreground font-medium text-xs">
+                        {item.storeNameCust}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">{formatNumber(item.skuCount)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{formatNumber(item.stockQty)}</TableCell>
+                      <TableCell className="text-right font-mono font-bold text-rose-600 dark:text-rose-400 text-xs">
+                        {formatCurrency(item.stockValue)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* 1. Upload Store Dimension Section */}
       <Card className="border-border shadow-xs">
         <CardHeader className="p-5 pb-3 border-b border-border">
@@ -323,7 +433,7 @@ export function StoreDimensionManager({ passcode }: { passcode: string }) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={fetchStores}
+                onClick={() => { fetchStores(); fetchJoinCheck(); }}
                 title="รีเฟรช"
                 className="h-8 w-8"
               >

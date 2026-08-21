@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { usePathname } from "next/navigation";
 
 type Theme = "light" | "dark";
 
@@ -16,47 +17,61 @@ const ThemeContext = createContext<ThemeContextType>({
   setTheme: () => {},
 });
 
+function getSessionThemeKey(pathname: string): string {
+  if (pathname.startsWith("/admin")) return "nonmove_theme_admin";
+  if (pathname.startsWith("/viewer")) return "nonmove_theme_viewer";
+  if (pathname.startsWith("/dashboard")) return "nonmove_theme_store";
+  return "nonmove_theme_guest";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() || "/";
   const [theme, setThemeState] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
+  const applyThemeToDOM = (t: Theme) => {
+    if (t === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
+  // Sync theme whenever pathname or session changes
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("nonmove_theme") as Theme;
+      const storageKey = getSessionThemeKey(pathname);
+      const saved = localStorage.getItem(storageKey) as Theme;
       if (saved === "dark" || saved === "light") {
         setThemeState(saved);
-        if (saved === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
-      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        setThemeState("dark");
-        document.documentElement.classList.add("dark");
+        applyThemeToDOM(saved);
+      } else {
+        // Fallback default
+        const defaultTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        setThemeState(defaultTheme);
+        applyThemeToDOM(defaultTheme);
       }
     } catch (e) {
       // ignore
     }
     setMounted(true);
-  }, []);
+  }, [pathname]);
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
+    applyThemeToDOM(newTheme);
     try {
-      localStorage.setItem("nonmove_theme", newTheme);
-      if (newTheme === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      const storageKey = getSessionThemeKey(pathname);
+      localStorage.setItem(storageKey, newTheme);
     } catch (e) {
       // ignore
     }
-  };
+  }, [pathname]);
 
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
+  const toggleTheme = useCallback(() => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+  }, [theme, setTheme]);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
@@ -65,4 +80,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useTheme = () => useContext(ThemeContext);
+export function useTheme() {
+  return useContext(ThemeContext);
+}
