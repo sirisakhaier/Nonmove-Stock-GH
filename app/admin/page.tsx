@@ -26,7 +26,20 @@ import {
   Download,
   CheckSquare,
   History,
+  X,
 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { formatNumber, formatCurrency } from "@/lib/validators";
 
 export default function AdminPage() {
@@ -37,33 +50,39 @@ export default function AdminPage() {
 
   // Ingestion State
   const [file, setFile] = useState<File | null>(null);
+  const [reportDate, setReportDate] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<{
+    success: boolean;
+    message: string;
+    details?: any;
+  } | null>(null);
 
-  // Stats State
+  // Admin Stats & Requests
   const [stats, setStats] = useState<any>(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(false);
-
-  // Approvals State
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
-
-  // Deletion State
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Check saved session passcode
+  useEffect(() => {
+    const saved = localStorage.getItem("approver_passcode");
+    if (saved === "admin1234" || saved === "admin123") {
+      setPasscode(saved);
+      setIsAuthenticated(true);
+    }
+  }, []);
+
   const fetchStats = useCallback(async () => {
-    setIsLoadingStats(true);
     try {
       const res = await fetch("/api/admin/stats");
       if (res.ok) {
         const data = await res.json();
         setStats(data);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoadingStats(false);
+    } catch (e) {
+      console.error("Error fetching stats:", e);
     }
   }, []);
 
@@ -75,33 +94,28 @@ export default function AdminPage() {
         const data = await res.json();
         setRequests(data.requests || []);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error("Error fetching requests:", e);
     } finally {
       setIsLoadingRequests(false);
     }
   }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem("approver_passcode");
-    if (saved === "admin1234" || saved === "admin123" || saved === process.env.NEXT_PUBLIC_APPROVER_PASSCODE) {
-      setPasscode(saved);
-      setIsAuthenticated(true);
+    if (isAuthenticated) {
       fetchStats();
       fetchRequests();
     }
-  }, [fetchStats, fetchRequests]);
+  }, [isAuthenticated, fetchStats, fetchRequests]);
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === "admin1234" || passcode === "admin123" || passcode === process.env.NEXT_PUBLIC_APPROVER_PASSCODE) {
-      localStorage.setItem("approver_passcode", passcode);
+    if (passcode === "admin1234" || passcode === "admin123") {
       setIsAuthenticated(true);
       setErrorMsg("");
-      fetchStats();
-      fetchRequests();
+      localStorage.setItem("approver_passcode", passcode);
     } else {
-      setErrorMsg("รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง");
+      setErrorMsg("รหัสผ่านไม่ถูกต้อง");
     }
   };
 
@@ -112,7 +126,7 @@ export default function AdminPage() {
       if (droppedFile.name.endsWith(".xlsx") || droppedFile.name.endsWith(".xls")) {
         setFile(droppedFile);
       } else {
-        alert("กรุณาอัปโหลดไฟล์ Excel (.xlsx หรือ .xls) เท่านั้น");
+        alert("กรุณาเลือกไฟล์ Excel (.xlsx, .xls) เท่านั้น");
       }
     }
   };
@@ -120,7 +134,7 @@ export default function AdminPage() {
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
-      alert("กรุณาเลือกไฟล์รายงาน Excel");
+      alert("กรุณาเลือกไฟล์รายงาน");
       return;
     }
 
@@ -131,6 +145,9 @@ export default function AdminPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("passcode", passcode || "admin1234");
+      if (reportDate) {
+        formData.append("reportDate", reportDate);
+      }
 
       const res = await fetch("/api/admin/etl", {
         method: "POST",
@@ -138,13 +155,17 @@ export default function AdminPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "นำเข้าข้อมูลไม่สำเร็จ");
+      if (!res.ok) {
+        throw new Error(data.error || "นำเข้าข้อมูลไม่สำเร็จ");
+      }
 
       setUploadStatus({
         success: true,
-        message: data.message || `นำเข้าสำเร็จ ${data.result?.rowsCount || ""} แถว`,
+        message: `นำเข้าข้อมูลรายงานสำเร็จ: บันทึก ${data.insertedRows || 0} รายการ (รอบวันที่: ${data.reportDate})`,
+        details: data,
       });
       setFile(null);
+      setReportDate("");
       fetchStats();
       fetchRequests();
     } catch (err: any) {
@@ -157,7 +178,6 @@ export default function AdminPage() {
     }
   };
 
-  // Delete Snapshot Handler
   const handleConfirmDelete = async () => {
     if (!deleteTargetDate) return;
     setIsDeleting(true);
@@ -202,53 +222,49 @@ export default function AdminPage() {
   // If not unlocked, show Admin Passcode Screen
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-between text-slate-900 dark:text-white transition-colors">
+      <div className="min-h-screen bg-background flex flex-col justify-between text-foreground transition-colors">
         <Navbar />
 
-        <div className="max-w-md mx-auto w-full px-4 my-auto">
-          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 shadow-xl text-center space-y-6">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-lg shadow-purple-600/30">
-              <KeyRound className="h-8 w-8" />
+        <div className="max-w-sm mx-auto w-full px-4 my-auto">
+          <Card className="border-border shadow-xs p-6 text-center space-y-5">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
+              <KeyRound className="h-6 w-6" />
             </div>
 
             <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              <CardTitle className="text-lg font-bold">
                 ศูนย์จัดการระบบ (Admin Hub)
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">
                 สำหรับผู้ดูแลระบบ กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน
-              </p>
+              </CardDescription>
             </div>
 
             {errorMsg && (
-              <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 p-3 text-xs font-semibold text-rose-700 dark:text-rose-300">
+              <div className="rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 text-xs text-rose-700 dark:text-rose-300 font-medium">
                 {errorMsg}
               </div>
             )}
 
-            <form onSubmit={handleUnlock} className="space-y-4">
-              <div>
-                <input
-                  type="password"
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="กรอกรหัสผ่าน..."
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-center text-sm text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:border-purple-500 focus:outline-none"
-                />
-              </div>
+            <form onSubmit={handleUnlock} className="space-y-3.5">
+              <Input
+                type="password"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                placeholder="กรอกรหัสผ่าน Admin..."
+                className="text-center"
+                autoFocus
+              />
 
-              <button
-                type="submit"
-                className="w-full rounded-2xl bg-purple-600 hover:bg-purple-700 py-3.5 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition-colors"
-              >
+              <Button type="submit" className="w-full font-semibold">
                 เข้าสู่ระบบผู้ดูแลระบบ
-              </button>
+              </Button>
             </form>
-          </div>
+          </Card>
         </div>
 
-        <div className="text-center text-xs text-slate-400 dark:text-slate-500 py-6">
-          ระบบวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว &copy; 2026 Non-Move Stock App
+        <div className="text-center text-xs text-muted-foreground py-6">
+          Non-Move Stock Management &copy; 2026
         </div>
       </div>
     );
@@ -257,268 +273,316 @@ export default function AdminPage() {
   const pendingCount = requests.filter((r) => r.status === "PENDING").length;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-lg shadow-purple-500/25 shrink-0">
-              <ShieldAlert className="h-7 w-7" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border p-4 sm:p-5 rounded-lg shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-white dark:bg-slate-50 dark:text-slate-900 shrink-0">
+              <ShieldAlert className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
-                ศูนย์จัดการระบบ (Admin Management Hub)
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                Admin Management Hub
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 นำเข้าและจัดการข้อมูลรายงาน, จัดการ Master Dimension, พิจารณาคำขอ และส่งออกข้อมูล Excel
               </p>
             </div>
           </div>
 
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
               fetchStats();
               fetchRequests();
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors self-start sm:self-auto"
+            className="h-8 text-xs font-semibold gap-1.5 self-start sm:self-auto"
           >
-            <RefreshCw className="h-4 w-4" />
-            รีเฟรชข้อมูล
-          </button>
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>รีเฟรชข้อมูล</span>
+          </Button>
         </div>
 
         {/* 6 Admin Navigation Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-1.5 gap-1.5 shadow-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border border-border bg-muted/40 rounded-lg p-1 gap-1 text-xs">
           {/* Tab 1: Combined Import & Delete Data */}
           <button
             onClick={() => { setActiveTab("DATA"); fetchStats(); }}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "DATA"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+                ? "bg-card text-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Database className="h-4 w-4" />
-            1. รายงาน ({stats?.snapshots?.length || 0})
+            <Database className="h-3.5 w-3.5" />
+            <span>1. รายงาน ({stats?.snapshots?.length || 0})</span>
           </button>
 
           {/* Tab 2: Store Dimension Manager */}
           <button
             onClick={() => setActiveTab("STORE_DIMENSION")}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "STORE_DIMENSION"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+                ? "bg-card text-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Store className="h-4 w-4" />
-            2. Store Master
+            <Store className="h-3.5 w-3.5" />
+            <span>2. Store Master</span>
           </button>
 
           {/* Tab 3: Model Dimension Manager */}
           <button
             onClick={() => setActiveTab("MODEL_DIMENSION")}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "MODEL_DIMENSION"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+                ? "bg-card text-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Package className="h-4 w-4" />
-            3. Model Master
+            <Package className="h-3.5 w-3.5" />
+            <span>3. Model Master</span>
           </button>
 
           {/* Tab 4: Approvals Queue */}
           <button
             onClick={() => { setActiveTab("APPROVALS"); fetchRequests(); }}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "APPROVALS"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+                ? "bg-card text-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <CheckSquare className="h-4 w-4" />
-            4. พิจารณา ({pendingCount})
+            <CheckSquare className="h-3.5 w-3.5" />
+            <span>4. พิจารณา ({pendingCount})</span>
           </button>
 
           {/* Tab 5: Request History & Status Logs */}
           <button
             onClick={() => { setActiveTab("HISTORY"); fetchRequests(); }}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "HISTORY"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+                ? "bg-card text-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <History className="h-4 w-4" />
-            5. ประวัติคำขอ ({requests.length})
+            <History className="h-3.5 w-3.5" />
+            <span>5. ประวัติ ({requests.length})</span>
           </button>
 
           {/* Tab 6: Export Excel */}
           <button
             onClick={() => setActiveTab("EXPORT")}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "EXPORT"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+                ? "bg-card text-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Download className="h-4 w-4" />
-            6. ส่งออก Excel
+            <Download className="h-3.5 w-3.5" />
+            <span>6. ส่งออก Excel</span>
           </button>
         </div>
 
         {/* Tab 1: MERGED Import & Delete Data */}
         {activeTab === "DATA" && (
-          <div className="space-y-8">
-            {/* Section 1A: Daily Upload Ingestion */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                  นำเข้าไฟล์รายงานประจำวัน (Import NonMoveReport YYYYMMDD.xlsx)
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  ระบบประมวลผล In-Memory ความเร็วสูง และตรวจจับวันที่จากชื่อไฟล์ (เช่น NonMoveReport 20260818.xlsx) ให้อัตโนมัติ
-                </p>
-              </div>
+          <div className="space-y-6">
+            {/* Daily Upload Ingestion */}
+            <Card className="border-border shadow-xs">
+              <CardHeader className="p-5 pb-3 border-b border-border">
+                <CardTitle className="text-base font-semibold">
+                  นำเข้าไฟล์รายงาน Non-Move รายวัน (Upload Daily Snapshot)
+                </CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  อัปโหลดไฟล์ Excel เพื่อนำเข้าข้อมูลสต๊อกไม่เคลื่อนไหวประจำวันเข้าสู่ฐานข้อมูล
+                </CardDescription>
+              </CardHeader>
 
-              {uploadStatus && (
-                <div
-                  className={`p-4 rounded-2xl border flex gap-3 items-start text-xs ${
-                    uploadStatus.success
-                      ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
-                      : "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300"
-                  }`}
-                >
-                  {uploadStatus.success ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                  )}
-                  <div>
-                    <div className="font-bold">{uploadStatus.success ? "สำเร็จ" : "เกิดข้อผิดพลาด"}</div>
-                    <div className="mt-0.5">{uploadStatus.message}</div>
-                  </div>
-                </div>
-              )}
-
-              <form onSubmit={handleUploadSubmit} className="space-y-4">
-                <div
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={handleFileDrop}
-                  className="flex justify-center rounded-3xl border-2 border-dashed border-slate-300 dark:border-slate-700 px-6 py-10 hover:border-purple-400 bg-slate-50/50 dark:bg-slate-800/30 transition-colors"
-                >
-                  <div className="text-center space-y-3">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 shadow-sm">
-                      <FileUp className="h-7 w-7" />
-                    </div>
-                    <div className="text-xs text-slate-600 dark:text-slate-300">
-                      <label className="cursor-pointer rounded-md font-bold text-purple-600 dark:text-purple-400 hover:text-purple-500">
-                        <span>คลิกเพื่อเลือกไฟล์รายงาน</span>
-                        <input
-                          type="file"
-                          accept=".xlsx, .xls"
-                          onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
-                          className="sr-only"
-                        />
-                      </label>
-                      <span className="pl-1">หรือลากไฟล์มาวางที่นี่</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400">รองรับไฟล์ .xlsx, .xls</p>
-                    {file && (
-                      <div className="inline-flex items-center gap-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 px-3.5 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-300">
-                        <FileSpreadsheet className="h-4 w-4" />
-                        {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+              <CardContent className="p-5">
+                <form onSubmit={handleUploadSubmit} className="space-y-4">
+                  {/* Drag and Drop Zone */}
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleFileDrop}
+                    className={`border border-dashed rounded-lg p-6 text-center transition-colors ${
+                      file
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-slate-400 dark:hover:border-slate-600 bg-muted/30"
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="fileInput"
+                      accept=".xlsx, .xls"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setFile(e.target.files[0]);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="fileInput"
+                      className="cursor-pointer flex flex-col items-center justify-center space-y-2"
+                    >
+                      <div className="p-2.5 rounded-md bg-secondary text-foreground">
+                        <FileUp className="h-6 w-6" />
                       </div>
-                    )}
+                      <div className="text-xs">
+                        {file ? (
+                          <span className="font-semibold text-foreground">
+                            เลือกไฟล์: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                          </span>
+                        ) : (
+                          <>
+                            <span className="font-medium text-foreground">คลิกเพื่อเลือกไฟล์ Excel</span>
+                            <span className="text-muted-foreground"> หรือลากไฟล์มาวางที่นี่</span>
+                          </>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground">
+                        รองรับไฟล์ .xlsx, .xls (ระบบจะระบุวันที่จากชื่อไฟล์หรือตัวเลือกวันที่ด้านล่าง)
+                      </span>
+                    </label>
                   </div>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={!file || isUploading}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 py-3.5 text-xs font-bold text-white shadow-lg shadow-purple-600/30 hover:bg-purple-700 active:scale-[0.99] transition-all disabled:opacity-50"
-                >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      กำลังนำเข้าข้อมูล (In-Memory Processing)...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4" />
-                      เริ่มต้นนำเข้าข้อมูลรายงาน
-                    </>
+                  {/* Manual Date Override (Optional) */}
+                  <div className="flex items-center gap-3 bg-muted/40 p-3 rounded-md border border-border text-xs">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <label className="font-medium text-foreground shrink-0">
+                      ระบุวันที่รายงาน (Optional):
+                    </label>
+                    <Input
+                      type="date"
+                      value={reportDate}
+                      onChange={(e) => setReportDate(e.target.value)}
+                      className="h-8 max-w-xs text-xs"
+                    />
+                  </div>
+
+                  {uploadStatus && (
+                    <div
+                      className={`p-3 rounded-md text-xs flex items-center gap-2 ${
+                        uploadStatus.success
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50"
+                          : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50"
+                      }`}
+                    >
+                      {uploadStatus.success ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                      )}
+                      <span>{uploadStatus.message}</span>
+                    </div>
                   )}
-                </button>
-              </form>
-            </div>
 
-            {/* Section 1B: Snapshots Management & Deletion */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    ฐานข้อมูลและประวัติรอบรายงาน (Daily Snapshots Management)
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    ตรวจสอบจำนวนรายการสต๊อกในแต่ละรอบวัน และสามารถลบข้อมูลรอบรายงานที่ไม่ต้องการได้
-                  </p>
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                  รวม {stats?.snapshots?.length || 0} รอบรายงาน
-                </span>
-              </div>
+                  <div className="flex justify-end gap-2">
+                    {file && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setFile(null); setReportDate(""); }}
+                        disabled={isUploading}
+                        className="h-8 text-xs"
+                      >
+                        ล้างไฟล์
+                      </Button>
+                    )}
 
-              {/* Snapshots Table */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                  <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                    <tr>
-                      <th className="py-3.5 px-4 font-bold">วันที่รายงาน (Report Date)</th>
-                      <th className="py-3.5 px-4 font-bold text-right">จำนวนรายการแถว (Rows)</th>
-                      <th className="py-3.5 px-4 font-bold text-center">จัดการข้อมูล</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={!file || isUploading}
+                      className="h-8 text-xs font-semibold"
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                          กำลังนำเข้าข้อมูล...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-3.5 w-3.5 mr-1.5" />
+                          เริ่มนำเข้าข้อมูล
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Existing Snapshots & Delete Management */}
+            <Card className="border-border shadow-xs">
+              <CardHeader className="p-5 pb-3 border-b border-border">
+                <CardTitle className="text-base font-semibold">
+                  ประวัติรอบวันที่รายงานในระบบ (Active Daily Snapshots)
+                </CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  แสดงข้อมูลรอบวันที่ทั้งหมดที่มีในฐานข้อมูล พร้อมตัวเลือกลบข้อมูลที่ไม่ต้องการ
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>รอบวันที่รายงาน</TableHead>
+                      <TableHead className="text-right">จำนวนรายการ (แถว)</TableHead>
+                      <TableHead className="text-right">จำนวนชิ้นรวม</TableHead>
+                      <TableHead className="text-right">มูลค่าสต๊อกรวม (บาท)</TableHead>
+                      <TableHead className="text-right">การจัดการ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {!stats?.snapshots || stats.snapshots.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="py-8 text-center text-slate-400">
-                          ยังไม่มีข้อมูลรอบรายงานในระบบ
-                        </td>
-                      </tr>
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                          ยังไม่มีข้อมูลรอบวันที่รายงานในระบบ
+                        </TableCell>
+                      </TableRow>
                     ) : (
                       stats.snapshots.map((s: any) => (
-                        <tr key={s.date} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                            รายงานวันที่ {s.date}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white font-mono">
-                            {formatNumber(s.count)} แถว
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <button
+                        <TableRow key={s.date}>
+                          <TableCell className="font-mono font-medium text-foreground text-xs">
+                            {s.date}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-xs">
+                            {formatNumber(s.count)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-medium text-xs">
+                            {formatNumber(s.totalQty || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-foreground text-xs">
+                            {formatCurrency(s.totalValue || 0)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => setDeleteTargetDate(s.date)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                              className="h-7 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-900/50 dark:hover:bg-rose-950/40 font-medium"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              ลบข้อมูลรอบนี้
-                            </button>
-                          </td>
-                        </tr>
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              ลบข้อมูล
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </div>
         )}
 
-        
         {/* Tab 2: Store Dimension Manager */}
         {activeTab === "STORE_DIMENSION" && (
           <StoreDimensionManager passcode={passcode} />
@@ -538,133 +602,99 @@ export default function AdminPage() {
           />
         )}
 
-        {/* Tab 5: Request History & Status Logs */}
+        {/* Tab 5: Request History */}
         {activeTab === "HISTORY" && (
           <RequestHistoryTable requests={requests} />
         )}
 
-        {/* Tab 4: Excel Export */}
+        {/* Tab 6: Export Data */}
         {activeTab === "EXPORT" && (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm space-y-6">
+          <Card className="border-border shadow-xs p-6 space-y-4 max-w-lg">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                ส่งออกรายงานคำขออนุมัติพร้อมรูปภาพหลักฐาน (Export Requests to Excel with Pictures)
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                ดาวน์โหลดไฟล์ `.xlsx` ที่ฝังรูปภาพ Thumbnail ขนาดกะทัดรัด พร้อมคอลัมน์ Hyperlink URL ถาวรสำหรับเปิดดูรูปภาพต้นฉบับ
-              </p>
+              <CardTitle className="text-base font-semibold">
+                ส่งออกข้อมูลคำขอ (Export Requests Excel)
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">
+                ดาวน์โหลดข้อมูลคำขอทั้งหมดหรือเฉพาะที่รอการตรวจสอบในรูปแบบไฟล์ Excel (.xlsx)
+              </CardDescription>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* All Requests Export */}
-              <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 p-5 flex flex-col justify-between gap-4">
-                <div>
-                  <h3 className="font-bold text-indigo-900 dark:text-indigo-300 text-sm">คำขอทั้งหมด (All Requests)</h3>
-                  <p className="text-xs text-indigo-700/80 dark:text-indigo-400/80 mt-1">
-                    ดาวน์โหลดคำขอทั้งหมดทุกสถานะ รวม {requests.length} รายการ
-                  </p>
-                </div>
-                <a
-                  href="/api/admin/export-requests?status=ALL"
-                  download
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 px-4 text-xs font-bold text-white shadow-md shadow-indigo-500/20 hover:bg-indigo-700 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  ดาวน์โหลด Excel ทั้งหมด
+            <div className="space-y-2 pt-2">
+              <Button asChild className="w-full font-medium">
+                <a href="/api/admin/export-requests?status=ALL" download>
+                  <Download className="h-4 w-4 mr-2" />
+                  ดาวน์โหลดคำขอทั้งหมด (Excel)
                 </a>
-              </div>
+              </Button>
 
-              {/* Approved Only Export */}
-              <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-5 flex flex-col justify-between gap-4">
-                <div>
-                  <h3 className="font-bold text-emerald-900 dark:text-emerald-300 text-sm">เฉพาะที่อนุมัติแล้ว (Approved)</h3>
-                  <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-1">
-                    รายการที่ได้รับอนุมัติยกเว้น Non-Move แล้ว
-                  </p>
-                </div>
-                <a
-                  href="/api/admin/export-requests?status=APPROVED"
-                  download
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 px-4 text-xs font-bold text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  ดาวน์โหลด Excel เฉพาะที่อนุมัติ
+              <Button asChild variant="outline" className="w-full font-medium">
+                <a href="/api/admin/export-requests?status=PENDING" download>
+                  <Download className="h-4 w-4 mr-2" />
+                  ดาวน์โหลดเฉพาะรายการที่รอพิจารณา (Pending)
                 </a>
-              </div>
-
-              {/* Pending Only Export */}
-              <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-5 flex flex-col justify-between gap-4">
-                <div>
-                  <h3 className="font-bold text-amber-900 dark:text-amber-300 text-sm">เฉพาะที่รอตรวจสอบ (Pending)</h3>
-                  <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
-                    รายการคำขอที่ยังอยู่ระหว่างรอการพิจารณา ({pendingCount} รายการ)
-                  </p>
-                </div>
-                <a
-                  href="/api/admin/export-requests?status=PENDING"
-                  download
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 py-2.5 px-4 text-xs font-bold text-white shadow-md shadow-amber-500/20 hover:bg-amber-700 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  ดาวน์โหลด Excel ที่รอการตรวจสอบ
-                </a>
-              </div>
+              </Button>
             </div>
-          </div>
+          </Card>
         )}
       </main>
 
       {/* Delete Snapshot Confirmation Modal */}
       {deleteTargetDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
-                <Trash2 className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+          <Card className="w-full max-w-md shadow-xl border-border animate-in fade-in zoom-in-95 duration-150">
+            <CardHeader className="p-5 pb-3 border-b border-border flex flex-row items-center justify-between space-y-0">
+              <div className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-rose-600" />
+                <CardTitle className="text-base font-bold">
                   ยืนยันการลบข้อมูลรายงาน
-                </h3>
-                <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold">
-                  วันที่รายงาน: {deleteTargetDate}
-                </p>
+                </CardTitle>
               </div>
-            </div>
-
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูล Non-Move ทั้งหมดของวันที่ <strong>{deleteTargetDate}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถยกเลิกได้
-            </p>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setDeleteTargetDate(null)}
-                disabled={isDeleting}
-                className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                className="h-7 w-7"
               >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-rose-600/30 hover:bg-rose-700 transition-colors disabled:opacity-50"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    กำลังลบข้อมูล...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4" />
-                    ยืนยันการลบ
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+
+            <CardContent className="p-5 space-y-4 text-xs">
+              <p className="text-muted-foreground leading-relaxed">
+                คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูล Non-Move ทั้งหมดของวันที่ <strong className="text-foreground font-mono">{deleteTargetDate}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถยกเลิกได้
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteTargetDate(null)}
+                  disabled={isDeleting}
+                >
+                  ยกเลิก
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="font-semibold"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      กำลังลบข้อมูล...
+                    </>
+                  ) : (
+                    "ยืนยันการลบ"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

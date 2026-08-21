@@ -8,16 +8,17 @@ import {
   User,
   Phone,
   ArrowRight,
-  Layers,
   ShieldAlert,
-  Sparkles,
   AlertCircle,
   Loader2,
-  GitCommit,
   Lock,
   X,
-  KeyRound,
+  Layers,
 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { isValidThaiPhone } from "@/lib/validators";
 import { APP_VERSION, TEAM_NAME, getCommitHash } from "@/lib/version";
@@ -36,7 +37,7 @@ export default function IdentifyPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [commitHash, setCommitHash] = useState(getCommitHash());
 
-  // Merged Management Modal (Admin & Viewer)
+  // Management Modal (Admin & Viewer)
   const [isMgmtModalOpen, setIsMgmtModalOpen] = useState(false);
   const [mgmtTab, setMgmtTab] = useState<"VIEWER" | "ADMIN">("VIEWER");
   const [viewerPasscode, setViewerPasscode] = useState("");
@@ -179,47 +180,42 @@ export default function IdentifyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-3 sm:py-5 px-3.5 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors duration-200">
-      {/* 1. Top Header: Mobile (3-Line Center) vs Large Screen (2-Line Merged) */}
-      <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-3 py-1.5 border-b border-slate-200/80 dark:border-slate-800/80 pb-2.5 sm:pb-3">
-        {/* Branding Block */}
-        <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-1.5">
-          {/* Line 1: Title (Centered on mobile, left on desktop) */}
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 lg:p-8 transition-colors">
+      {/* 1. Header Bar: Balanced Co-Branding */}
+      <header className="max-w-4xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-border">
+        <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Non-Move Stock Management
           </h1>
 
-          {/* Line 2 (Desktop: Merged 1-line with both brands) | (Mobile: Split 2 separate lines) */}
-          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-            {/* Global House Brand */}
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-xs text-muted-foreground font-medium">
+            <div className="flex items-center gap-1.5">
               <img
                 src="/global_house.jpg"
                 alt="Global House"
-                className="h-7 sm:h-8 w-auto object-contain shrink-0 rounded shadow-xs"
+                className="h-5 w-auto object-contain rounded-xs"
               />
               <span>Global House (โกลบอลเฮ้าส์)</span>
             </div>
 
-            {/* Dot separator for large screen */}
-            <span className="hidden sm:inline-block text-slate-300 dark:text-slate-600 font-normal">·</span>
+            <span className="hidden sm:inline-block text-border">·</span>
 
-            {/* Haier Brand */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <img
                 src="/logo.png"
                 alt="Haier"
-                className="h-7 sm:h-8 w-auto object-contain shrink-0 drop-shadow-xs"
+                className="h-5 w-auto object-contain"
               />
               <span>Sell out team, Haier (Thailand)</span>
             </div>
           </div>
         </div>
 
-        {/* Compact Viewer/Admin Button & Mode Switch */}
-        <div className="flex items-center gap-2 self-center sm:self-start mt-0.5">
-          <button
-            type="button"
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
               setViewerError("");
               setViewerPasscode("");
@@ -227,188 +223,179 @@ export default function IdentifyPage() {
               setAdminPasscode("");
               setIsMgmtModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 px-2.5 py-1 text-xs font-bold text-white shadow-sm transition-all"
+            className="h-8 text-xs font-medium gap-1.5"
           >
             <ShieldAlert className="h-3.5 w-3.5" />
-            <span>Viewer/Admin</span>
-          </button>
+            <span>Viewer / Admin</span>
+          </Button>
 
-          <ThemeToggle className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-sm" />
+          <ThemeToggle />
         </div>
-      </div>
+      </header>
 
-      {/* 2. Main Login Card (Store Identification) */}
-      <div className="max-w-md mx-auto w-full my-2 sm:my-3">
-        <div className="rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 p-5 sm:p-7 shadow-xl shadow-slate-200/50 dark:shadow-2xl dark:shadow-black/70 transition-all">
-          <div className="text-center mb-4 sm:mb-5">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              ระบุสาขาและตัวตน
-            </h2>
-          </div>
+      {/* 2. Main Store Login Card */}
+      <main className="max-w-md mx-auto w-full my-6">
+        <Card className="border-border shadow-xs">
+          <CardHeader className="text-center space-y-1 pb-4">
+            <CardTitle className="text-lg font-bold">เข้าสู่ระบบสำหรับสาขา</CardTitle>
+            <CardDescription>
+              เลือกภูมิภาคและสาขาของคุณเพื่อจัดการสต๊อกสินค้าไม่เคลื่อนไหว
+            </CardDescription>
+          </CardHeader>
 
-          {errorMsg && (
-            <div className="mb-4 rounded-xl bg-rose-50 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 p-3 text-xs text-rose-700 dark:text-rose-200 flex gap-2.5 items-start">
-              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          <CardContent>
+            {errorMsg && (
+              <div className="mb-4 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-3 text-xs text-rose-700 dark:text-rose-300 flex gap-2 items-start">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
-            {/* 1. Region Dropdown */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                1. เลือกภูมิภาค (Region) <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              {/* Region Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>ภูมิภาค (Region) <span className="text-rose-500">*</span></span>
+                </label>
                 <select
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
                   disabled={isLoadingRegions}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground focus:outline-hidden focus:ring-1 focus:ring-slate-950 dark:focus:ring-slate-300"
                 >
-                  <option value="">-- เลือกภูมิภาค / ภาค --</option>
+                  <option value="">-- กรุณาเลือกภูมิภาค --</option>
                   {regions.map((reg) => (
-                    <option key={reg} value={reg} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                      {reg}
+                    <option key={reg} value={reg}>
+                      ภาค {reg}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* 2. Store Branch Dropdown */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                2. เลือกรหัสสาขา / ร้านค้า <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Store className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              {/* Store Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>สาขา (Branch) <span className="text-rose-500">*</span></span>
+                </label>
                 <select
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
                   disabled={!selectedRegion || isLoadingStores}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground focus:outline-hidden focus:ring-1 focus:ring-slate-950 dark:focus:ring-slate-300 disabled:opacity-50"
                 >
                   <option value="">
-                    {isLoadingStores ? "กำลังโหลดรายชื่อสาขา..." : "-- เลือกรหัสสาขา --"}
+                    {isLoadingStores ? "กำลังโหลดรายชื่อสาขา..." : "-- กรุณาเลือกสาขา --"}
                   </option>
                   {stores.map((s) => (
-                    <option key={s.branchCode} value={s.branchCode} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                      {s.branchCode} - {s.storeNameCust}
+                    <option key={s.branchCode} value={s.branchCode}>
+                      {s.branchCode} - {s.storeNameCust || s.storeName}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* 3. User Name */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                3. ชื่อผู้เข้าใช้งาน <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                <input
+              {/* Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>ชื่อ-นามสกุล ผู้ใช้งาน <span className="text-rose-500">*</span></span>
+                </label>
+                <Input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="เช่น สมชาย ใจดี"
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  placeholder="เช่น สมชาย ใจดี (PC โกลบอลเฮ้าส์)"
+                  required
                 />
               </div>
-            </div>
 
-            {/* 4. Phone Number */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                4. เบอร์โทรศัพท์มือถือ (10 หลัก) <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                <input
+              {/* Phone */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>เบอร์โทรศัพท์ติดต่อ <span className="text-rose-500">*</span></span>
+                </label>
+                <Input
                   type="tel"
-                  maxLength={10}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="08XXXXXXXX"
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white font-mono placeholder-slate-400 shadow-sm focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="08XXXXXXXX (10 หลัก)"
+                  maxLength={10}
+                  required
                 />
               </div>
-            </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full mt-1.5 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-bold text-white shadow-md shadow-blue-600/30 active:scale-[0.99] transition-all disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  กำลังเข้าสู่ระบบ...
-                </>
-              ) : (
-                <>
-                  เข้าสู่แดชบอร์ดสาขา
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-      </div>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !selectedRegion || !selectedBranch}
+                className="w-full mt-2 font-semibold"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    กำลังเข้าสู่ระบบ...
+                  </>
+                ) : (
+                  <>
+                    <span>เข้าสู่หน้ารายการสต๊อก</span>
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </main>
 
-      {/* 3. Footer with Team Name & GitHub Commit Version */}
-      <div className="text-center text-xs text-slate-500 dark:text-slate-400 py-1.5 space-y-0.5">
+      {/* 3. Footer */}
+      <footer className="max-w-4xl mx-auto w-full pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
         <div>
-          ระบบวิเคราะห์สต๊อกสินค้าไม่เคลื่อนไหว &copy; 2026 <strong>{TEAM_NAME}</strong>
+          <span>Non-Move Stock Analysis System</span> · <span>v{APP_VERSION}</span>
         </div>
-        <div className="flex items-center justify-center gap-1.5 font-mono text-[10px] text-slate-400 dark:text-slate-500">
-          <GitCommit className="h-3 w-3 text-indigo-500" />
-          <span>Version: {APP_VERSION} (Commit: <strong className="text-slate-700 dark:text-slate-300">{commitHash}</strong>)</span>
+        <div>
+          <span>{commitHash ? `Commit: ${commitHash}` : TEAM_NAME}</span>
         </div>
-      </div>
+      </footer>
 
-      {/* 4. Unified Passcode Modal for Admin & Viewer Login */}
+      {/* 4. Unified Management Modal (Viewer / Admin) */}
       {isMgmtModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
-            {/* Close Button */}
-            <button
-              onClick={() => setIsMgmtModalOpen(false)}
-              className="absolute right-4 top-4 p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-card text-card-foreground shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800 mb-2">
-                <KeyRound className="h-3.5 w-3.5" />
-                เข้าสู่ระบบผู้บริหาร / จัดการระบบ
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-bold text-foreground">
+                  เข้าสู่ระบบสำหรับฝ่ายบริหารและจัดการ
+                </h3>
               </div>
-              <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
-                กรุณาระบุรหัสผ่านเพื่อเข้าใช้งาน
-              </h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMgmtModalOpen(false)}
+                className="h-7 w-7"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
-            {/* Tabs: Viewer vs Admin */}
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+            {/* Modal Tab Switcher */}
+            <div className="grid grid-cols-2 border-b border-border bg-muted/50 p-1 gap-1 text-xs">
               <button
                 type="button"
                 onClick={() => {
                   setMgmtTab("VIEWER");
                   setViewerError("");
                 }}
-                className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1.5 rounded-md font-medium transition-all ${
                   mgmtTab === "VIEWER"
-                    ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    ? "bg-card text-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Layers className="h-3.5 w-3.5" />
-                ภาพรวมผู้บริหาร (Viewer)
+                Viewer (ภาพรวม)
               </button>
 
               <button
@@ -417,98 +404,102 @@ export default function IdentifyPage() {
                   setMgmtTab("ADMIN");
                   setAdminError("");
                 }}
-                className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1.5 rounded-md font-medium transition-all ${
                   mgmtTab === "ADMIN"
-                    ? "bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-300 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    ? "bg-card text-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <ShieldAlert className="h-3.5 w-3.5" />
-                จัดการระบบ (Admin)
+                Admin (จัดการระบบ)
               </button>
             </div>
 
-            {/* Tab 1: Viewer Login */}
-            {mgmtTab === "VIEWER" && (
-              <form onSubmit={handleViewerLogin} className="space-y-3 pt-1">
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  สำหรับผู้บริหารและทีมงานส่วนกลาง เข้าดูภาพรวมสต๊อกทั่วประเทศ
-                </div>
+            {/* Modal Body */}
+            <div className="p-4">
+              {mgmtTab === "VIEWER" && (
+                <form onSubmit={handleViewerLogin} className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    สำหรับผู้บริหาร ดูภาพรวมวิเคราะห์และดาวน์โหลดข้อมูล RAW Data
+                  </p>
 
-                {viewerError && (
-                  <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 p-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{viewerError}</span>
-                  </div>
-                )}
-
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                  <input
-                    type="password"
-                    value={viewerPasscode}
-                    onChange={(e) => setViewerPasscode(e.target.value)}
-                    placeholder="กรอกรหัสผ่าน..."
-                    autoFocus
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isViewerVerifying}
-                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 text-xs font-bold shadow-sm transition-colors"
-                >
-                  {isViewerVerifying ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Layers className="h-3.5 w-3.5" />
+                  {viewerError && (
+                    <div className="rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 text-xs text-rose-700 dark:text-rose-300">
+                      {viewerError}
+                    </div>
                   )}
-                  เข้าสู่ภาพรวมผู้บริหาร (Viewer)
-                </button>
-              </form>
-            )}
 
-            {/* Tab 2: Admin Login */}
-            {mgmtTab === "ADMIN" && (
-              <form onSubmit={handleAdminLogin} className="space-y-3 pt-1">
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  สำหรับผู้ดูแลระบบ อัปโหลดรายงาน จัดการข้อมูลสาขาและพิจารณาคำขอ
-                </div>
-
-                {adminError && (
-                  <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 p-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{adminError}</span>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      รหัสผ่าน Viewer
+                    </label>
+                    <Input
+                      type="password"
+                      value={viewerPasscode}
+                      onChange={(e) => setViewerPasscode(e.target.value)}
+                      placeholder="กรอกรหัสผ่าน Viewer"
+                      autoFocus
+                    />
                   </div>
-                )}
 
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                  <input
-                    type="password"
-                    value={adminPasscode}
-                    onChange={(e) => setAdminPasscode(e.target.value)}
-                    placeholder="กรอกรหัสผ่าน..."
-                    autoFocus
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-purple-500 focus:outline-none"
-                  />
-                </div>
+                  <Button
+                    type="submit"
+                    disabled={isViewerVerifying}
+                    className="w-full mt-2 font-medium"
+                  >
+                    {isViewerVerifying ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        กำลังตรวจสอบ...
+                      </>
+                    ) : (
+                      "เข้าสู่ระบบ Viewer"
+                    )}
+                  </Button>
+                </form>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={isAdminVerifying}
-                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white py-2.5 text-xs font-bold shadow-sm transition-colors"
-                >
-                  {isAdminVerifying ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ShieldAlert className="h-3.5 w-3.5" />
+              {mgmtTab === "ADMIN" && (
+                <form onSubmit={handleAdminLogin} className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    สำหรับผู้ดูแลระบบ จัดการมิติข้อมูล นำเข้ารายงาน และพิจารณาคำขอ
+                  </p>
+
+                  {adminError && (
+                    <div className="rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 text-xs text-rose-700 dark:text-rose-300">
+                      {adminError}
+                    </div>
                   )}
-                  เข้าสู่ระบบจัดการ (Admin)
-                </button>
-              </form>
-            )}
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      รหัสผ่าน Admin
+                    </label>
+                    <Input
+                      type="password"
+                      value={adminPasscode}
+                      onChange={(e) => setAdminPasscode(e.target.value)}
+                      placeholder="กรอกรหัสผ่าน Admin"
+                      autoFocus
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isAdminVerifying}
+                    className="w-full mt-2 font-medium"
+                  >
+                    {isAdminVerifying ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        กำลังตรวจสอบ...
+                      </>
+                    ) : (
+                      "เข้าสู่ระบบ Admin"
+                    )}
+                  </Button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}

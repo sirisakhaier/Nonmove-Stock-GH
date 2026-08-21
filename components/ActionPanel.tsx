@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Upload, ShieldAlert, CheckCircle2, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { X, Upload, CheckCircle2, AlertCircle, Loader2, RefreshCw, Image as ImageIcon } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { formatCurrency } from "@/lib/validators";
 
@@ -100,275 +104,230 @@ export function ActionPanel({
           method: "POST",
           body: formData,
         });
-        if (upRes.ok) {
-          const upData = await upRes.json();
-          newPhotoUrls.push(upData.url);
+        const upData = await upRes.json();
+        if (!upRes.ok) {
+          throw new Error(upData.error || "อัปโหลดรูปภาพไม่สำเร็จ");
         }
+        newPhotoUrls.push(upData.url);
       }
 
       const allPhotoUrls = [...existingPhotos, ...newPhotoUrls];
 
-      // 2. Submit or Re-submit
-      if (isNeedsRevision && product.activeRequest?.id) {
-        const res = await fetch(`/api/requests/${product.activeRequest.id}`, {
+      // 2. Submit request
+      const sessionStr = localStorage.getItem("nonmove_user_session");
+      const sessionObj = sessionStr ? JSON.parse(sessionStr) : null;
+
+      const bodyData = {
+        branchCode,
+        productCode: product.productCode,
+        requestType: "EXCLUDE",
+        reason,
+        comments,
+        photos: allPhotoUrls,
+        userName: sessionObj?.userName || "User Store",
+        phone: sessionObj?.phone || "-",
+      };
+
+      let res;
+      if (product.activeRequest && isNeedsRevision) {
+        res = await fetch(`/api/requests/${product.activeRequest.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            isResubmission: true,
+            ...bodyData,
             status: "PENDING",
-            requestType: "EXCLUDE",
-            reason,
-            comments,
-            photoUrls: newPhotoUrls,
           }),
         });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "บันทึกข้อมูลไม่สำเร็จ");
-        }
       } else {
-        const payload = {
-          branchCode,
-          productCode: product.productCode,
-          requestType: "EXCLUDE",
-          reason,
-          comments,
-          photoUrls: allPhotoUrls,
-        };
-
-        const res = await fetch("/api/requests", {
+        res = await fetch("/api/requests", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(bodyData),
         });
+      }
 
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "บันทึกข้อมูลไม่สำเร็จ");
-        }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "บันทึกคำขอไม่สำเร็จ");
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || "เกิดข้อผิดพลาดในการส่งข้อมูล");
+      setErrorMsg(err.message || "เกิดข้อผิดพลาดในการบันทึกคำขอ");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const presetReasons = [
-    "สินค้าตัวโชว์หน้าร้าน (Display / Mock-up)",
-    "สินค้าติดจองมัดจำแล้ว / รอลูกค้ารับมอบ",
-    "สินค้าชำรุดรอส่งเคลมศูนย์บริการ",
-    "สินค้าจัดโปรโมชั่น / รอแคมเปญส่งเสริมการขาย",
-    "สินค้าค้างสต๊อกรอย้ายสาขา / ส่งคืนคลังหลัก",
-    "ข้อผิดพลาดทางระบบสต๊อก / รอปรับยอดบัญชี",
-    "อื่นๆ (ระบุในคำอธิบายเพิ่มเติม)",
-  ];
-
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/70 backdrop-blur-sm transition-opacity">
-      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-        <div className="w-screen max-w-lg bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800 transition-colors duration-200">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4 bg-slate-50 dark:bg-slate-800/60">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                <ShieldAlert className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                  {isNeedsRevision ? "แก้ไขและยื่นคำขอยกเว้นใหม่" : "ยื่นคำขอยกเว้นการคิด Non-Move"}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                  รหัสสินค้า: {product.productCode}
-                </p>
-              </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
+      <Card className="w-full max-w-lg shadow-xl border-border animate-in fade-in zoom-in-95 duration-150 my-8">
+        <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base font-bold">
+              {isNeedsRevision ? "แก้ไขข้อมูลคำขอ (ส่งข้อมูลเพิ่มเติม)" : "ยื่นคำขอยกเว้นสินค้า (Request Exclusion)"}
+            </CardTitle>
+            <CardDescription className="text-xs mt-0.5">
+              รุ่นสินค้า: {product.model} ({product.productCode})
+            </CardDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-7 w-7"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-4 space-y-4 text-xs">
+          {/* Product Summary Box */}
+          <div className="bg-muted/40 p-3 rounded-md border border-border space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-foreground">{product.model}</span>
+              <Badge variant="outline" className="text-[10px]">
+                {product.nonmoveDaysBucket} วัน
+              </Badge>
             </div>
-            <button
-              onClick={onClose}
-              className="rounded-xl p-2 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="text-[11px] text-muted-foreground flex justify-between">
+              <span>หมวดหมู่: {product.categoryName}</span>
+              <span>สต๊อก: {product.stockQty} ชิ้น ({formatCurrency(product.stockValue)})</span>
+            </div>
           </div>
 
-          {/* Product Summary Mini Card */}
-          <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-900/40 p-4 space-y-2">
-            <div className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2">
-              {product.productName}
+          {/* Admin Revision Feedback Callout if revision required */}
+          {isNeedsRevision && product.activeRequest?.reviewComment && (
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 p-3 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+              <span className="font-semibold block">ข้อความแจ้งจากผู้อนุมัติ:</span>
+              <p>{product.activeRequest.reviewComment}</p>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
-              <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800 font-mono">
-                รุ่น: {product.model}
-              </span>
-              <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800">
-                หมวด: {product.categoryName}
-              </span>
-              <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800 font-semibold text-indigo-700 dark:text-indigo-400">
-                คงเหลือ: {product.stockQty} ชิ้น ({formatCurrency(product.stockValue)})
-              </span>
+          )}
+
+          {errorMsg && (
+            <div className="rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-3 text-xs text-rose-700 dark:text-rose-300">
+              {errorMsg}
             </div>
+          )}
 
-            {product.activeRequest && (
-              <div className="pt-2 border-t border-indigo-100 dark:border-indigo-900/40 flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-400 font-medium">สถานะปัจจุบัน:</span>
-                <RequestStatusBadge
-                  status={product.activeRequest.status}
-                  requestType="EXCLUDE"
-                />
-              </div>
-            )}
-
-            {/* Note from Approver if REVISE */}
-            {isNeedsRevision && product.activeRequest?.reviewComment && (
-              <div className="mt-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                <div className="font-bold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
-                  <AlertCircle className="h-4 w-4" />
-                  ข้อความจากผู้อนุมัติ (สิ่งที่ต้องการให้แก้ไข/แนบเพิ่ม):
-                </div>
-                <p className="text-slate-800 dark:text-slate-200 pl-5 font-medium">
-                  &ldquo;{product.activeRequest.reviewComment}&rdquo;
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-            {errorMsg && (
-              <div className="rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 text-xs text-rose-700 dark:text-rose-300 flex gap-2.5 items-start">
-                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            {/* 1. Reason Select */}
-            <div>
-              <label className="block text-xs font-bold text-slate-900 dark:text-white mb-1.5">
-                1. เหตุผลการขอยกเว้น <span className="text-rose-500">*</span>
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            {/* Reason Selector */}
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground block">
+                เหตุผลการขอยกเว้น <span className="text-rose-500">*</span>
               </label>
               <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground focus:outline-hidden"
+                required
               >
-                <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                  -- กรุณาเลือกเหตุผล --
-                </option>
-                {presetReasons.map((r) => (
-                  <option key={r} value={r} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                    {r}
-                  </option>
-                ))}
+                <option value="">-- กรุณาเลือกเหตุผล --</option>
+                <option value="สินค้าตัวโชว์หน้าร้าน (Display / Demo Unit)">สินค้าตัวโชว์หน้าร้าน (Display / Demo Unit)</option>
+                <option value="สินค้าชำรุด / รอส่งเคลม (Defective / RMA)">สินค้าชำรุด / รอส่งเคลม (Defective / RMA)</option>
+                <option value="สต๊อกไม่ตรงกับระบบ / รอดำเนินการปรับยอด (Stock Discrepancy)">สต๊อกไม่ตรงกับระบบ / รอดำเนินการปรับยอด (Stock Discrepancy)</option>
+                <option value="สินค้าติดจองลูกค้ารอส่งมอบ (Reserved for Delivery)">สินค้าติดจองลูกค้ารอส่งมอบ (Reserved for Delivery)</option>
+                <option value="อื่นๆ (ระบุในรายละเอียด)">อื่นๆ (ระบุในรายละเอียดเพิ่มเติม)</option>
               </select>
             </div>
 
-            {/* 2. Description / Action Plan */}
-            <div>
-              <label className="block text-xs font-bold text-slate-900 dark:text-white mb-1.5">
-                2. คำอธิบายเพิ่มเติม / แผนการดำเนินการ
+            {/* Additional Comments */}
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground block">
+                คำอธิบายเพิ่มเติม
               </label>
               <textarea
-                rows={3}
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
-                placeholder="ระบุรายละเอียดประกอบ เช่น วันที่คาดว่าจะส่งมอบ หรือแผนการระบายสินค้า..."
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+                placeholder="ระบุรายละเอียดเพิ่มเติมเพื่อประกอบการพิจารณา..."
+                rows={3}
+                className="w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground focus:outline-hidden"
               />
             </div>
 
-            {/* 3. Photo Proofs */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-900 dark:text-white">
-                  3. รูปถ่ายหลักฐานประกอบ <span className="text-rose-500">* (จำเป็นอย่างน้อย 1 รูป)</span>
+            {/* Photo Upload with Previews */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="font-semibold text-foreground">
+                  รูปถ่ายหลักฐาน <span className="text-rose-500">*</span>
                 </label>
-                <span className="text-[11px] text-slate-400">รวม {existingPhotos.length + photos.length} รูป</span>
+                <span className="text-[11px] text-muted-foreground">
+                  (อย่างน้อย 1 รูป)
+                </span>
               </div>
 
-              {/* Upload Drop Zone */}
-              <div className="flex justify-center rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 px-4 py-4 hover:border-indigo-400 bg-slate-50/50 dark:bg-slate-800/30 transition-colors">
-                <div className="text-center">
-                  <Upload className="mx-auto h-6 w-6 text-slate-400" />
-                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    <label className="cursor-pointer rounded-md font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500">
-                      <span>คลิกเพื่อถ่ายหรือเลือกรูปภาพ</span>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handlePhotoChange}
-                        className="sr-only"
-                      />
-                    </label>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">รองรับ PNG, JPG, JPEG (อัปโหลดได้หลายรูป)</p>
-                </div>
-              </div>
-
-              {/* Photos Gallery */}
+              {/* Photos Gallery Preview */}
               {(existingPhotos.length > 0 || photoPreviews.length > 0) && (
-                <div className="mt-3 grid grid-cols-4 gap-2">
-                  {existingPhotos.map((src, idx) => (
-                    <div key={`existing-${idx}`} className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square group shadow-sm">
-                      <img src={src} alt="existing-proof" className="h-full w-full object-cover" />
-                      <span className="absolute bottom-0 inset-x-0 bg-slate-900/70 text-[9px] text-white text-center py-0.5">
-                        รูปเดิม
-                      </span>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {existingPhotos.map((url, idx) => (
+                    <div key={`exist-${idx}`} className="aspect-square rounded-md border border-border overflow-hidden relative group">
+                      <img src={url} alt="Existing" className="w-full h-full object-cover" />
                     </div>
                   ))}
-                  {photoPreviews.map((src, idx) => (
-                    <div key={`new-${idx}`} className="relative rounded-xl overflow-hidden border border-indigo-300 dark:border-indigo-700 aspect-square group shadow-sm">
-                      <img src={src} alt="new-proof" className="h-full w-full object-cover" />
+                  {photoPreviews.map((url, idx) => (
+                    <div key={`new-${idx}`} className="aspect-square rounded-md border border-border overflow-hidden relative group">
+                      <img src={url} alt="New preview" className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => removeNewPhoto(idx)}
-                        className="absolute top-1 right-1 rounded-full bg-rose-600 p-1 text-white shadow-sm hover:bg-rose-700"
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-rose-600 transition-colors"
                       >
                         <X className="h-3 w-3" />
                       </button>
-                      <span className="absolute bottom-0 inset-x-0 bg-indigo-600/80 text-[9px] text-white text-center py-0.5">
-                        รูปใหม่
-                      </span>
                     </div>
                   ))}
                 </div>
               )}
+
+              {/* Upload Input */}
+              <div className="border border-dashed border-input rounded-md p-3 text-center bg-muted/20 hover:bg-muted/40 transition-colors">
+                <input
+                  type="file"
+                  id="actionPhotoInput"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+                <label htmlFor="actionPhotoInput" className="cursor-pointer flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <ImageIcon className="h-4 w-4 text-primary" />
+                  <span className="font-medium text-foreground">คลิกเพื่อแนบรูปถ่ายหลักฐาน</span>
+                </label>
+              </div>
             </div>
 
-            {/* Footer Buttons */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex gap-2">
-              <button
+            {/* Submit Buttons */}
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               >
                 ยกเลิก
-              </button>
-              <button
+              </Button>
+
+              <Button
                 type="submit"
+                size="sm"
                 disabled={isSubmitting}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 active:scale-[0.99] transition-all disabled:opacity-50"
+                className="font-semibold"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                     กำลังบันทึก...
                   </>
                 ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    {isNeedsRevision ? "ยื่นขอพิจารณาใหม่ (Resubmit)" : "ส่งคำขอยกเว้น"}
-                  </>
+                  "ส่งคำขอยกเว้น"
                 )}
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

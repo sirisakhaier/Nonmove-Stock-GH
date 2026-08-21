@@ -1,50 +1,24 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { KpiCards } from "@/components/KpiCards";
-import { NonmoveChart } from "@/components/NonmoveChart";
-import { NonmoveTrendAnalysis } from "@/components/NonmoveTrendAnalysis";
 import { ModelExplorerTable } from "@/components/ModelExplorerTable";
 import { ActionPanel } from "@/components/ActionPanel";
-import {
-  Calendar,
-  Store,
-  RefreshCw,
-  FileSpreadsheet,
-  AlertCircle,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react";
-import { TEAM_NAME, APP_VERSION, getCommitHash } from "@/lib/version";
+import { Calendar, Store, RefreshCw, Layers } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-export default function StoreDashboard() {
+export default function BranchDashboardPage() {
   const params = useParams();
-  const router = useRouter();
   const branchCode = params.branchCode as string;
 
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [storeInfo, setStoreInfo] = useState<{ branchCode: string; branchName: string; region: string } | null>(null);
-
-  // KPIs & Chart Data
-  const [kpiData, setKpiData] = useState<any>({
-    totalSkus: 0,
-    totalStockQty: 0,
-    totalStockValue: 0,
-    highNonmoveRatio: 0,
-    highCount: 0,
-    okCount: 0,
-    overallOkPct: 0,
-  });
-  const [bucketChart, setBucketChart] = useState<any[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [skuTypes, setSkuTypes] = useState<string[]>(["SELLABLE", "DEMO", "MOCK_UP"]);
-
-  // Table Data & Filters
-  const [tableRows, setTableRows] = useState<any[]>([]);
-  const [totalRows, setTotalRows] = useState(0);
+  const [summary, setSummary] = useState<any>(null);
+  const [products, setProducts] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [limit] = useState(25);
   const [search, setSearch] = useState("");
@@ -52,56 +26,47 @@ export default function StoreDashboard() {
   const [selectedBucket, setSelectedBucket] = useState("ALL");
   const [selectedSkuType, setSelectedSkuType] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
-  const [highPct, setHighPct] = useState(0);
-  const [okPct, setOkPct] = useState(0);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [skuTypes, setSkuTypes] = useState<string[]>(["SELLABLE", "DEMO", "MOCK_UP"]);
+  const [storeInfo, setStoreInfo] = useState<any>(null);
 
-  // Drawer
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedProductForAction, setSelectedProductForAction] = useState<any | null>(null);
+  const [isActionOpen, setIsActionOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Fetch Store Details & Summary
-  const fetchSummary = useCallback(async (date?: string, cat?: string) => {
+  // 1. Fetch Summary & Available Dates
+  const fetchSummary = useCallback(async (date?: string) => {
     try {
       const url = new URL("/api/nonmove/summary", window.location.origin);
       url.searchParams.set("branchCode", branchCode);
       if (date) url.searchParams.set("date", date);
-      if (cat && cat !== "ALL") url.searchParams.set("category", cat);
 
       const res = await fetch(url.toString());
-      if (!res.ok) throw new Error("โหลดข้อมูลสรุปไม่สำเร็จ");
-      const data = await res.json();
-
-      if (data.store) {
-        setStoreInfo(data.store);
+      if (res.ok) {
+        const data = await res.json();
+        setSummary(data);
+        setAvailableDates(data.availableDates || []);
+        if (!selectedDate && data.selectedDate) {
+          setSelectedDate(data.selectedDate);
+        }
+        setCategories(data.categories || []);
+        if (data.skuTypes) setSkuTypes(data.skuTypes);
+        setStoreInfo(data.store || null);
       }
-      setAvailableDates(data.availableDates || []);
-      if (!selectedDate && data.selectedDate) {
-        setSelectedDate(data.selectedDate);
-      }
-      if (data.kpis) {
-        setKpiData(data.kpis);
-        setHighPct(data.kpis.highNonmoveRatio || 0);
-        setOkPct(data.kpis.overallOkPct || 0);
-      }
-      setBucketChart(data.chartData || []);
-      setCategories(data.categories || []);
-      if (data.skuTypes && data.skuTypes.length > 0) {
-        setSkuTypes(data.skuTypes);
-      }
-    } catch (error) {
-      console.error("Error fetching summary:", error);
+    } catch (e) {
+      console.error("Error fetching summary:", e);
     }
   }, [branchCode, selectedDate]);
 
-  // 2. Fetch Table Data
-  const fetchTableData = useCallback(async () => {
+  // 2. Fetch Product List
+  const fetchProducts = useCallback(async () => {
+    setIsLoading(true);
     try {
       const url = new URL("/api/nonmove", window.location.origin);
       url.searchParams.set("branchCode", branchCode);
       if (selectedDate) url.searchParams.set("date", selectedDate);
       if (selectedCategory !== "ALL") url.searchParams.set("category", selectedCategory);
-      if (selectedBucket !== "ALL") url.searchParams.set("nonmoveDaysBucket", selectedBucket);
+      if (selectedBucket !== "ALL") url.searchParams.set("bucket", selectedBucket);
       if (selectedSkuType !== "ALL") url.searchParams.set("skuType", selectedSkuType);
       if (selectedStatus !== "ALL") url.searchParams.set("status", selectedStatus);
       if (search.trim()) url.searchParams.set("search", search.trim());
@@ -109,53 +74,32 @@ export default function StoreDashboard() {
       url.searchParams.set("limit", String(limit));
 
       const res = await fetch(url.toString());
-      if (!res.ok) throw new Error("โหลดรายการสินค้าไม่สำเร็จ");
-      const data = await res.json();
-
-      setTableRows(data.data || data.items || []);
-      setTotalRows(data.total !== undefined ? data.total : (data.totalCount || 0));
-      if (data.highPct !== undefined) setHighPct(data.highPct);
-      if (data.okPct !== undefined) setOkPct(data.okPct);
-    } catch (error) {
-      console.error("Error fetching table data:", error);
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.items || []);
+        setTotal(data.total || 0);
+      }
+    } catch (e) {
+      console.error("Error fetching products:", e);
     } finally {
       setIsLoading(false);
     }
-  }, [
-    branchCode,
-    selectedDate,
-    selectedCategory,
-    selectedBucket,
-    selectedSkuType,
-    selectedStatus,
-    search,
-    page,
-    limit,
-  ]);
+  }, [branchCode, selectedDate, selectedCategory, selectedBucket, selectedSkuType, selectedStatus, search, page, limit]);
 
   useEffect(() => {
-    setIsLoading(true);
-    fetchSummary().then(() => {
-      fetchTableData();
-    });
-  }, [branchCode, fetchSummary, fetchTableData]);
+    fetchSummary(selectedDate);
+  }, [fetchSummary, selectedDate]);
 
   useEffect(() => {
-    fetchTableData();
-  }, [selectedDate, selectedCategory, selectedBucket, selectedSkuType, selectedStatus, search, page, fetchTableData]);
-
-  const handleDateChange = (newDate: string) => {
-    setSelectedDate(newDate);
-    setPage(1);
-    fetchSummary(newDate, selectedCategory);
-  };
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleExport = () => {
     const url = new URL("/api/nonmove/export", window.location.origin);
     url.searchParams.set("branchCode", branchCode);
     if (selectedDate) url.searchParams.set("date", selectedDate);
     if (selectedCategory !== "ALL") url.searchParams.set("category", selectedCategory);
-    if (selectedBucket !== "ALL") url.searchParams.set("nonmoveDaysBucket", selectedBucket);
+    if (selectedBucket !== "ALL") url.searchParams.set("bucket", selectedBucket);
     if (selectedSkuType !== "ALL") url.searchParams.set("skuType", selectedSkuType);
     if (selectedStatus !== "ALL") url.searchParams.set("status", selectedStatus);
     if (search.trim()) url.searchParams.set("search", search.trim());
@@ -164,119 +108,117 @@ export default function StoreDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Header Store Overview & Date Picker */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 shrink-0">
-              <Store className="h-7 w-7" />
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Header Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border p-4 sm:p-5 rounded-lg shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-foreground shrink-0">
+              <Store className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                  {storeInfo?.branchName || branchCode}
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                  {storeInfo?.storeNameCust || storeInfo?.storeName || branchCode}
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 font-mono">
+                <Badge variant="outline" className="text-xs font-mono">
                   {branchCode}
-                </span>
+                </Badge>
                 {storeInfo?.region && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                    {storeInfo.region}
-                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    ภาค {storeInfo.region}
+                  </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                แดชบอร์ดติดตามและจัดการสต๊อกสินค้าไม่เคลื่อนไหวประจำสาขา · {TEAM_NAME}
+              <p className="text-xs text-muted-foreground mt-0.5">
+                รายการสต๊อกสินค้าไม่เคลื่อนไหวในสาขา (&gt;30 วัน)
               </p>
             </div>
           </div>
 
-          {/* Date Selector & Action Buttons */}
-          <div className="flex items-center gap-3 self-start md:self-auto">
+          <div className="flex items-center gap-2 self-start md:self-auto">
             {availableDates.length > 0 && (
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2 shadow-inner">
-                <Calendar className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                 <select
                   value={selectedDate}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value);
+                    setPage(1);
+                  }}
+                  className="bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
                 >
                   {availableDates.map((d) => (
-                    <option key={d} value={d} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                      รายงานวันที่: {d}
+                    <option key={d} value={d} className="bg-background text-foreground">
+                      รอบวันที่: {d}
                     </option>
                   ))}
                 </select>
               </div>
             )}
 
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => {
-                fetchSummary(selectedDate, selectedCategory);
-                fetchTableData();
+                fetchSummary(selectedDate);
+                fetchProducts();
               }}
               title="รีเฟรชข้อมูล"
-              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-2.5 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-indigo-600 transition-colors"
+              className="h-8 w-8"
             >
-              <RefreshCw className="h-4 w-4" />
-            </button>
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
 
-        {/* 1. KPI Cards */}
-        <KpiCards data={kpiData} />
+        {/* KPI Cards */}
+        <KpiCards data={summary?.kpis || {}} />
 
-        {/* 2. Visual Aging Distribution Chart */}
-        <NonmoveChart bucketData={bucketChart} />
-
-        {/* 3. Model Explorer Table */}
+        {/* Model Explorer Table */}
         <ModelExplorerTable
-          data={tableRows}
-          total={totalRows}
+          data={products}
+          total={total}
           page={page}
           limit={limit}
           onPageChange={setPage}
           search={search}
-          onSearchChange={(q) => { setSearch(q); setPage(1); }}
+          onSearchChange={(s) => { setSearch(s); setPage(1); }}
           selectedCategory={selectedCategory}
           onCategoryChange={(c) => { setSelectedCategory(c); setPage(1); }}
           selectedBucket={selectedBucket}
           onBucketChange={(b) => { setSelectedBucket(b); setPage(1); }}
           selectedSkuType={selectedSkuType}
-          onSkuTypeChange={(s) => { setSelectedSkuType(s); setPage(1); }}
+          onSkuTypeChange={(st) => { setSelectedSkuType(st); setPage(1); }}
           selectedStatus={selectedStatus}
           onStatusChange={(st) => { setSelectedStatus(st); setPage(1); }}
           categories={categories}
           skuTypes={skuTypes}
-          highPct={highPct}
-          okPct={okPct}
+          highPct={summary?.kpis?.highNonmoveRatio || 0}
+          okPct={summary?.kpis?.okRatio || 0}
           onSelectProduct={(p) => {
-            setSelectedProduct(p);
-            setIsDrawerOpen(true);
+            setSelectedProductForAction(p);
+            setIsActionOpen(true);
           }}
           onExport={handleExport}
         />
       </main>
 
-      {/* Action Drawer */}
-      <ActionPanel
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        product={selectedProduct}
-        branchCode={branchCode}
-        onSuccess={() => {
-          fetchSummary(selectedDate, selectedCategory);
-          fetchTableData();
-        }}
-      />
-
-      {/* Footer */}
-      <footer className="text-center text-xs text-slate-400 dark:text-slate-500 py-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors">
-        <div>&copy; 2026 Non-Move Stock App · <strong>{TEAM_NAME}</strong></div>
-      </footer>
+      {/* Action Panel Modal */}
+      {isActionOpen && (
+        <ActionPanel
+          isOpen={isActionOpen}
+          onClose={() => setIsActionOpen(false)}
+          product={selectedProductForAction}
+          branchCode={branchCode}
+          onSuccess={() => {
+            fetchSummary(selectedDate);
+            fetchProducts();
+          }}
+        />
+      )}
     </div>
   );
 }

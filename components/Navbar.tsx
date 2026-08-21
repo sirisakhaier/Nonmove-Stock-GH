@@ -12,6 +12,8 @@ import {
   TrendingUp,
   Download,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "./ThemeToggle";
 import { TEAM_NAME } from "@/lib/version";
 
@@ -43,67 +45,64 @@ export function Navbar() {
   const isRootPage = pathname === "/";
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-sm transition-colors duration-200">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Logo / Brand with Haier Logo */}
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-xs transition-colors">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* Brand Lockup */}
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center gap-2.5 group">
             <img
               src="/logo.png"
               alt="Haier"
-              className="h-9 w-auto object-contain rounded-lg shadow-sm"
+              className="h-7 w-auto object-contain shrink-0 rounded-sm"
             />
-            <div className="hidden sm:block">
-              <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight block">
-                Non-Move Stock Analysis
+            <div className="hidden sm:block border-l border-border pl-2.5">
+              <span className="text-xs font-bold text-foreground leading-none block">
+                Non-Move Stock Management
               </span>
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
+              <span className="text-[10px] text-muted-foreground leading-tight block mt-0.5">
                 {TEAM_NAME}
               </span>
             </div>
           </Link>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex items-center gap-2 text-sm font-medium">
+        {/* Navigation Tabs */}
+        <nav className="flex items-center gap-1 text-xs font-medium">
           {branchCode && !isViewerPage && !isAdminPage && (
             <>
-              {/* Menu 1: รายละเอียด (Details) */}
               <Link
                 href={`/dashboard/${branchCode}`}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   pathname === `/dashboard/${branchCode}`
-                    ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "bg-secondary text-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <Store className="h-3.5 w-3.5" />
                 <span>รายละเอียด</span>
               </Link>
 
-              {/* Menu 2: แนวโน้ม (Trend) */}
               <Link
                 href={`/dashboard/${branchCode}/trend`}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   pathname.includes("/trend")
-                    ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "bg-secondary text-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <TrendingUp className="h-3.5 w-3.5" />
                 <span>แนวโน้ม</span>
               </Link>
 
-              {/* Menu 3: คำขอของฉัน (Requests) */}
               <Link
                 href={`/dashboard/${branchCode}/requests`}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   pathname.includes("/requests")
-                    ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "bg-secondary text-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <FileSpreadsheet className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">รายการคำขอ</span>
                 <span className="sm:hidden">คำขอ</span>
               </Link>
@@ -111,69 +110,65 @@ export function Navbar() {
           )}
 
           {isViewerPage && (
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-1">
               <Link
                 href="/viewer"
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   pathname === "/viewer"
-                    ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "bg-secondary text-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <Layers className="h-3.5 w-3.5" />
                 <span>ภาพรวมและวิเคราะห์</span>
               </Link>
               <Link
                 href="/viewer/raw-data"
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   pathname.startsWith("/viewer/raw-data")
-                    ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "bg-secondary text-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <Download className="h-3.5 w-3.5" />
                 <span>ดาวน์โหลด RAW Data</span>
               </Link>
             </div>
           )}
 
           {isAdminPage && (
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-200 dark:border-purple-800 flex items-center gap-1.5">
-                <ShieldAlert className="h-3.5 w-3.5" />
-                จัดการระบบ (Admin)
-              </span>
-            </div>
+            <Badge variant="outline" className="gap-1.5 font-medium">
+              <ShieldAlert className="h-3 w-3 text-slate-600 dark:text-slate-400" />
+              <span>Admin Hub</span>
+            </Badge>
           )}
         </nav>
 
-        {/* Right Info / Actions, ThemeToggle & Always-visible EXIT Button */}
-        <div className="flex items-center gap-2.5">
-          {/* Light / Dark Mode Toggle with text */}
+        {/* Right Info & Actions */}
+        <div className="flex items-center gap-2">
           <ThemeToggle />
 
-          {/* User Session Info if logged in */}
           {storeInfo?.branchCode && !isViewerPage && !isAdminPage && (
-            <div className="text-right hidden md:block">
-              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+            <div className="text-right hidden md:block text-[11px] leading-tight pr-1">
+              <div className="font-medium text-foreground">
                 {storeInfo.branchName || storeInfo.branchCode}
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="text-muted-foreground text-[10px]">
                 {storeInfo.userName ? `ผู้ใช้งาน: ${storeInfo.userName}` : storeInfo.branchCode}
               </div>
             </div>
           )}
 
-          {/* Prominent Exit Button (Top of every page) */}
           {!isRootPage && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleExit}
-              title="ออกจากระบบ / กลับหน้าแรก"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-300 shadow-sm hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white transition-all"
+              className="h-8 text-xs font-medium text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:border-rose-900/50 dark:hover:bg-rose-950/40"
             >
-              <LogOut className="h-3.5 w-3.5" />
-              <span>ออก (Exit)</span>
-            </button>
+              <LogOut className="h-3.5 w-3.5 mr-1" />
+              <span>ออก</span>
+            </Button>
           )}
         </div>
       </div>

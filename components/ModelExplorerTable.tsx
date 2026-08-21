@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Search,
   Download,
-  Flame,
+  AlertTriangle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -14,8 +14,20 @@ import {
   Square,
   SlidersHorizontal,
 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { RequestStatusBadge } from "./RequestStatusBadge";
-import { formatNumber } from "@/lib/validators";
+import { formatNumber, formatCurrency } from "@/lib/validators";
 import { NONMOVE_BUCKET_ORDER } from "@/lib/nonmoveConfig";
 
 interface ProductModelItem {
@@ -48,7 +60,7 @@ interface TableProps {
   onSearchChange: (newSearch: string) => void;
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
-  selectedBucket: string; // Comma-separated or "ALL"
+  selectedBucket: string;
   onBucketChange: (bucket: string) => void;
   selectedSkuType: string;
   onSkuTypeChange: (skuType: string) => void;
@@ -99,171 +111,173 @@ export function ModelExplorerTable({
 
   const isAllBucketsSelected = currentBuckets.length === NONMOVE_BUCKET_ORDER.length;
 
-  // Close bucket popover on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setIsBucketOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
+    if (isBucketOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isBucketOpen]);
 
   const handleToggleBucket = (b: string) => {
-    let next: string[];
-    if (isAllBucketsSelected) {
-      // If previously all were selected, uncheck this one
-      next = (NONMOVE_BUCKET_ORDER as readonly string[]).filter((x) => x !== b);
-    } else if (currentBuckets.includes(b)) {
-      next = currentBuckets.filter((x) => x !== b);
+    let newSelected: string[];
+    if (currentBuckets.includes(b)) {
+      newSelected = currentBuckets.filter((item) => item !== b);
+      if (newSelected.length === 0) return;
     } else {
-      next = [...currentBuckets, b];
+      newSelected = [...currentBuckets, b];
     }
 
-    if (next.length === 0 || next.length === NONMOVE_BUCKET_ORDER.length) {
+    if (newSelected.length === NONMOVE_BUCKET_ORDER.length) {
       onBucketChange("ALL");
     } else {
-      onBucketChange(next.join(","));
+      onBucketChange(newSelected.join(","));
     }
   };
 
-  const handleToggleAllBuckets = () => {
+  const handleSelectAllBuckets = () => {
     if (isAllBucketsSelected) {
-      // Clear all
-      onBucketChange(NONMOVE_BUCKET_ORDER[0]); // Keep at least one
+      onBucketChange(">360,180-360,120-180");
     } else {
       onBucketChange("ALL");
     }
   };
 
-  // Label for the 1-line bucket dropdown
-  const bucketButtonLabel = isAllBucketsSelected
-    ? "ทุกช่วงวัน Non-move"
-    : currentBuckets.length === 1
-    ? `${currentBuckets[0]} วัน`
-    : `${currentBuckets.join(", ")} (${currentBuckets.length} ช่วง)`;
-
-  // Ensure default sku types exist
-  const combinedSkuTypes = Array.from(
-    new Set(["SELLABLE", "DEMO", "MOCK_UP", ...(skuTypes || [])])
-  );
+  const getBucketDisplayText = () => {
+    if (isAllBucketsSelected) return "ทุกช่วงวัน (All)";
+    if (currentBuckets.length === 1) return `${currentBuckets[0]} วัน`;
+    return `เลือก ${currentBuckets.length} ช่วงวัน`;
+  };
 
   return (
-    <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors duration-200">
-      {/* Table Header Controls */}
-      <div className="p-3 sm:p-5 border-b border-slate-200 dark:border-slate-800 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                รายการสินค้าไม่เคลื่อนไหว (Model Explorer)
-              </h3>
-              {/* Dynamic Live Metric Pill */}
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold shadow-sm">
-                <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-                  <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />
-                  {highPct}% วิกฤต
-                </span>
-                <span className="text-slate-300 dark:text-slate-600">·</span>
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  {okPct}% ปกติ
-                </span>
-              </div>
-            </div>
-            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              พบ {formatNumber(total)} รายการ (แตะที่รายการเพื่อขอยกเว้น Non-Move)
-            </p>
+    <Card className="border-border shadow-xs overflow-hidden">
+      {/* 1. Header Toolbar */}
+      <CardHeader className="p-4 border-b border-border space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Status Pills */}
+          <div className="flex items-center gap-1 bg-muted p-1 rounded-md text-xs font-medium self-start">
+            <button
+              onClick={() => onStatusChange("ALL")}
+              className={`px-3 py-1 rounded-sm transition-all ${
+                selectedStatus === "ALL"
+                  ? "bg-card text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              ทั้งหมด ({formatNumber(total)})
+            </button>
+            <button
+              onClick={() => onStatusChange("HIGH")}
+              className={`px-3 py-1 rounded-sm transition-all ${
+                selectedStatus === "HIGH"
+                  ? "bg-card text-rose-700 dark:text-rose-400 font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              วิกฤต &gt;120 วัน ({highPct}%)
+            </button>
+            <button
+              onClick={() => onStatusChange("OK")}
+              className={`px-3 py-1 rounded-sm transition-all ${
+                selectedStatus === "OK"
+                  ? "bg-card text-emerald-700 dark:text-emerald-400 font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              ปกติ &le;120 วัน ({okPct}%)
+            </button>
           </div>
 
-          <button
-            onClick={onExport}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors self-start sm:self-auto shrink-0"
-          >
-            <Download className="h-3.5 w-3.5" />
-            ดาวน์โหลด CSV
-          </button>
+          {/* Action Toolbar */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Live Search */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                type="text"
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="ค้นหาโมเดล, รหัสสินค้า..."
+                className="h-8 w-44 sm:w-56 pl-8 text-xs"
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExport}
+              className="h-8 text-xs gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>ส่งออก Excel</span>
+            </Button>
+          </div>
         </div>
 
-        {/* Filter Toolbar (Mobile Optimized) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          {/* 1. Search Box */}
-          <div className="relative sm:col-span-2 lg:col-span-1">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="ค้นหารหัสสินค้า, รุ่น (Model)..."
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-8 pr-2.5 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          {/* 2. SKU_TYPE Dropdown (All types: SELLABLE, DEMO, MOCK_UP...) */}
-          <div>
+        {/* 2. Secondary Filter Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+          {/* Category Filter */}
+          <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs">
+            <span className="text-[11px] font-semibold text-muted-foreground shrink-0">หมวดหมู่:</span>
             <select
-              value={selectedSkuType}
-              onChange={(e) => onSkuTypeChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+              value={selectedCategory}
+              onChange={(e) => onCategoryChange(e.target.value)}
+              className="w-full bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
             >
-              <option value="ALL">ทุกประเภท (SKU_TYPE)</option>
-              {combinedSkuTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
+              <option value="ALL">ทุกหมวดหมู่ (All)</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* 3. MULTI-CHECK Non-Move Bucket Dropdown (1 line with popover checkbox list) */}
+          {/* Nonmove Period Multi-Check Dropdown */}
           <div className="relative" ref={popoverRef}>
             <button
               type="button"
               onClick={() => setIsBucketOpen(!isBucketOpen)}
-              className="w-full flex items-center justify-between rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              className="w-full flex items-center justify-between gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground hover:bg-muted/40 transition-colors"
             >
-              <span className="truncate text-left font-medium pr-1">
-                {bucketButtonLabel}
-              </span>
-              <ChevronDown className={`h-3.5 w-3.5 text-slate-400 shrink-0 transition-transform ${isBucketOpen ? "rotate-180" : ""}`} />
+              <div className="flex items-center gap-1.5 truncate">
+                <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="font-medium truncate">{getBucketDisplayText()}</span>
+              </div>
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             </button>
 
-            {/* Multi-check Popover Menu */}
             {isBucketOpen && (
-              <div className="absolute left-0 right-0 mt-1 z-30 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-2.5 space-y-1 animate-in fade-in zoom-in-95 duration-100">
-                {/* Select / Deselect All */}
-                <button
-                  type="button"
-                  onClick={handleToggleAllBuckets}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors border-b border-slate-100 dark:border-slate-700/60 pb-2 mb-1"
-                >
-                  {isAllBucketsSelected ? (
-                    <CheckSquare className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                  ) : (
-                    <Square className="h-4 w-4 text-slate-400 shrink-0" />
-                  )}
-                  <span>เลือกทุกช่วงวัน (Select All)</span>
-                </button>
-
-                {/* Individual Buckets Checkboxes */}
+              <div className="absolute z-50 left-0 mt-1 w-56 rounded-md border border-border bg-card p-2 shadow-lg space-y-1 animate-in fade-in-80 text-xs">
+                <div className="flex items-center justify-between pb-1.5 border-b border-border">
+                  <span className="font-semibold text-foreground text-[11px]">ช่วงวันไม่เคลื่อนไหว</span>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllBuckets}
+                    className="text-[10px] text-primary hover:underline font-medium"
+                  >
+                    {isAllBucketsSelected ? "เลือกเฉพาะวิกฤต" : "เลือกทั้งหมด"}
+                  </button>
+                </div>
                 {NONMOVE_BUCKET_ORDER.map((b) => {
-                  const isChecked = isAllBucketsSelected || currentBuckets.includes(b);
+                  const isChecked = currentBuckets.includes(b);
                   return (
                     <button
                       key={b}
                       type="button"
                       onClick={() => handleToggleBucket(b)}
-                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
+                      className="w-full flex items-center justify-between px-2 py-1 rounded-sm text-left hover:bg-muted transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        {isChecked ? (
-                          <CheckSquare className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                        ) : (
-                          <Square className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        )}
-                        <span>{b} วัน</span>
-                      </div>
+                      <span className="text-foreground font-medium">{b} วัน</span>
+                      {isChecked ? (
+                        <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <Square className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
                     </button>
                   );
                 })}
@@ -271,146 +285,143 @@ export function ModelExplorerTable({
             )}
           </div>
 
-          {/* 4. Request Status Filter */}
-          <div>
+          {/* SKU_TYPE Filter */}
+          <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs">
+            <span className="text-[11px] font-semibold text-muted-foreground shrink-0">ประเภท:</span>
             <select
-              value={selectedStatus}
-              onChange={(e) => onStatusChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+              value={selectedSkuType}
+              onChange={(e) => onSkuTypeChange(e.target.value)}
+              className="w-full bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
             >
-              <option value="ALL">ทุกสถานะคำขอ</option>
-              <option value="NO_REQUEST">ยังไม่มีคำขอ</option>
-              <option value="PENDING">รอตรวจสอบ (Pending)</option>
-              <option value="REVISE">ขอข้อมูลเพิ่ม (Revise)</option>
-              <option value="APPROVED">อนุมัติแล้ว (Approved)</option>
-              <option value="REJECTED">ไม่อนุมัติ (Rejected)</option>
+              <option value="ALL">ทุกประเภท (All)</option>
+              {skuTypes.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
             </select>
           </div>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Table (2 Lines Per Record for Maximum Mobile Space Efficiency) */}
-      <div className="divide-y divide-slate-100 dark:divide-slate-800">
-        {data.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium text-xs">
-            ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา
-          </div>
-        ) : (
-          data.map((item) => {
-            const isHigh = item.classification === "HIGH" && !item.isExcluded;
-            return (
-              <div
-                key={item.productCode}
-                onClick={() => onSelectProduct(item)}
-                className="p-3 sm:px-5 sm:py-3.5 hover:bg-indigo-50/50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors space-y-1.5 group"
-              >
-                {/* Line 1: ProductCode · Model  |  SKU_TYPE */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-baseline gap-2 truncate">
-                    <span className="font-mono font-black text-indigo-700 dark:text-indigo-400 text-xs sm:text-sm tracking-tight shrink-0">
-                      {item.productCode}
-                    </span>
-                    <span className="text-slate-300 dark:text-slate-600">·</span>
-                    <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      {item.model || "-"}
-                    </span>
-                  </div>
+      {/* 3. Model Table (Compact 2-Line Row Layout) */}
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10">#</TableHead>
+              <TableHead>ข้อมูลโมเดลและสินค้า (Model Details)</TableHead>
+              <TableHead className="text-center w-28">ช่วงวัน (Bucket)</TableHead>
+              <TableHead className="text-right w-24">จำนวนชิ้น</TableHead>
+              <TableHead className="text-right w-28">มูลค่ารวม (บาท)</TableHead>
+              <TableHead className="text-center w-24">สถานะ</TableHead>
+              <TableHead className="text-right w-20">ยื่นคำขอ</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                  ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.map((item, idx) => {
+                const isHigh = item.classification === "HIGH";
+                const rowNumber = (page - 1) * limit + idx + 1;
 
-                  {/* SKU_TYPE Pill Badge */}
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-wider shrink-0 ${
-                    item.skuType === "DEMO"
-                      ? "bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                      : item.skuType === "MOCK_UP"
-                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
-                      : "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                  }`}>
-                    {item.skuType || "SELLABLE"}
-                  </span>
-                </div>
-
-                {/* Line 2: Non-Move Period Badge · Stock QTY  |  Action Button / Status */}
-                <div className="flex items-center justify-between gap-2 pt-0.5 text-xs">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* Non-Move Bucket */}
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
-                        isHigh
-                          ? "bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/70"
-                          : item.isExcluded
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 line-through border border-emerald-300 dark:border-emerald-700"
-                          : "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/70"
-                      }`}
-                    >
-                      {isHigh && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
-                      {item.nonmoveDaysBucket} วัน
-                    </span>
-
-                    {/* Stock QTY */}
-                    <span className="text-slate-600 dark:text-slate-300 text-[11px] font-medium">
-                      สต๊อก: <strong className="text-slate-900 dark:text-white font-black">{formatNumber(item.stockQty)}</strong> ชิ้น
-                    </span>
-                  </div>
-
-                  {/* Right Action / Status Badge */}
-                  <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                    {item.activeRequest ? (
-                      <div
-                        onClick={() => onSelectProduct(item)}
-                        className="cursor-pointer inline-block"
-                        title="คลิกเพื่อดูรายละเอียดคำขอ"
-                      >
-                        <RequestStatusBadge
-                          status={item.activeRequest.status}
-                          requestType={item.activeRequest.requestType}
-                        />
+                return (
+                  <TableRow key={item.productCode} className="hover:bg-muted/40">
+                    <TableCell className="font-mono text-muted-foreground text-[11px]">{rowNumber}</TableCell>
+                    <TableCell className="py-2.5">
+                      {/* Line 1: Model & SKU_TYPE Badge */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-foreground text-xs">{item.model}</span>
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                          {item.skuType}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground">
+                          ({item.categoryName})
+                        </span>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
+                      {/* Line 2: Product Name & Code */}
+                      <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 truncate">
+                        <span className="font-mono text-[10px]">{item.productCode}</span>
+                        <span>·</span>
+                        <span className="truncate max-w-[280px]">{item.productName}</span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="text-center">
+                      <Badge variant={isHigh ? "destructive" : "success"} className="text-[10px]">
+                        {item.nonmoveDaysBucket} วัน
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell className="text-right font-medium text-xs">
+                      {formatNumber(item.stockQty)}
+                    </TableCell>
+
+                    <TableCell className="text-right font-bold text-foreground text-xs">
+                      {formatCurrency(item.stockValue)}
+                    </TableCell>
+
+                    <TableCell className="text-center">
+                      {item.activeRequest ? (
+                        <RequestStatusBadge status={item.activeRequest.status} />
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => onSelectProduct(item)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors"
+                        className="h-7 text-xs font-medium px-2"
                       >
-                        <FileEdit className="h-3 w-3" />
-                        ขอยกเว้น
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+                        <FileEdit className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
 
-      {/* Pagination Footer (Mobile Optimized) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-xs">
-        <div className="text-slate-500 dark:text-slate-400 text-center sm:text-left text-[11px] sm:text-xs">
-          แสดง {formatNumber(Math.min((page - 1) * limit + 1, total))} ถึง{" "}
-          {formatNumber(Math.min(page * limit, total))} จาก {formatNumber(total)} รายการ
-        </div>
+        {/* 4. Pagination */}
+        <div className="flex items-center justify-between p-3 border-t border-border bg-card text-xs text-muted-foreground">
+          <div>
+            หน้า <span className="font-medium text-foreground">{page}</span> จาก <span className="font-medium text-foreground">{totalPages}</span> ({formatNumber(total)} รายการ)
+          </div>
 
-        <div className="flex items-center justify-center gap-1">
-          <button
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40"
-            title="หน้าก่อนหน้า"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-          <span className="px-2.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
-            {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages}
-            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40"
-            title="หน้าถัดไป"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => onPageChange(page - 1)}
+              className="h-7 text-xs gap-1"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span>ก่อนหน้า</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => onPageChange(page + 1)}
+              className="h-7 text-xs gap-1"
+            >
+              <span>ถัดไป</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

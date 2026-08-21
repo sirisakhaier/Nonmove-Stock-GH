@@ -4,12 +4,12 @@ import React from "react";
 import { X } from "lucide-react";
 
 interface PhotoLightboxProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   photoUrl: string | null;
   onClose: () => void;
 }
 
-export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({ isOpen, photoUrl, onClose }) => {
+export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({ isOpen = true, photoUrl, onClose }) => {
   if (!isOpen || !photoUrl) return null;
 
   return (

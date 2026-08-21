@@ -5,7 +5,7 @@ import {
   Layers,
   Calendar,
   MapPin,
-  Flame,
+  AlertTriangle,
   CheckCircle2,
   DollarSign,
   Package,
@@ -14,21 +14,17 @@ import {
   Download,
   RefreshCw,
   Search,
-  Filter,
   Building2,
   Store,
   ArrowUpRight,
   ArrowDownRight,
-  CheckSquare,
-  Square,
+  Filter,
 } from "lucide-react";
 import {
   BarChart,
   Bar,
   LineChart,
   Line,
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -37,6 +33,18 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { formatNumber, formatCurrency, formatPercent } from "@/lib/validators";
 import { useTheme } from "@/components/ThemeProvider";
 import { TEAM_NAME } from "@/lib/version";
@@ -167,7 +175,7 @@ export function ExecutiveViewerDashboard() {
   };
 
   const isDark = theme === "dark";
-  const gridColor = isDark ? "#334155" : "#f1f5f9";
+  const gridColor = isDark ? "#334155" : "#e2e8f0";
   const tickColor = isDark ? "#94a3b8" : "#64748b";
 
   // Filtered lists by search term
@@ -273,41 +281,41 @@ export function ExecutiveViewerDashboard() {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-6">
       {/* 1. Header Filter Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 shrink-0">
-            <Layers className="h-6 w-6 sm:h-7 sm:w-7" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border p-4 sm:p-5 rounded-lg shadow-xs transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-white dark:bg-slate-50 dark:text-slate-900 shrink-0">
+            <Layers className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
-                ภาพรวมผู้บริหาร (Executive Analysis)
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                Executive Analytics Dashboard
               </h1>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              <Badge variant="secondary" className="text-[11px] font-semibold">
                 {selectedRegion === "ALL" ? "ทั่วประเทศ (Nationwide)" : `ภาค ${selectedRegion}`}
-              </span>
+              </Badge>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              วิเคราะห์เจาะลึกแยกตามหมวดหมู่, ภูมิภาค, แนวโน้มรายวัน, Top 20 สาขา และ Top 20 โมเดล · {TEAM_NAME}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              วิเคราะห์เจาะลึกแยกตามหมวดหมู่, ภูมิภาค, แนวโน้มรายวัน, Top 20 สาขา และ Top 20 โมเดล
             </p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
           {/* Date Selector */}
           {availableDates.length > 0 && (
-            <div className="flex items-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 sm:py-2 text-xs font-bold">
-              <Calendar className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+            <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
               <select
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                className="bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
               >
                 {availableDates.map((d) => (
-                  <option key={d} value={d} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                  <option key={d} value={d} className="bg-background text-foreground">
                     รอบวันที่: {d}
                   </option>
                 ))}
@@ -316,635 +324,592 @@ export function ExecutiveViewerDashboard() {
           )}
 
           {/* Region Filter */}
-          <div className="flex items-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 sm:py-2 text-xs font-bold">
-            <MapPin className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+          <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs">
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
             <select
               value={selectedRegion}
               onChange={(e) => setSelectedRegion(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+              className="bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+              <option value="ALL" className="bg-background text-foreground">
                 ทุกภูมิภาค (Nationwide)
               </option>
               {regions.map((r) => (
-                <option key={r} value={r} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                <option key={r} value={r} className="bg-background text-foreground">
                   ภาค {r}
                 </option>
               ))}
             </select>
           </div>
 
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => fetchViewerData(selectedDate, selectedRegion, selectedCategory)}
             title="รีเฟรชข้อมูล"
-            className="rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-2 sm:p-2.5 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            className="h-8 w-8"
           >
-            <RefreshCw className="h-4 w-4" />
-          </button>
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
-      {/* 2. Executive KPI Cards (2x2 grid on mobile) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+      {/* 2. Executive KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Stock Value */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              มูลค่ารวม (Stock Value)
-            </span>
-            <div className="rounded-xl bg-indigo-50 dark:bg-indigo-950/60 p-2 text-indigo-600 dark:text-indigo-400">
-              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-          </div>
-          <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
-            <span className="text-base sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white truncate">
+        <Card className="border-border shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardDescription className="text-[11px] font-medium uppercase tracking-wider">
+              มูลค่าสต๊อกรวม
+            </CardDescription>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">
               {formatCurrency(kpis.totalStockValue)}
-            </span>
-          </div>
-          <div className="mt-1 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
-            สต๊อกค้าง &gt; 30 วัน
-          </div>
-        </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              สต๊อกค้าง &gt; 30 วัน
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Total Stock Units */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              จำนวนชิ้น (Stock Units)
-            </span>
-            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/60 p-2 text-emerald-600 dark:text-emerald-400">
-              <Boxes className="h-4 w-4 sm:h-5 sm:w-5" />
+        <Card className="border-border shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardDescription className="text-[11px] font-medium uppercase tracking-wider">
+              จำนวนชิ้น (Units)
+            </CardDescription>
+            <Boxes className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              {formatNumber(kpis.totalStockQty)} <span className="text-xs font-normal text-muted-foreground">ชิ้น</span>
             </div>
-          </div>
-          <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
-            <span className="text-base sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white">
-              {formatNumber(kpis.totalStockQty)}
-            </span>
-            <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-bold">ชิ้น</span>
-          </div>
-          <div className="mt-1 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
-            กระจายใน {formatNumber(kpis.totalStores)} สาขา
-          </div>
-        </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              กระจายใน {formatNumber(kpis.totalStores)} สาขา
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Total SKUs */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <Card className="border-border shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardDescription className="text-[11px] font-medium uppercase tracking-wider">
               จำนวนโมเดล (SKUs)
-            </span>
-            <div className="rounded-xl bg-blue-50 dark:bg-blue-950/60 p-2 text-blue-600 dark:text-blue-400">
-              <Package className="h-4 w-4 sm:h-5 sm:w-5" />
+            </CardDescription>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              {formatNumber(kpis.totalSkus)} <span className="text-xs font-normal text-muted-foreground">SKU</span>
             </div>
-          </div>
-          <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
-            <span className="text-base sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white">
-              {formatNumber(kpis.totalSkus)}
-            </span>
-            <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-bold">SKU</span>
-          </div>
-          <div className="mt-1 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
-            โมเดลสินค้าที่ไม่เคลื่อนไหว
-          </div>
-        </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              โมเดลสินค้าที่ไม่เคลื่อนไหว
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Critical Ratio (>120 Days) */}
-        <div className="rounded-2xl sm:rounded-3xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 p-3.5 sm:p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
+        <Card className="border-rose-200 dark:border-rose-900/40 bg-rose-50/30 dark:bg-rose-950/20 shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardDescription className="text-[11px] font-medium uppercase tracking-wider text-rose-700 dark:text-rose-400">
               วิกฤต (&gt; 120 วัน)
-            </span>
-            <div className="rounded-xl bg-rose-100 dark:bg-rose-950/80 p-2 text-rose-600 dark:text-rose-400">
-              <Flame className="h-4 w-4 sm:h-5 sm:w-5 fill-rose-500 text-rose-500" />
-            </div>
-          </div>
-          <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
-            <span className="text-base sm:text-2xl lg:text-3xl font-black text-rose-700 dark:text-rose-300">
+            </CardDescription>
+            <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-rose-700 dark:text-rose-400">
               {formatPercent(kpis.highNonmoveRatio)}
-            </span>
-            <span className="text-[10px] text-rose-600/80 dark:text-rose-400/80 font-bold">ของมูลค่ารวม</span>
-          </div>
-          <div className="mt-1 text-[10px] sm:text-xs text-rose-700 dark:text-rose-300 font-bold truncate">
-            🔥 {formatCurrency(kpis.highValue)} ({formatNumber(kpis.highQty)} ชิ้น)
-          </div>
-        </div>
+            </div>
+            <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-1 font-medium truncate">
+              {formatCurrency(kpis.highValue)} ({formatNumber(kpis.highQty)} ชิ้น)
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* 3. Visual Charts (Period Distribution & Multi-Period Line Trend Chart with Multi-Check Filter) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      {/* 3. Visual Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Period Breakdown Bar Chart */}
-        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm space-y-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                มูลค่าสต๊อกแยกตามช่วงวันไม่เคลื่อนไหว (Period)
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                จำแนกตามแต่ละ Bucket (บาท)
-              </p>
-            </div>
-            <div className="flex items-center gap-3 text-[11px] font-bold">
-              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                <span className="h-2.5 w-2.5 rounded bg-emerald-500 inline-block" /> &le; 120 วัน
-              </span>
-              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-                <span className="h-2.5 w-2.5 rounded bg-rose-500 inline-block" /> &gt; 120 วัน
-              </span>
-            </div>
-          </div>
-
-          <div className="h-48 sm:h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={periodBreakdown} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} angle={-15} textAnchor="end" interval={0} />
-                <YAxis tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: isDark ? "#0f172a" : "#ffffff", borderColor: gridColor, borderRadius: "1rem" }}
-                  formatter={(value: any) => [formatCurrency(Number(value)), "มูลค่า"]}
-                />
-                <Bar dataKey="stockValue" radius={[6, 6, 0, 0]}>
-                  {periodBreakdown.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.classification === "HIGH" ? "#f43f5e" : "#10b981"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Multi-Period Nonmove Trend Chart with Interactive Multi-Check Filter */}
-        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                แนวโน้มมูลค่าสต๊อกแยกตามช่วงวัน (Non-Move Period Trend)
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                เลือกช่วงวันเพื่อเปรียบเทียบแนวโน้ม (Multi-Check)
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={selectAllTrendPeriods}
-              className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline self-start sm:self-auto"
-            >
-              {selectedTrendPeriods.length === ALL_PERIOD_BUCKETS.length ? "แสดงเฉพาะกลุ่มวิกฤต" : "เลือกทุกช่วงวัน"}
-            </button>
-          </div>
-
-          {/* Multi-Check Badges Toolbar */}
-          <div className="flex items-center gap-1.5 flex-wrap pt-1">
-            {ALL_PERIOD_BUCKETS.map((b) => {
-              const isSelected = selectedTrendPeriods.includes(b.key);
-              return (
-                <button
-                  key={b.key}
-                  type="button"
-                  onClick={() => toggleTrendPeriod(b.key)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all border ${
-                    isSelected
-                      ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 shadow-xs"
-                      : "opacity-40 hover:opacity-75 bg-transparent border-dashed border-slate-200 dark:border-slate-800 text-slate-400"
-                  }`}
-                >
-                  <span
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: b.color }}
-                  />
-                  <span>{b.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="h-48 sm:h-60 w-full">
-            {formattedTrendData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                ไม่มีข้อมูลแนวโน้มประวัติ
+        <Card className="border-border shadow-xs">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <CardTitle className="text-sm font-semibold">
+                  มูลค่าสต๊อกแยกตามช่วงวัน (Period Distribution)
+                </CardTitle>
+                <CardDescription className="text-[11px]">
+                  จำแนกตามแต่ละ Bucket (บาท)
+                </CardDescription>
               </div>
-            ) : (
+              <div className="flex items-center gap-2 text-[10px] font-medium">
+                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" /> &le; 120 วัน
+                </span>
+                <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                  <span className="h-2 w-2 rounded-full bg-rose-500 inline-block" /> &gt; 120 วัน
+                </span>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-4 pt-2">
+            <div className="h-56 sm:h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={formattedTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 10 }}>
+                <BarChart data={periodBreakdown} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} angle={-15} textAnchor="end" interval={0} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} angle={-15} textAnchor="end" interval={0} />
                   <YAxis tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: isDark ? "#0f172a" : "#ffffff", borderColor: gridColor, borderRadius: "1rem" }}
-                    formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
+                    contentStyle={{ backgroundColor: isDark ? "#0f172a" : "#ffffff", borderColor: gridColor, borderRadius: "0.375rem", fontSize: "12px" }}
+                    formatter={(value: any) => [formatCurrency(Number(value)), "มูลค่า"]}
                   />
-                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} />
-                  {ALL_PERIOD_BUCKETS.map((b) => {
-                    if (!selectedTrendPeriods.includes(b.key)) return null;
-                    return (
-                      <Line
-                        key={b.key}
-                        type="monotone"
-                        dataKey={b.key}
-                        stroke={b.color}
-                        strokeWidth={2}
-                        dot={{ r: 3 }}
-                      />
-                    );
-                  })}
-                </LineChart>
+                  <Bar dataKey="stockValue" radius={[4, 4, 0, 0]}>
+                    {periodBreakdown.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.classification === "HIGH" ? "#f43f5e" : "#10b981"} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
-            )}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Multi-Period Nonmove Trend Chart */}
+        <Card className="border-border shadow-xs">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <div>
+                <CardTitle className="text-sm font-semibold">
+                  แนวโน้มมูลค่าสต๊อกแยกตามช่วงวัน (Historical Trend)
+                </CardTitle>
+                <CardDescription className="text-[11px]">
+                  เลือกช่วงวันเพื่อเปรียบเทียบแนวโน้ม (Multi-Check)
+                </CardDescription>
+              </div>
+
+              <button
+                type="button"
+                onClick={selectAllTrendPeriods}
+                className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:underline self-start sm:self-auto"
+              >
+                {selectedTrendPeriods.length === ALL_PERIOD_BUCKETS.length ? "แสดงเฉพาะกลุ่มวิกฤต" : "เลือกทุกช่วงวัน"}
+              </button>
+            </div>
+
+            {/* Multi-Check Badges Toolbar */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-2">
+              {ALL_PERIOD_BUCKETS.map((b) => {
+                const isSelected = selectedTrendPeriods.includes(b.key);
+                return (
+                  <button
+                    key={b.key}
+                    type="button"
+                    onClick={() => toggleTrendPeriod(b.key)}
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all border ${
+                      isSelected
+                        ? "bg-secondary text-foreground border-border"
+                        : "opacity-40 hover:opacity-75 bg-transparent border-dashed border-border text-muted-foreground"
+                    }`}
+                  >
+                    <span
+                      className="h-1.5 w-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: b.color }}
+                    />
+                    <span>{b.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-4 pt-1">
+            <div className="h-52 sm:h-60 w-full">
+              {formattedTrendData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                  ไม่มีข้อมูลแนวโน้มประวัติ
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={formattedTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} angle={-15} textAnchor="end" interval={0} />
+                    <YAxis tick={{ fontSize: 10, fill: tickColor }} stroke={gridColor} tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: isDark ? "#0f172a" : "#ffffff", borderColor: gridColor, borderRadius: "0.375rem", fontSize: "12px" }}
+                      formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />
+                    {ALL_PERIOD_BUCKETS.map((b) => {
+                      if (!selectedTrendPeriods.includes(b.key)) return null;
+                      return (
+                        <Line
+                          key={b.key}
+                          type="monotone"
+                          dataKey={b.key}
+                          stroke={b.color}
+                          strokeWidth={1.75}
+                          dot={{ r: 2 }}
+                        />
+                      );
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* 4. EXCLUSIVE ANALYSIS SECTION (Separated Reports for Category, Region, Trend, Top 20 Stores, Top 20 Models) */}
-      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden space-y-4 p-4 sm:p-6 transition-colors">
-        {/* Navigation Tabs for Exclusive Analysis Reports */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-none">
-            <button
-              type="button"
-              onClick={() => { setActiveAnalysisTab("CATEGORY"); setSearch(""); }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-                activeAnalysisTab === "CATEGORY"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-              }`}
-            >
-              <Package className="h-3.5 w-3.5" />
-              หมวดหมู่สินค้า ({categoryBreakdown.length})
-            </button>
+      {/* 4. Tabular Reports */}
+      <Card className="border-border shadow-xs">
+        <CardHeader className="p-4 border-b border-border">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            {/* Tabs List */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 max-w-full scrollbar-none">
+              <Button
+                variant={activeAnalysisTab === "CATEGORY" ? "default" : "ghost" }
+                size="sm"
+                onClick={() => { setActiveAnalysisTab("CATEGORY"); setSearch(""); }}
+                className="h-8 text-xs gap-1.5 shrink-0"
+              >
+                <Package className="h-3.5 w-3.5" />
+                <span>หมวดหมู่สินค้า ({categoryBreakdown.length})</span>
+              </Button>
 
-            <button
-              type="button"
-              onClick={() => { setActiveAnalysisTab("REGION"); setSearch(""); }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-                activeAnalysisTab === "REGION"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-              }`}
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              ภูมิภาค ({regionBreakdown.length})
-            </button>
+              <Button
+                variant={activeAnalysisTab === "REGION" ? "default" : "ghost" }
+                size="sm"
+                onClick={() => { setActiveAnalysisTab("REGION"); setSearch(""); }}
+                className="h-8 text-xs gap-1.5 shrink-0"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                <span>ภูมิภาค ({regionBreakdown.length})</span>
+              </Button>
 
-            <button
-              type="button"
-              onClick={() => { setActiveAnalysisTab("TREND"); setSearch(""); }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-                activeAnalysisTab === "TREND"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-              }`}
-            >
-              <TrendingUp className="h-3.5 w-3.5" />
-              แนวโน้มรายวัน ({historicalSnapshots.length})
-            </button>
+              <Button
+                variant={activeAnalysisTab === "TREND" ? "default" : "ghost" }
+                size="sm"
+                onClick={() => { setActiveAnalysisTab("TREND"); setSearch(""); }}
+                className="h-8 text-xs gap-1.5 shrink-0"
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span>แนวโน้มรายวัน ({historicalSnapshots.length})</span>
+              </Button>
 
-            <button
-              type="button"
-              onClick={() => { setActiveAnalysisTab("TOP_STORES"); setSearch(""); }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-                activeAnalysisTab === "TOP_STORES"
-                  ? "bg-rose-600 text-white shadow-sm"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-              }`}
-            >
-              <Building2 className="h-3.5 w-3.5" />
-              Top 20 สาขาค้างสูงสุด
-            </button>
+              <Button
+                variant={activeAnalysisTab === "TOP_STORES" ? "default" : "ghost" }
+                size="sm"
+                onClick={() => { setActiveAnalysisTab("TOP_STORES"); setSearch(""); }}
+                className="h-8 text-xs gap-1.5 shrink-0"
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                <span>Top 20 สาขา</span>
+              </Button>
 
-            <button
-              type="button"
-              onClick={() => { setActiveAnalysisTab("TOP_MODELS"); setSearch(""); }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-                activeAnalysisTab === "TOP_MODELS"
-                  ? "bg-purple-600 text-white shadow-sm"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-              }`}
-            >
-              <Boxes className="h-3.5 w-3.5" />
-              Top 20 โมเดลค้างสูงสุด
-            </button>
+              <Button
+                variant={activeAnalysisTab === "TOP_MODELS" ? "default" : "ghost" }
+                size="sm"
+                onClick={() => { setActiveAnalysisTab("TOP_MODELS"); setSearch(""); }}
+                className="h-8 text-xs gap-1.5 shrink-0"
+              >
+                <Boxes className="h-3.5 w-3.5" />
+                <span>Top 20 โมเดล</span>
+              </Button>
+            </div>
+
+            {/* Search & Export Toolbar */}
+            <div className="flex items-center gap-2">
+              {activeAnalysisTab !== "TREND" && (
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="ค้นหาในตาราง..."
+                    className="h-8 w-44 sm:w-56 pl-8 text-xs"
+                  />
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCsv}
+                className="h-8 text-xs gap-1.5 shrink-0"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>ส่งออก CSV</span>
+              </Button>
+            </div>
           </div>
+        </CardHeader>
 
-          {/* Search & Export Toolbar */}
-          <div className="flex items-center gap-2">
-            {activeAnalysisTab !== "TREND" && (
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="ค้นหาในตาราง..."
-                  className="w-44 sm:w-56 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-8 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0"
-            >
-              <Download className="h-3.5 w-3.5" />
-              ส่งออก CSV
-            </button>
-          </div>
-        </div>
-
-        {/* 4.1 REPORT: CATEGORY BREAKDOWN */}
-        {activeAnalysisTab === "CATEGORY" && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="py-3 px-4 font-bold">หมวดหมู่สินค้า (Category)</th>
-                  <th className="py-3 px-4 font-bold text-center">สัดส่วน (% Share)</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวน SKU</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวนชิ้น (QTY)</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่ารวม (บาท)</th>
-                  <th className="py-3 px-4 font-bold text-center">สัดส่วนวิกฤต (% High)</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่าวิตฤต (&gt;120 วัน)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        <CardContent className="p-0">
+          {/* 4.1 REPORT: CATEGORY BREAKDOWN */}
+          {activeAnalysisTab === "CATEGORY" && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>หมวดหมู่สินค้า (Category)</TableHead>
+                  <TableHead className="text-center">สัดส่วน (% Share)</TableHead>
+                  <TableHead className="text-right">จำนวน SKU</TableHead>
+                  <TableHead className="text-right">จำนวนชิ้น (QTY)</TableHead>
+                  <TableHead className="text-right">มูลค่ารวม (บาท)</TableHead>
+                  <TableHead className="text-center">สัดส่วนวิกฤต (% High)</TableHead>
+                  <TableHead className="text-right">มูลค่าวิตฤต (&gt;120 วัน)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredCategories.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                       ไม่พบข้อมูลหมวดหมู่สินค้า
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredCategories.map((c: any) => (
-                    <tr key={c.category} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/60 transition-colors">
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                    <TableRow key={c.category}>
+                      <TableCell className="font-medium text-foreground">
                         {c.category}
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold">
-                        <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px]">
+                      </TableCell>
+                      <TableCell className="text-center font-medium">
+                        <Badge variant="secondary" className="text-[11px]">
                           {c.sharePct}%
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-medium">{formatNumber(c.totalSkus)}</td>
-                      <td className="py-3 px-4 text-right font-bold">{formatNumber(c.stockQty)}</td>
-                      <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">{formatCurrency(c.stockValue)}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                          c.highPct > 40
-                            ? "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300"
-                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
-                        }`}>
-                          {c.highPct > 40 && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{formatNumber(c.totalSkus)}</TableCell>
+                      <TableCell className="text-right font-medium">{formatNumber(c.stockQty)}</TableCell>
+                      <TableCell className="text-right font-bold text-foreground">{formatCurrency(c.stockValue)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={c.highPct > 40 ? "destructive" : "success"} className="text-[11px]">
                           {c.highPct}%
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-bold text-rose-600 dark:text-rose-400">
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-rose-600 dark:text-rose-400">
                         {formatCurrency(c.highValue)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </TableBody>
+            </Table>
+          )}
 
-        {/* 4.2 REPORT: REGION BREAKDOWN */}
-        {activeAnalysisTab === "REGION" && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="py-3 px-4 font-bold">ภูมิภาค (Region)</th>
-                  <th className="py-3 px-4 font-bold text-center">สัดส่วน (% Share)</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวนสาขา</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวน SKU</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวนชิ้น (QTY)</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่ารวม (บาท)</th>
-                  <th className="py-3 px-4 font-bold text-center">สัดส่วนวิกฤต (% High)</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่าวิตฤต (&gt;120 วัน)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {/* 4.2 REPORT: REGION BREAKDOWN */}
+          {activeAnalysisTab === "REGION" && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ภูมิภาค (Region)</TableHead>
+                  <TableHead className="text-center">สัดส่วน (% Share)</TableHead>
+                  <TableHead className="text-right">จำนวนสาขา</TableHead>
+                  <TableHead className="text-right">จำนวน SKU</TableHead>
+                  <TableHead className="text-right">จำนวนชิ้น (QTY)</TableHead>
+                  <TableHead className="text-right">มูลค่ารวม (บาท)</TableHead>
+                  <TableHead className="text-center">สัดส่วนวิกฤต (% High)</TableHead>
+                  <TableHead className="text-right">มูลค่าวิตฤต (&gt;120 วัน)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredRegions.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                       ไม่พบข้อมูลภูมิภาค
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredRegions.map((r: any) => (
-                    <tr key={r.region} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/60 transition-colors">
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                    <TableRow key={r.region}>
+                      <TableCell className="font-medium text-foreground">
                         ภาค {r.region}
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold">
-                        <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px]">
+                      </TableCell>
+                      <TableCell className="text-center font-medium">
+                        <Badge variant="secondary" className="text-[11px]">
                           {r.sharePct}%
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-medium">{r.storeCount} สาขา</td>
-                      <td className="py-3 px-4 text-right font-medium">{formatNumber(r.totalSkus)}</td>
-                      <td className="py-3 px-4 text-right font-bold">{formatNumber(r.stockQty)}</td>
-                      <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">{formatCurrency(r.stockValue)}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                          r.highPct > 40
-                            ? "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300"
-                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
-                        }`}>
-                          {r.highPct > 40 && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{r.storeCount} สาขา</TableCell>
+                      <TableCell className="text-right">{formatNumber(r.totalSkus)}</TableCell>
+                      <TableCell className="text-right font-medium">{formatNumber(r.stockQty)}</TableCell>
+                      <TableCell className="text-right font-bold text-foreground">{formatCurrency(r.stockValue)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={r.highPct > 40 ? "destructive" : "success"} className="text-[11px]">
                           {r.highPct}%
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-bold text-rose-600 dark:text-rose-400">
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-rose-600 dark:text-rose-400">
                         {formatCurrency(r.highValue)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </TableBody>
+            </Table>
+          )}
 
-        {/* 4.3 REPORT: TREND OF DAY SNAPSHOTS */}
-        {activeAnalysisTab === "TREND" && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="py-3 px-4 font-bold">รอบวันที่บันทึก (Date)</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่าสต๊อกรวม (บาท)</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวนชิ้น (QTY)</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวน SKU</th>
-                  <th className="py-3 px-4 font-bold text-center">สัดส่วนวิกฤต (% High)</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่าวิตฤต (&gt;120 วัน)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {/* 4.3 REPORT: TREND OF DAY SNAPSHOTS */}
+          {activeAnalysisTab === "TREND" && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>รอบวันที่บันทึก (Date)</TableHead>
+                  <TableHead className="text-right">มูลค่าสต๊อกรวม (บาท)</TableHead>
+                  <TableHead className="text-right">จำนวนชิ้น (QTY)</TableHead>
+                  <TableHead className="text-right">จำนวน SKU</TableHead>
+                  <TableHead className="text-center">สัดส่วนวิกฤต (% High)</TableHead>
+                  <TableHead className="text-right">มูลค่าวิตฤต (&gt;120 วัน)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {historicalSnapshots.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                       ไม่มีข้อมูลบันทึกรายวัน
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   historicalSnapshots.map((s: any) => (
-                    <tr key={s.date} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/60 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-indigo-700 dark:text-indigo-400">
+                    <TableRow key={s.date}>
+                      <TableCell className="font-mono font-medium text-foreground">
                         {s.date}
-                      </td>
-                      <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">{formatCurrency(s.totalStockValue)}</td>
-                      <td className="py-3 px-4 text-right font-bold">{formatNumber(s.totalStockQty)}</td>
-                      <td className="py-3 px-4 text-right font-medium">{formatNumber(s.totalSkus)}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                          s.highPct > 40
-                            ? "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300"
-                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
-                        }`}>
-                          {s.highPct > 40 && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-foreground">{formatCurrency(s.totalStockValue)}</TableCell>
+                      <TableCell className="text-right font-medium">{formatNumber(s.totalStockQty)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(s.totalSkus)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={s.highPct > 40 ? "destructive" : "success"} className="text-[11px]">
                           {s.highPct}%
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-bold text-rose-600 dark:text-rose-400">
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-rose-600 dark:text-rose-400">
                         {formatCurrency(s.highValue)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </TableBody>
+            </Table>
+          )}
 
-        {/* 4.4 REPORT: TOP 20 STORES HIGH NON-MOVE */}
-        {activeAnalysisTab === "TOP_STORES" && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="py-3 px-4 font-bold">อันดับ</th>
-                  <th className="py-3 px-4 font-bold">รหัสสาขา</th>
-                  <th className="py-3 px-4 font-bold">ชื่อสาขา (Store Name)</th>
-                  <th className="py-3 px-4 font-bold text-center">ภูมิภาค</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวน SKU</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวนชิ้น (QTY)</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่ารวม (บาท)</th>
-                  <th className="py-3 px-4 font-bold text-center">สัดส่วนวิกฤต</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่าวิตฤต</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {/* 4.4 REPORT: TOP 20 STORES HIGH NON-MOVE */}
+          {activeAnalysisTab === "TOP_STORES" && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">อันดับ</TableHead>
+                  <TableHead>รหัสสาขา</TableHead>
+                  <TableHead>ชื่อสาขา (Store Name)</TableHead>
+                  <TableHead className="text-center">ภูมิภาค</TableHead>
+                  <TableHead className="text-right">จำนวน SKU</TableHead>
+                  <TableHead className="text-right">จำนวนชิ้น (QTY)</TableHead>
+                  <TableHead className="text-right">มูลค่ารวม (บาท)</TableHead>
+                  <TableHead className="text-center">สัดส่วนวิกฤต</TableHead>
+                  <TableHead className="text-right">มูลค่าวิตฤต</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredStores.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-400">
+                  <TableRow>
+                    <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                       ไม่พบข้อมูลสาขา
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredStores.map((st: any, idx: number) => (
-                    <tr key={st.branchCode} className="hover:bg-rose-50/40 dark:hover:bg-slate-800/60 transition-colors">
-                      <td className="py-3 px-4 font-bold text-slate-400">#{idx + 1}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-indigo-700 dark:text-indigo-400">
+                    <TableRow key={st.branchCode}>
+                      <TableCell className="text-muted-foreground font-mono">#{idx + 1}</TableCell>
+                      <TableCell className="font-mono font-medium text-foreground">
                         {st.branchCode}
-                      </td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground">
                         {st.storeName}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="text-[10px]">
                           {st.region}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-medium">{formatNumber(st.totalSkus)}</td>
-                      <td className="py-3 px-4 text-right font-bold">{formatNumber(st.stockQty)}</td>
-                      <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">{formatCurrency(st.stockValue)}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300">
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{formatNumber(st.totalSkus)}</TableCell>
+                      <TableCell className="text-right font-medium">{formatNumber(st.stockQty)}</TableCell>
+                      <TableCell className="text-right font-bold text-foreground">{formatCurrency(st.stockValue)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="destructive" className="text-[10px]">
                           {st.highPct}%
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-bold text-rose-600 dark:text-rose-400">
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-rose-600 dark:text-rose-400">
                         {formatCurrency(st.highValue)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </TableBody>
+            </Table>
+          )}
 
-        {/* 4.5 REPORT: TOP 20 MODELS HIGH NON-MOVE */}
-        {activeAnalysisTab === "TOP_MODELS" && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="py-3 px-4 font-bold">อันดับ</th>
-                  <th className="py-3 px-4 font-bold">รหัสสินค้า</th>
-                  <th className="py-3 px-4 font-bold">รุ่นสินค้า (Model)</th>
-                  <th className="py-3 px-4 font-bold text-center">ประเภท (SKU_TYPE)</th>
-                  <th className="py-3 px-4 font-bold">หมวดหมู่</th>
-                  <th className="py-3 px-4 font-bold text-center">ช่วงวัน</th>
-                  <th className="py-3 px-4 font-bold text-right">จำนวนชิ้น (QTY)</th>
-                  <th className="py-3 px-4 font-bold text-right">มูลค่ารวม (บาท)</th>
-                  <th className="py-3 px-4 font-bold text-right">กระจายในสาขา</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {/* 4.5 REPORT: TOP 20 MODELS HIGH NON-MOVE */}
+          {activeAnalysisTab === "TOP_MODELS" && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">อันดับ</TableHead>
+                  <TableHead>รหัสสินค้า</TableHead>
+                  <TableHead>รุ่นสินค้า (Model)</TableHead>
+                  <TableHead className="text-center">ประเภท (SKU_TYPE)</TableHead>
+                  <TableHead>หมวดหมู่</TableHead>
+                  <TableHead className="text-center">ช่วงวัน</TableHead>
+                  <TableHead className="text-right">จำนวนชิ้น (QTY)</TableHead>
+                  <TableHead className="text-right">มูลค่ารวม (บาท)</TableHead>
+                  <TableHead className="text-right">กระจายในสาขา</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredModels.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-400">
+                  <TableRow>
+                    <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                       ไม่พบข้อมูลโมเดลสินค้า
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredModels.map((m: any, idx: number) => {
                     const isHigh = m.classification === "HIGH";
                     return (
-                      <tr key={m.productCode} className="hover:bg-purple-50/40 dark:hover:bg-slate-800/60 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-400">#{idx + 1}</td>
-                        <td className="py-3 px-4 font-mono font-bold text-indigo-700 dark:text-indigo-400">
+                      <TableRow key={m.productCode}>
+                        <TableCell className="text-muted-foreground font-mono">#{idx + 1}</TableCell>
+                        <TableCell className="font-mono font-medium text-foreground">
                           {m.productCode}
-                        </td>
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                        </TableCell>
+                        <TableCell className="font-medium text-foreground">
                           {m.model}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="text-[10px]">
                             {m.skuType || "SELLABLE"}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                            {m.category}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            isHigh
-                              ? "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300"
-                              : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
-                          }`}>
-                            {isHigh && <Flame className="h-3 w-3 fill-rose-500 text-rose-500" />}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {m.category}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={isHigh ? "destructive" : "success"} className="text-[10px]">
                             {m.nonmoveDaysBucket} วัน
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right font-bold">{formatNumber(m.stockQty)}</td>
-                        <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">{formatCurrency(m.stockValue)}</td>
-                        <td className="py-3 px-4 text-right font-mono font-medium">{m.branchCount} สาขา</td>
-                      </tr>
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">{formatNumber(m.stockQty)}</TableCell>
+                        <TableCell className="text-right font-bold text-foreground">{formatCurrency(m.stockValue)}</TableCell>
+                        <TableCell className="text-right font-mono text-muted-foreground">{m.branchCount} สาขา</TableCell>
+                      </TableRow>
                     );
                   })
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

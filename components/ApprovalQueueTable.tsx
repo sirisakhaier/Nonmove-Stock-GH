@@ -20,7 +20,20 @@ import {
   Phone,
   User,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { PhotoLightbox } from "./PhotoLightbox";
 import { formatCurrency } from "@/lib/validators";
@@ -99,20 +112,16 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
     setComment(r.reviewComment || "");
   };
 
-  const handleExecuteDecision = async () => {
-    if (!selectedRequest || !activeDecision) return;
-    if ((activeDecision === "REJECTED" || activeDecision === "REVISE") && !comment.trim()) {
-      alert(activeDecision === "REVISE"
-        ? "กรุณาระบุสิ่งที่ต้องการให้สาขาแก้ไขหรือแนบข้อมูลเพิ่มเติม"
-        : "กรุณาระบุเหตุผลการไม่อนุมัติ");
-      return;
-    }
+  const handleAction = async (decision: "APPROVED" | "REJECTED" | "REVISE") => {
+    if (!selectedRequest) return;
     setIsSubmitting(true);
     try {
-      await onDecision(selectedRequest.id, activeDecision, comment);
+      await onDecision(selectedRequest.id, decision, comment);
       setSelectedRequest(null);
       setActiveDecision(null);
       setComment("");
+    } catch (err: any) {
+      alert(err.message || "เกิดข้อผิดพลาดในการดำเนินการ");
     } finally {
       setIsSubmitting(false);
     }
@@ -120,356 +129,308 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
 
   return (
     <div className="space-y-4">
-      {/* Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <input
+      {/* Search & Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border border-border p-4 rounded-lg shadow-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Status Filter */}
+          <div className="flex items-center gap-1 bg-muted p-1 rounded-md text-xs font-medium">
+            <button
+              onClick={() => setStatusFilter("PENDING")}
+              className={`px-2.5 py-1 rounded-sm transition-all ${
+                statusFilter === "PENDING"
+                  ? "bg-card text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              รอพิจารณา ({requests.filter((r) => r.status === "PENDING").length})
+            </button>
+            <button
+              onClick={() => setStatusFilter("ALL")}
+              className={`px-2.5 py-1 rounded-sm transition-all ${
+                statusFilter === "ALL"
+                  ? "bg-card text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              ทั้งหมด ({requests.length})
+            </button>
+          </div>
+
+          {/* Region Filter */}
+          <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs">
+            <select
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              className="bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
+            >
+              <option value="ALL">ทุกภูมิภาค</option>
+              {regions.map((reg) => (
+                <option key={reg} value={reg}>
+                  ภาค {reg}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Live Search */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหารหัสสาขา, ชื่อสาขา, รหัสสินค้า, ชื่อสินค้า..."
-            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+            placeholder="ค้นหารหัสสาขา, โมเดล, สินค้า..."
+            className="h-8 w-full sm:w-60 pl-8 text-xs"
           />
         </div>
-
-        <select
-          value={regionFilter}
-          onChange={(e) => setRegionFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm"
-        >
-          <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกภูมิภาค (Region)</option>
-          {regions.map((reg) => (
-            <option key={reg} value={reg} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-              {reg}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white shadow-sm"
-        >
-          <option value="PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">รอการตรวจสอบ (Pending)</option>
-          <option value="REVISE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ขอข้อมูลเพิ่มเติม (Revise)</option>
-          <option value="APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">อนุมัติแล้ว (Approved)</option>
-          <option value="REJECTED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ไม่อนุมัติ (Rejected)</option>
-          <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">ทุกสถานะคำขอ</option>
-        </select>
       </div>
 
-      {/* Requests Table */}
-      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-            <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-              <tr>
-                <th className="py-3.5 px-4 font-bold">สาขา</th>
-                <th className="py-3.5 px-4 font-bold">สินค้า</th>
-                <th className="py-3.5 px-4 font-bold">เหตุผลที่ขอยกเว้น</th>
-                <th className="py-3.5 px-4 font-bold text-center">รูปหลักฐาน</th>
-                <th className="py-3.5 px-4 font-bold text-center">สถานะ</th>
-                <th className="py-3.5 px-4 font-bold text-center">เปิดดูรายละเอียด / พิจารณา</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredRequests.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
-                    ไม่พบรายการคำขอในสถานะที่เลือก
-                  </td>
-                </tr>
-              ) : (
-                filteredRequests.map((r) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => handleOpenDetail(r)}
-                    className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/70 cursor-pointer transition-colors group"
-                  >
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <div className="font-bold text-slate-900 dark:text-white">{r.branchCode}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">{r.store?.storeNameCust || r.branchCode}</div>
-                      <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">{r.store?.region || "OTHER"}</div>
-                    </td>
-                    <td className="py-3.5 px-4 max-w-xs">
-                      <div className="font-mono font-bold text-slate-900 dark:text-white">{r.productCode}</div>
-                      <div className="font-semibold text-slate-800 dark:text-slate-200 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                        {r.product?.productName}
+      {/* Main Table */}
+      <Card className="border-border shadow-xs overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-24">วันที่ยื่น</TableHead>
+              <TableHead>สาขา</TableHead>
+              <TableHead>สินค้า / โมเดล</TableHead>
+              <TableHead>ประเภท / เหตุผล</TableHead>
+              <TableHead className="text-center">รูปถ่าย</TableHead>
+              <TableHead className="text-center">สถานะ</TableHead>
+              <TableHead className="text-right">การจัดการ</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary mb-2" />
+                  กำลังโหลดรายการคำขอ...
+                </TableCell>
+              </TableRow>
+            ) : filteredRequests.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                  ไม่มีรายการคำขอในสถานะนี้
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredRequests.map((r) => (
+                <TableRow key={r.id} className="hover:bg-muted/50">
+                  <TableCell className="font-mono text-muted-foreground text-[11px]">
+                    {new Date(r.requestedAt).toLocaleDateString("th-TH", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground text-xs">{r.store?.storeNameCust || r.branchCode}</div>
+                    <div className="text-[11px] text-muted-foreground font-mono">{r.branchCode} · ภาค {r.store?.region}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-bold text-foreground text-xs">{r.product?.model || r.productCode}</div>
+                    <div className="text-[11px] text-muted-foreground max-w-[200px] truncate">{r.product?.productName}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={r.requestType === "EXCLUDE" ? "destructive" : "secondary"} className="text-[10px] mb-0.5">
+                      {r.requestType === "EXCLUDE" ? "ขอยกเว้น" : "ชี้แจงสต๊อก"}
+                    </Badge>
+                    <div className="text-xs text-foreground font-medium">{r.reason}</div>
+                    {r.comments && (
+                      <div className="text-[11px] text-muted-foreground max-w-[220px] truncate mt-0.5">
+                        {r.comments}
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        รุ่น: {r.product?.model || "-"}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 max-w-sm">
-                      <div className="font-bold text-slate-900 dark:text-white line-clamp-1">{r.reason}</div>
-                      {r.comments && (
-                        <div className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5 line-clamp-1">
-                          หมายเหตุ: {r.comments}
-                        </div>
-                      )}
-                      <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                        ยื่นเมื่อ: {new Date(r.requestedAt).toLocaleString("th-TH")}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                      {r.photos && r.photos.length > 0 ? (
-                        <div className="flex items-center justify-center gap-1">
-                          {r.photos.slice(0, 2).map((p) => (
-                            <div
-                              key={p.id}
-                              className="relative h-8 w-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm"
-                            >
-                              <img src={p.url} alt="proof" className="h-full w-full object-cover" />
-                            </div>
-                          ))}
-                          {r.photos.length > 2 && (
-                            <span className="text-[10px] font-bold text-slate-500">+{r.photos.length - 2}</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">-</span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                      <RequestStatusBadge status={r.status} requestType="EXCLUDE" />
-                    </td>
-                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {r.photos && r.photos.length > 0 ? (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDetail(r);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm"
+                        type="button"
+                        onClick={() => setSelectedPhoto(r.photos[0].url)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary text-foreground text-[11px] font-medium hover:bg-muted border border-border"
                       >
-                        <Eye className="h-3.5 w-3.5" />
-                        ดูรายละเอียด
+                        <ImageIcon className="h-3 w-3 text-blue-600" />
+                        <span>{r.photos.length} รูป</span>
                       </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <RequestStatusBadge status={r.status} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenDetail(r)}
+                      className="h-7 text-xs font-medium"
+                    >
+                      พิจารณา
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
 
-      {/* Lightbox for Photo Fullscreen Preview */}
-      <PhotoLightbox
-        isOpen={!!selectedPhoto}
-        onClose={() => setSelectedPhoto(null)}
-        photoUrl={selectedPhoto || ""}
-      />
-
-      {/* Full Detail & Decision Modal (Keep all user inputs visible) */}
+      {/* Review Modal Dialog */}
       {selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6 my-8 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+          <Card className="w-full max-w-lg shadow-xl border-border animate-in fade-in zoom-in-95 duration-150">
+            <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between space-y-0">
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 font-mono">
-                    {selectedRequest.branchCode}
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    {selectedRequest.store?.storeNameCust}
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  ภูมิภาค: {selectedRequest.store?.region} {selectedRequest.store?.province ? `(จ.${selectedRequest.store.province})` : ""}
-                </p>
+                <CardTitle className="text-base font-bold">
+                  พิจารณาคำขอ {selectedRequest.requestType === "EXCLUDE" ? "(ขอยกเว้น)" : "(ชี้แจง)"}
+                </CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  สาขา: {selectedRequest.store?.storeNameCust} ({selectedRequest.branchCode})
+                </CardDescription>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setSelectedRequest(null)}
-                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                className="h-7 w-7"
               >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
 
-            {/* Product & Submitter Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Product Box */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4 space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">ข้อมูลสินค้า</span>
-                <div className="font-bold text-sm text-slate-900 dark:text-white">
-                  {selectedRequest.product?.productName}
+            <CardContent className="p-4 space-y-4 text-xs">
+              {/* Product Info */}
+              <div className="bg-muted/50 p-3 rounded-md border border-border space-y-1.5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">สินค้าที่ยื่นคำขอ</span>
+                    <h4 className="text-sm font-bold text-foreground">{selectedRequest.product?.model || selectedRequest.productCode}</h4>
+                    <p className="text-xs text-muted-foreground">{selectedRequest.product?.productName}</p>
+                  </div>
+                  <Badge variant={selectedRequest.requestType === "EXCLUDE" ? "destructive" : "secondary"}>
+                    {selectedRequest.requestType}
+                  </Badge>
                 </div>
-                <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 font-mono">
-                  <div>รหัสสินค้า: <strong className="text-indigo-600 dark:text-indigo-400">{selectedRequest.productCode}</strong></div>
-                  <div>รุ่น: {selectedRequest.product?.model || "-"}</div>
-                  <div>หมวดหมู่: {selectedRequest.product?.category || "-"}</div>
+                <div className="pt-1 border-t border-border/60 text-[11px] text-muted-foreground flex justify-between">
+                  <span>หมวดหมู่: {selectedRequest.product?.category || "-"}</span>
+                  <span>รหัสสินค้า: {selectedRequest.productCode}</span>
                 </div>
               </div>
 
-              {/* Submitter Box */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4 space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">ข้อมูลผู้ยื่นคำขอ</span>
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-                  <User className="h-4 w-4 text-slate-400" />
-                  {selectedRequest.requestedBy?.name || "พนักงานสาขา"}
+              {/* Request Details */}
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">เหตุผลที่ระบุ</span>
+                  <p className="text-xs font-semibold text-foreground mt-0.5">{selectedRequest.reason}</p>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-mono">
-                  <Phone className="h-4 w-4 text-slate-400" />
-                  {selectedRequest.requestedBy?.phone || "-"}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <Calendar className="h-4 w-4 text-slate-400" />
-                  {new Date(selectedRequest.requestedAt).toLocaleString("th-TH")}
-                </div>
-              </div>
-            </div>
 
-            {/* Request Reason & Complete User Remark Message */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">เหตุผลและการชี้แจงจากสาขา</span>
-                <RequestStatusBadge status={selectedRequest.status} requestType="EXCLUDE" />
+                {selectedRequest.comments && (
+                  <div>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase">รายละเอียดเพิ่มเติม</span>
+                    <p className="text-xs text-foreground mt-0.5 bg-background p-2 rounded-md border border-border">
+                      {selectedRequest.comments}
+                    </p>
+                  </div>
+                )}
+
+                {/* Submitter Info */}
+                {selectedRequest.requestedBy && (
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-3 pt-1">
+                    <span className="flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      {selectedRequest.requestedBy.name}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {selectedRequest.requestedBy.phone}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 block mb-0.5">เหตุผลหลัก:</span>
-                <div className="font-bold text-sm text-slate-900 dark:text-white">
-                  {selectedRequest.reason}
-                </div>
-              </div>
-
-              {/* Remark Message from Submitter */}
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-400 block">คำอธิบาย / รายละเอียดเพิ่มเติมจากสาขา:</span>
-                <div className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                  {selectedRequest.comments ? selectedRequest.comments : "ไม่มีคำอธิบายเพิ่มเติม"}
-                </div>
-              </div>
-            </div>
-
-            {/* Photo Gallery (Keep all photos clearly visible) */}
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                รูปถ่ายหลักฐาน ({selectedRequest.photos?.length || 0} รูป) - คลิกเพื่อดูภาพขยาย
-              </span>
-              {selectedRequest.photos && selectedRequest.photos.length > 0 ? (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {selectedRequest.photos.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setSelectedPhoto(p.url)}
-                      className="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square hover:ring-2 hover:ring-indigo-500 transition-all shadow-sm"
-                    >
-                      <img src={p.url} alt="evidence" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
-                        <Eye className="h-5 w-5" />
+              {/* Photos Gallery */}
+              {selectedRequest.photos && selectedRequest.photos.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase block mb-1.5">
+                    รูปถ่ายหลักฐาน ({selectedRequest.photos.length} รูป)
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedRequest.photos.map((p, idx) => (
+                      <div
+                        key={p.id || idx}
+                        onClick={() => setSelectedPhoto(p.url)}
+                        className="aspect-square rounded-md border border-border overflow-hidden cursor-pointer hover:opacity-90 relative group"
+                      >
+                        <img src={p.url} alt="Evidence" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <Eye className="h-4 w-4 text-white" />
+                        </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
-                  ไม่มีรูปถ่ายแนบมาในคำขอนี้
-                </div>
-              )}
-            </div>
-
-            {/* Approver Action Panel with 3 Choices */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
-              <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider block">
-                ผลการพิจารณาคำขอ (Approver Decision)
-              </span>
-
-              {/* 3 Decision Choice Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setActiveDecision("APPROVED")}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-bold transition-all ${
-                    activeDecision === "APPROVED"
-                      ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 ring-2 ring-emerald-400"
-                      : "border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100"
-                  }`}
-                >
-                  <Check className="h-4 w-4" />
-                  1. อนุมัติ (Approve)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveDecision("REVISE")}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-bold transition-all ${
-                    activeDecision === "REVISE"
-                      ? "bg-amber-600 text-white shadow-lg shadow-amber-600/30 ring-2 ring-amber-400"
-                      : "border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100"
-                  }`}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  2. ขอข้อมูลเพิ่ม (Revise)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveDecision("REJECTED")}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-bold transition-all ${
-                    activeDecision === "REJECTED"
-                      ? "bg-rose-600 text-white shadow-lg shadow-rose-600/30 ring-2 ring-rose-400"
-                      : "border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 hover:bg-rose-100"
-                  }`}
-                >
-                  <X className="h-4 w-4" />
-                  3. ไม่อนุมัติ (Reject)
-                </button>
-              </div>
-
-              {/* Feedback Note Input */}
-              {activeDecision && (
-                <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {activeDecision === "APPROVED" && "ความคิดเห็นเพิ่มเติม (ถ้ามี)"}
-                    {activeDecision === "REVISE" && "ระบุสิ่งที่ต้องการให้สาขาแก้ไขหรือแนบรูปเพิ่มเติม *" }
-                    {activeDecision === "REJECTED" && "ระบุเหตุผลการไม่อนุมัติ *" }
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder={
-                      activeDecision === "REVISE"
-                        ? "เช่น ขอรูปถ่ายป้ายแสดงราคาสินค้าเพิ่มเติม หรือใบเสร็จมัดจำที่ชัดเจน..."
-                        : activeDecision === "REJECTED"
-                        ? "ระบุเหตุผลการไม่อนุมัติ..."
-                        : "ระบุข้อคิดเห็น (ถ้ามี)..."
-                    }
-                    className="w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
-                  />
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveDecision(null)}
-                      className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                    >
-                      ยกเลิก
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExecuteDecision}
-                      disabled={isSubmitting}
-                      className={`rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all ${
-                        activeDecision === "APPROVED"
-                          ? "bg-emerald-600 hover:bg-emerald-700"
-                          : activeDecision === "REVISE"
-                          ? "bg-amber-600 hover:bg-amber-700"
-                          : "bg-rose-600 hover:bg-rose-700"
-                      }`}
-                    >
-                      {isSubmitting ? "กำลังบันทึก..." : "บันทึกผลการพิจารณา"}
-                    </button>
+                    ))}
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+
+              {/* Admin Comment Input */}
+              <div className="space-y-1.5 pt-2 border-t border-border">
+                <label className="text-xs font-semibold text-foreground">
+                  ความเห็น / ข้อความแจ้งสาขา (Admin Comment)
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="ระบุเหตุผลหรือคำแนะนำเพิ่มเติม (ถ้ามี)..."
+                  rows={2}
+                  className="w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground focus:outline-hidden"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                <Button
+                  type="button"
+                  onClick={() => handleAction("APPROVED")}
+                  disabled={isSubmitting}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold h-9"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                  อนุมัติ
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => handleAction("REVISE")}
+                  disabled={isSubmitting}
+                  variant="outline"
+                  className="text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-900/60 dark:hover:bg-amber-950/40 text-xs font-semibold h-9"
+                >
+                  <AlertCircle className="h-3.5 w-3.5 mr-1" />
+                  ขอข้อมูลเพิ่ม
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => handleAction("REJECTED")}
+                  disabled={isSubmitting}
+                  variant="destructive"
+                  className="text-xs font-semibold h-9"
+                >
+                  <XCircle className="h-3.5 w-3.5 mr-1" />
+                  ไม่อนุมัติ
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+      )}
+
+      {/* Photo Lightbox Modal */}
+      {selectedPhoto && (
+        <PhotoLightbox
+          photoUrl={selectedPhoto}
+          onClose={() => setSelectedPhoto(null)}
+        />
       )}
     </div>
   );
