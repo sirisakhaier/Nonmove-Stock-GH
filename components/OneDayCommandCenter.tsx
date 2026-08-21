@@ -19,6 +19,7 @@ import {
   DollarSign,
   Boxes,
   MapPin,
+  Filter,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,28 +129,36 @@ export function OneDayCommandCenter() {
     setPage(1);
   };
 
-  // Filtered Store-Category Lines
-  const filteredStoreCategories = useMemo(() => {
+  // Base scope filtered by Cat, Reg, and Search (used for River Bar)
+  const baseFilteredItems = useMemo(() => {
     if (!data?.storeCategories) return [];
     return data.storeCategories.filter((item: any) => {
       if (selectedCats.size > 0 && !selectedCats.has(item.category)) return false;
       if (selectedRegs.size > 0 && !selectedRegs.has(item.region)) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        return (
+          item.store.toLowerCase().includes(q) ||
+          item.branchCode.toLowerCase().includes(q) ||
+          item.province.toLowerCase().includes(q) ||
+          item.category.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [data, selectedCats, selectedRegs, search]);
+
+  // Full filtered Store-Category Lines (including Tier filter)
+  const filteredStoreCategories = useMemo(() => {
+    return baseFilteredItems.filter((item: any) => {
       if (selectedTiers.size > 0) {
         // Must have positive stock in at least one of selected tiers
         const hasMatch = Array.from(selectedTiers).some((t) => item.tierVals[t] > 0 || item.tierQtys[t] > 0);
         if (!hasMatch) return false;
       }
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const sMatch = item.store.toLowerCase().includes(q) ||
-          item.branchCode.toLowerCase().includes(q) ||
-          item.province.toLowerCase().includes(q) ||
-          item.category.toLowerCase().includes(q);
-        if (!sMatch) return false;
-      }
       return true;
     });
-  }, [data, selectedCats, selectedRegs, selectedTiers, search]);
+  }, [baseFilteredItems, selectedTiers]);
 
   // Dynamically recalculate KPIs across filtered scope
   const filteredKPIs = useMemo(() => {
@@ -190,36 +199,139 @@ export function OneDayCommandCenter() {
     };
   }, [filteredStoreCategories]);
 
-  // Aging Pipeline Totals for River Bar (respects cat/reg/search but NOT tier filter)
+  // Aging Pipeline Totals for River Bar (respects cat/reg/search)
   const riverTiers = useMemo(() => {
-    if (!data?.storeCategories) return [0, 0, 0, 0, 0].map((_, i) => ({ tier: i, label: TIER_LABELS[i], val: 0, qty: 0 }));
-    // Filter by cat, reg, search only
-    const items = data.storeCategories.filter((item: any) => {
-      if (selectedCats.size > 0 && !selectedCats.has(item.category)) return false;
-      if (selectedRegs.size > 0 && !selectedRegs.has(item.region)) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        return item.store.toLowerCase().includes(q) ||
-          item.branchCode.toLowerCase().includes(q) ||
-          item.province.toLowerCase().includes(q) ||
-          item.category.toLowerCase().includes(q);
-      }
-      return true;
-    });
-
     const sums = [0, 1, 2, 3, 4].map((t) => ({ tier: t, label: TIER_LABELS[t], val: 0, qty: 0 }));
-    for (const item of items) {
+    for (const item of baseFilteredItems) {
       for (let t = 0; t < 5; t++) {
         sums[t].val += item.tierVals[t] || 0;
         sums[t].qty += item.tierQtys[t] || 0;
       }
     }
     return sums;
-  }, [data, selectedCats, selectedRegs, search]);
+  }, [baseFilteredItems]);
 
   const totalRiverMetric = useMemo(() => {
     return riverTiers.reduce((acc, t) => acc + (metric === "v" ? t.val : t.qty), 0);
   }, [riverTiers, metric]);
+
+  // Dynamic Category Breakdown for Chart (calculated from filtered items)
+  const filteredCategoryBreakdown = useMemo(() => {
+    const map = new Map<string, { totalVal: number; totalQty: number; tierVals: number[]; tierQtys: number[] }>();
+    for (const item of filteredStoreCategories) {
+      if (!map.has(item.category)) {
+        map.set(item.category, { totalVal: 0, totalQty: 0, tierVals: [0, 0, 0, 0, 0], tierQtys: [0, 0, 0, 0, 0] });
+      }
+      const c = map.get(item.category)!;
+      c.totalVal += item.totalValue;
+      c.totalQty += item.totalQty;
+      for (let t = 0; t < 5; t++) {
+        c.tierVals[t] += item.tierVals[t] || 0;
+        c.tierQtys[t] += item.tierQtys[t] || 0;
+      }
+    }
+    return Array.from(map.entries())
+      .map(([name, val]) => ({ name, ...val }))
+      .sort((a, b) => (metric === "v" ? b.totalVal - a.totalVal : b.totalQty - a.totalQty));
+  }, [filteredStoreCategories, metric]);
+
+  // Dynamic Region Breakdown for Chart (calculated from filtered items)
+  const filteredRegionBreakdown = useMemo(() => {
+    const map = new Map<string, { totalVal: number; totalQty: number; tierVals: number[]; tierQtys: number[] }>();
+    for (const item of filteredStoreCategories) {
+      if (!map.has(item.region)) {
+        map.set(item.region, { totalVal: 0, totalQty: 0, tierVals: [0, 0, 0, 0, 0], tierQtys: [0, 0, 0, 0, 0] });
+      }
+      const r = map.get(item.region)!;
+      r.totalVal += item.totalValue;
+      r.totalQty += item.totalQty;
+      for (let t = 0; t < 5; t++) {
+        r.tierVals[t] += item.tierVals[t] || 0;
+        r.tierQtys[t] += item.tierQtys[t] || 0;
+      }
+    }
+    return Array.from(map.entries())
+      .map(([name, val]) => ({ name, ...val }))
+      .sort((a, b) => (metric === "v" ? b.totalVal - a.totalVal : b.totalQty - a.totalQty));
+  }, [filteredStoreCategories, metric]);
+
+  // Dynamic Heatmap Matrix (calculated from filtered items)
+  const filteredMatrix = useMemo(() => {
+    const activeCats = Array.from(new Set<string>(filteredStoreCategories.map((i: any) => String(i.category)))).sort();
+    const activeRegs = Array.from(new Set<string>(filteredStoreCategories.map((i: any) => String(i.region)))).sort();
+
+    const cellMap = new Map<string, { totalVal: number; nonmoveVal: number }>();
+    for (const item of filteredStoreCategories) {
+      const k = `${item.category}__${item.region}`;
+      if (!cellMap.has(k)) {
+        cellMap.set(k, { totalVal: 0, nonmoveVal: 0 });
+      }
+      const c = cellMap.get(k)!;
+      c.totalVal += item.totalValue;
+      c.nonmoveVal += item.nonmoveValue;
+    }
+
+    let grandTot = 0;
+    let grandNm = 0;
+
+    const rows = activeCats.map((cat) => {
+      let rTot = 0;
+      let rNm = 0;
+      const cells = activeRegs.map((reg) => {
+        const item = cellMap.get(`${cat}__${reg}`) || { totalVal: 0, nonmoveVal: 0 };
+        rTot += item.totalVal;
+        rNm += item.nonmoveVal;
+        const pct = item.totalVal > 0 ? (item.nonmoveVal / item.totalVal) * 100 : 0;
+        return {
+          region: reg,
+          totalVal: Math.round(item.totalVal),
+          nonmoveVal: Math.round(item.nonmoveVal),
+          pct: Math.round(pct),
+        };
+      });
+      grandTot += rTot;
+      grandNm += rNm;
+      const rPct = rTot > 0 ? (rNm / rTot) * 100 : 0;
+      return {
+        category: cat,
+        cells,
+        totalVal: Math.round(rTot),
+        nonmoveVal: Math.round(rNm),
+        pct: Math.round(rPct),
+      };
+    });
+
+    const colTotals = activeRegs.map((reg) => {
+      let cTot = 0;
+      let cNm = 0;
+      for (const cat of activeCats) {
+        const item = cellMap.get(`${cat}__${reg}`);
+        if (item) {
+          cTot += item.totalVal;
+          cNm += item.nonmoveVal;
+        }
+      }
+      const pct = cTot > 0 ? (cNm / cTot) * 100 : 0;
+      return {
+        region: reg,
+        totalVal: Math.round(cTot),
+        nonmoveVal: Math.round(cNm),
+        pct: Math.round(pct),
+      };
+    });
+
+    const grandPct = grandTot > 0 ? Math.round((grandNm / grandTot) * 100) : 0;
+
+    return {
+      categories: activeCats,
+      regions: activeRegs,
+      rows,
+      colTotals,
+      grandTotalVal: Math.round(grandTot),
+      grandNonmoveVal: Math.round(grandNm),
+      grandPct,
+    };
+  }, [filteredStoreCategories]);
 
   // Sorted and Paginated Table Rows
   const sortedTableRows = useMemo(() => {
@@ -253,6 +365,8 @@ export function OneDayCommandCenter() {
     setPage(1);
   };
 
+  const hasActiveFilters = selectedCats.size > 0 || selectedRegs.size > 0 || selectedTiers.size > 0 || search.trim().length > 0;
+
   if (isLoading && !data) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-3">
@@ -264,7 +378,7 @@ export function OneDayCommandCenter() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Header Topbar with Date Selection and Reset */}
+      {/* 1. Header Topbar with Date Selection */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="text-[11px] font-mono tracking-widest text-primary uppercase font-bold mb-1">
@@ -295,206 +409,58 @@ export function OneDayCommandCenter() {
               ))}
             </select>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleResetFilters}
-            className="h-9 text-xs gap-1.5"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span>Reset Filters</span>
-          </Button>
         </div>
       </div>
 
-      {/* 2. Top 6 KPI Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {/* Card 1: Total Stock Value */}
-        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-primary">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            Total Stock Value
-          </div>
-          <div className="font-mono text-lg font-bold text-foreground mt-1.5 leading-none">
-            {fmtBahtShort(filteredKPIs.totalStockValue)}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1.5">
-            <span className="font-semibold text-foreground">{formatNumber(filteredKPIs.totalStockQty)}</span> units
-          </div>
-        </Card>
-
-        {/* Card 2: Non-Move Value */}
-        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#DD7A3C]">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            Non-Move (&gt;120d)
-          </div>
-          <div className="font-mono text-lg font-bold text-[#DD7A3C] mt-1.5 leading-none">
-            {fmtBahtShort(filteredKPIs.nonmoveValue)}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1.5">
-            <span className="font-semibold text-foreground">{filteredKPIs.nonmovePct}%</span> of total value
-          </div>
-        </Card>
-
-        {/* Card 3: Non-Move Qty */}
-        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#E8A93C]">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            Non-Move Qty (&gt;120d)
-          </div>
-          <div className="font-mono text-lg font-bold text-[#E8A93C] mt-1.5 leading-none">
-            {formatNumber(filteredKPIs.nonmoveQty)} <span className="text-xs font-normal">u</span>
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1.5">
-            <span className="font-semibold text-foreground">{filteredKPIs.nonmoveQPct}%</span> of units
-          </div>
-        </Card>
-
-        {/* Card 4: High-Risk Value */}
-        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#C64545]">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            High-Risk (&gt;270d)
-          </div>
-          <div className="font-mono text-lg font-bold text-[#C64545] mt-1.5 leading-none">
-            {fmtBahtShort(filteredKPIs.highRiskValue)}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1.5">
-            Critical + Severe risk
-          </div>
-        </Card>
-
-        {/* Card 5: Lines Flagged */}
-        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#B7C948]">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            Store-Cat Flagged
-          </div>
-          <div className="font-mono text-lg font-bold text-foreground mt-1.5 leading-none">
-            {formatNumber(filteredKPIs.linesFlagged)}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1.5">
-            of {formatNumber(filteredKPIs.totalLines)} lines ({filteredKPIs.totalLines > 0 ? Math.round((filteredKPIs.linesFlagged / filteredKPIs.totalLines) * 100) : 0}%)
-          </div>
-        </Card>
-
-        {/* Card 6: Avg Value Per Line */}
-        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#2FBF8F]">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            Avg. Value / Line
-          </div>
-          <div className="font-mono text-lg font-bold text-foreground mt-1.5 leading-none">
-            {fmtBahtShort(filteredKPIs.avgValuePerLine)}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1.5">
-            across filtered scope
-          </div>
-        </Card>
-      </div>
-
-      {/* 3. Stock Value Aging Pipeline (Interactive River Bar) */}
-      <Card className="border-border shadow-xs">
-        <CardHeader className="p-4 pb-2 border-b border-border">
-          <CardTitle className="text-sm font-bold flex items-center justify-between">
-            <span>Stock Value Aging Pipeline</span>
-            <span className="text-xs font-normal text-muted-foreground font-mono">
-              Total: {metric === "v" ? formatCurrency(totalRiverMetric) : `${formatNumber(totalRiverMetric)} units`}
-            </span>
-          </CardTitle>
-          <CardDescription className="text-[11px] mt-0.5">
-            ท่อจำแนกสถานะสต๊อก 5 ระดับ (คลิกที่ช่วงวันเพื่อเลือกกรองเฉพาะกลุ่มนั้น)
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="p-4">
-          {/* Continuous Multi-Segment Bar */}
-          <div className="flex w-full h-11 rounded-md overflow-hidden border border-border/80 bg-muted/40 shadow-inner">
-            {riverTiers.map((t) => {
-              const val = metric === "v" ? t.val : t.qty;
-              const w = totalRiverMetric > 0 ? (val / totalRiverMetric) * 100 : 0;
-              const isDimmed = selectedTiers.size > 0 && !selectedTiers.has(t.tier);
-              const isSelected = selectedTiers.has(t.tier);
-
-              return (
-                <div
-                  key={t.tier}
-                  onClick={() => toggleTier(t.tier)}
-                  title={`${t.label}: ${metric === "v" ? formatCurrency(t.val) : `${formatNumber(t.qty)} units`} (${w.toFixed(1)}%)`}
-                  style={{ width: `${w}%`, backgroundColor: TIER_COLORS[t.tier] }}
-                  className={`relative flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 select-none ${
-                    isDimmed ? "opacity-25" : isSelected ? "brightness-110 ring-2 ring-foreground" : "opacity-100"
-                  }`}
-                >
-                  {w > 6 && (
-                    <span className="font-mono text-[11px] font-bold text-slate-950 px-1 truncate">
-                      {metric === "v" ? fmtBahtShort(t.val) : formatNumber(t.qty)}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Interactive Legend Items */}
-          <div className="flex items-center justify-between gap-2 mt-3 flex-wrap text-xs">
-            {riverTiers.map((t) => {
-              const val = metric === "v" ? t.val : t.qty;
-              const pct = totalRiverMetric > 0 ? ((val / totalRiverMetric) * 100).toFixed(1) : "0.0";
-              const isDimmed = selectedTiers.size > 0 && !selectedTiers.has(t.tier);
-
-              return (
-                <button
-                  key={t.tier}
-                  type="button"
-                  onClick={() => toggleTier(t.tier)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-muted transition-colors ${
-                    isDimmed ? "opacity-35" : "opacity-100 font-medium"
-                  }`}
-                >
-                  <span
-                    className="h-2.5 w-2.5 rounded-xs shrink-0"
-                    style={{ backgroundColor: TIER_COLORS[t.tier] }}
-                  />
-                  <span className="text-foreground text-[11px]">{t.label}</span>
-                  <span className="font-mono font-bold text-foreground text-[11px]">
-                    {pct}%
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 4. Filter Panel with Value/Qty Toggle & Chips */}
-      <Card className="border-border shadow-xs">
+      {/* 2. MOVED TO TOP: Filter Card with Reset button & Multi-Select Chips */}
+      <Card className="border-border shadow-xs bg-card/60 backdrop-blur-xs">
         <CardHeader className="p-4 pb-2 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div>
-            <CardTitle className="text-sm font-bold">Filters</CardTitle>
-            <CardDescription className="text-[11px] mt-0.5">
-              กรองข้อมูลทั้งแดชบอร์ดตาม Category, Region และ Aging Stage
-            </CardDescription>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-bold">ตัวกรองข้อมูล (Filters)</CardTitle>
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="text-[10px] py-0 px-2 font-normal">
+                Active Filters
+              </Badge>
+            )}
           </div>
 
-          {/* Metric Toggle Button: Value (฿) vs Qty (units) */}
-          <div className="flex items-center p-1 rounded-md bg-muted border border-border self-start sm:self-auto">
-            <button
-              onClick={() => setMetric("v")}
-              className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all ${
-                metric === "v"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            {/* Metric Toggle Button: Value (฿) vs Qty (units) */}
+            <div className="flex items-center p-0.5 rounded-md bg-muted border border-border">
+              <button
+                onClick={() => setMetric("v")}
+                className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all ${
+                  metric === "v"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Value (฿)
+              </button>
+              <button
+                onClick={() => setMetric("q")}
+                className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all ${
+                  metric === "q"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Qty (units)
+              </button>
+            </div>
+
+            {/* Reset Filters Button inside the Filter Card */}
+            <Button
+              variant={hasActiveFilters ? "default" : "outline"}
+              size="sm"
+              onClick={handleResetFilters}
+              disabled={!hasActiveFilters}
+              className="h-8 text-xs gap-1.5"
             >
-              Value (฿)
-            </button>
-            <button
-              onClick={() => setMetric("q")}
-              className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all ${
-                metric === "q"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Qty (units)
-            </button>
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>Reset Filters</span>
+            </Button>
           </div>
         </CardHeader>
 
@@ -598,6 +564,161 @@ export function OneDayCommandCenter() {
         </CardContent>
       </Card>
 
+      {/* 3. Top 6 KPI Metric Cards (Dynamically recalculated from filtered scope) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {/* Card 1: Total Stock Value */}
+        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-primary">
+          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+            Total Stock Value
+          </div>
+          <div className="font-mono text-lg font-bold text-foreground mt-1.5 leading-none">
+            {fmtBahtShort(filteredKPIs.totalStockValue)}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1.5">
+            <span className="font-semibold text-foreground">{formatNumber(filteredKPIs.totalStockQty)}</span> units
+          </div>
+        </Card>
+
+        {/* Card 2: Non-Move Value */}
+        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#DD7A3C]">
+          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+            Non-Move (&gt;120d)
+          </div>
+          <div className="font-mono text-lg font-bold text-[#DD7A3C] mt-1.5 leading-none">
+            {fmtBahtShort(filteredKPIs.nonmoveValue)}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1.5">
+            <span className="font-semibold text-foreground">{filteredKPIs.nonmovePct}%</span> of total value
+          </div>
+        </Card>
+
+        {/* Card 3: Non-Move Qty */}
+        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#E8A93C]">
+          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+            Non-Move Qty (&gt;120d)
+          </div>
+          <div className="font-mono text-lg font-bold text-[#E8A93C] mt-1.5 leading-none">
+            {formatNumber(filteredKPIs.nonmoveQty)} <span className="text-xs font-normal">u</span>
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1.5">
+            <span className="font-semibold text-foreground">{filteredKPIs.nonmoveQPct}%</span> of units
+          </div>
+        </Card>
+
+        {/* Card 4: High-Risk Value */}
+        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#C64545]">
+          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+            High-Risk (&gt;270d)
+          </div>
+          <div className="font-mono text-lg font-bold text-[#C64545] mt-1.5 leading-none">
+            {fmtBahtShort(filteredKPIs.highRiskValue)}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1.5">
+            Critical + Severe risk
+          </div>
+        </Card>
+
+        {/* Card 5: Lines Flagged */}
+        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#B7C948]">
+          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+            Store-Cat Flagged
+          </div>
+          <div className="font-mono text-lg font-bold text-foreground mt-1.5 leading-none">
+            {formatNumber(filteredKPIs.linesFlagged)}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1.5">
+            of {formatNumber(filteredKPIs.totalLines)} lines ({filteredKPIs.totalLines > 0 ? Math.round((filteredKPIs.linesFlagged / filteredKPIs.totalLines) * 100) : 0}%)
+          </div>
+        </Card>
+
+        {/* Card 6: Avg Value Per Line */}
+        <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#2FBF8F]">
+          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+            Avg. Value / Line
+          </div>
+          <div className="font-mono text-lg font-bold text-foreground mt-1.5 leading-none">
+            {fmtBahtShort(filteredKPIs.avgValuePerLine)}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1.5">
+            across filtered scope
+          </div>
+        </Card>
+      </div>
+
+      {/* 4. Stock Value Aging Pipeline (Interactive River Bar) */}
+      <Card className="border-border shadow-xs">
+        <CardHeader className="p-4 pb-2 border-b border-border">
+          <CardTitle className="text-sm font-bold flex items-center justify-between">
+            <span>Stock Value Aging Pipeline</span>
+            <span className="text-xs font-normal text-muted-foreground font-mono">
+              Scope Total: {metric === "v" ? formatCurrency(totalRiverMetric) : `${formatNumber(totalRiverMetric)} units`}
+            </span>
+          </CardTitle>
+          <CardDescription className="text-[11px] mt-0.5">
+            ท่อจำแนกสถานะสต๊อก 5 ระดับ (คลิกที่ช่วงวันเพื่อเลือกกรองเฉพาะกลุ่มนั้น)
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="p-4">
+          {/* Continuous Multi-Segment Bar */}
+          <div className="flex w-full h-11 rounded-md overflow-hidden border border-border/80 bg-muted/40 shadow-inner">
+            {riverTiers.map((t) => {
+              const val = metric === "v" ? t.val : t.qty;
+              const w = totalRiverMetric > 0 ? (val / totalRiverMetric) * 100 : 0;
+              const isDimmed = selectedTiers.size > 0 && !selectedTiers.has(t.tier);
+              const isSelected = selectedTiers.has(t.tier);
+
+              return (
+                <div
+                  key={t.tier}
+                  onClick={() => toggleTier(t.tier)}
+                  title={`${t.label}: ${metric === "v" ? formatCurrency(t.val) : `${formatNumber(t.qty)} units`} (${w.toFixed(1)}%)`}
+                  style={{ width: `${w}%`, backgroundColor: TIER_COLORS[t.tier] }}
+                  className={`relative flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 select-none ${
+                    isDimmed ? "opacity-25" : isSelected ? "brightness-110 ring-2 ring-foreground" : "opacity-100"
+                  }`}
+                >
+                  {w > 6 && (
+                    <span className="font-mono text-[11px] font-bold text-slate-950 px-1 truncate">
+                      {metric === "v" ? fmtBahtShort(t.val) : formatNumber(t.qty)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Interactive Legend Items */}
+          <div className="flex items-center justify-between gap-2 mt-3 flex-wrap text-xs">
+            {riverTiers.map((t) => {
+              const val = metric === "v" ? t.val : t.qty;
+              const pct = totalRiverMetric > 0 ? ((val / totalRiverMetric) * 100).toFixed(1) : "0.0";
+              const isDimmed = selectedTiers.size > 0 && !selectedTiers.has(t.tier);
+
+              return (
+                <button
+                  key={t.tier}
+                  type="button"
+                  onClick={() => toggleTier(t.tier)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-muted transition-colors ${
+                    isDimmed ? "opacity-35" : "opacity-100 font-medium"
+                  }`}
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-xs shrink-0"
+                    style={{ backgroundColor: TIER_COLORS[t.tier] }}
+                  />
+                  <span className="text-foreground text-[11px]">{t.label}</span>
+                  <span className="font-mono font-bold text-foreground text-[11px]">
+                    {pct}%
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 5. Two-Column Distribution Charts (By Category & By Region) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* By Category Stacked Bar Chart */}
@@ -605,39 +726,43 @@ export function OneDayCommandCenter() {
           <CardHeader className="p-4 pb-2 border-b border-border">
             <CardTitle className="text-sm font-bold">By Category</CardTitle>
             <CardDescription className="text-[11px] mt-0.5">
-              สัดส่วน Active vs. Aging จำแนกตาม 5 ระดับความเสี่ยง
+              สัดส่วน Active vs. Aging จำแนกตาม 5 ระดับความเสี่ยง (ตามตัวกรองที่เลือก)
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
-            {data?.categoryBreakdown?.map((cat: any) => {
-              const maxVal = Math.max(...data.categoryBreakdown.map((c: any) => metric === "v" ? c.totalVal : c.totalQty)) || 1;
+            {filteredCategoryBreakdown.length === 0 ? (
+              <div className="text-xs text-center py-6 text-muted-foreground">ไม่พบข้อมูล Category ตามตัวกรอง</div>
+            ) : (
+              filteredCategoryBreakdown.map((cat: any) => {
+                const maxVal = Math.max(...filteredCategoryBreakdown.map((c: any) => metric === "v" ? c.totalVal : c.totalQty)) || 1;
 
-              return (
-                <div key={cat.name} className="grid grid-cols-[100px_1fr_80px] items-center gap-2.5 text-xs">
-                  <div className="font-medium text-foreground truncate" title={cat.name}>
-                    {cat.name}
+                return (
+                  <div key={cat.name} className="grid grid-cols-[100px_1fr_80px] items-center gap-2.5 text-xs">
+                    <div className="font-medium text-foreground truncate" title={cat.name}>
+                      {cat.name}
+                    </div>
+                    <div className="h-5 w-full bg-muted/60 rounded-xs overflow-hidden flex">
+                      {cat.tierVals.map((tVal: number, ti: number) => {
+                        const val = metric === "v" ? tVal : cat.tierQtys[ti];
+                        const w = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                        if (w <= 0) return null;
+                        return (
+                          <div
+                            key={ti}
+                            style={{ width: `${w}%`, backgroundColor: TIER_COLORS[ti] }}
+                            title={`${TIER_LABELS[ti]}: ${metric === "v" ? formatCurrency(tVal) : `${formatNumber(cat.tierQtys[ti])} u`}`}
+                            className="h-full transition-all duration-300 hover:brightness-115"
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="font-mono font-semibold text-foreground text-right text-[11px]">
+                      {metric === "v" ? fmtBahtShort(cat.totalVal) : formatNumber(cat.totalQty)}
+                    </div>
                   </div>
-                  <div className="h-5 w-full bg-muted/60 rounded-xs overflow-hidden flex">
-                    {cat.tierVals.map((tVal: number, ti: number) => {
-                      const val = metric === "v" ? tVal : cat.tierQtys[ti];
-                      const w = maxVal > 0 ? (val / maxVal) * 100 : 0;
-                      if (w <= 0) return null;
-                      return (
-                        <div
-                          key={ti}
-                          style={{ width: `${w}%`, backgroundColor: TIER_COLORS[ti] }}
-                          title={`${TIER_LABELS[ti]}: ${metric === "v" ? formatCurrency(tVal) : `${formatNumber(cat.tierQtys[ti])} u`}`}
-                          className="h-full transition-all duration-300 hover:brightness-115"
-                        />
-                      );
-                    })}
-                  </div>
-                  <div className="font-mono font-semibold text-foreground text-right text-[11px]">
-                    {metric === "v" ? fmtBahtShort(cat.totalVal) : formatNumber(cat.totalQty)}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
 
@@ -646,39 +771,43 @@ export function OneDayCommandCenter() {
           <CardHeader className="p-4 pb-2 border-b border-border">
             <CardTitle className="text-sm font-bold">By Region</CardTitle>
             <CardDescription className="text-[11px] mt-0.5">
-              สัดส่วน Active vs. Aging จำแนกตามภูมิภาค
+              สัดส่วน Active vs. Aging จำแนกตามภูมิภาค (ตามตัวกรองที่เลือก)
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
-            {data?.regionBreakdown?.map((reg: any) => {
-              const maxVal = Math.max(...data.regionBreakdown.map((r: any) => metric === "v" ? r.totalVal : r.totalQty)) || 1;
+            {filteredRegionBreakdown.length === 0 ? (
+              <div className="text-xs text-center py-6 text-muted-foreground">ไม่พบข้อมูล Region ตามตัวกรอง</div>
+            ) : (
+              filteredRegionBreakdown.map((reg: any) => {
+                const maxVal = Math.max(...filteredRegionBreakdown.map((r: any) => metric === "v" ? r.totalVal : r.totalQty)) || 1;
 
-              return (
-                <div key={reg.name} className="grid grid-cols-[110px_1fr_80px] items-center gap-2.5 text-xs">
-                  <div className="font-medium text-foreground truncate" title={reg.name}>
-                    {reg.name}
+                return (
+                  <div key={reg.name} className="grid grid-cols-[110px_1fr_80px] items-center gap-2.5 text-xs">
+                    <div className="font-medium text-foreground truncate" title={reg.name}>
+                      {reg.name}
+                    </div>
+                    <div className="h-5 w-full bg-muted/60 rounded-xs overflow-hidden flex">
+                      {reg.tierVals.map((tVal: number, ti: number) => {
+                        const val = metric === "v" ? tVal : reg.tierQtys[ti];
+                        const w = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                        if (w <= 0) return null;
+                        return (
+                          <div
+                            key={ti}
+                            style={{ width: `${w}%`, backgroundColor: TIER_COLORS[ti] }}
+                            title={`${TIER_LABELS[ti]}: ${metric === "v" ? formatCurrency(tVal) : `${formatNumber(reg.tierQtys[ti])} u`}`}
+                            className="h-full transition-all duration-300 hover:brightness-115"
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="font-mono font-semibold text-foreground text-right text-[11px]">
+                      {metric === "v" ? fmtBahtShort(reg.totalVal) : formatNumber(reg.totalQty)}
+                    </div>
                   </div>
-                  <div className="h-5 w-full bg-muted/60 rounded-xs overflow-hidden flex">
-                    {reg.tierVals.map((tVal: number, ti: number) => {
-                      const val = metric === "v" ? tVal : reg.tierQtys[ti];
-                      const w = maxVal > 0 ? (val / maxVal) * 100 : 0;
-                      if (w <= 0) return null;
-                      return (
-                        <div
-                          key={ti}
-                          style={{ width: `${w}%`, backgroundColor: TIER_COLORS[ti] }}
-                          title={`${TIER_LABELS[ti]}: ${metric === "v" ? formatCurrency(tVal) : `${formatNumber(reg.tierQtys[ti])} u`}`}
-                          className="h-full transition-all duration-300 hover:brightness-115"
-                        />
-                      );
-                    })}
-                  </div>
-                  <div className="font-mono font-semibold text-foreground text-right text-[11px]">
-                    {metric === "v" ? fmtBahtShort(reg.totalVal) : formatNumber(reg.totalQty)}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>
@@ -695,60 +824,64 @@ export function OneDayCommandCenter() {
         </CardHeader>
 
         <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-36 font-bold text-foreground">Category</TableHead>
-                {data?.matrix?.regions?.map((r: string) => (
-                  <TableHead key={r} className="text-right font-bold text-foreground text-xs">
-                    {r}
-                  </TableHead>
-                ))}
-                <TableHead className="text-right font-bold text-foreground text-xs w-20">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.matrix?.rows?.map((row: any) => (
-                <TableRow key={row.category} className="hover:bg-muted/30">
-                  <TableCell className="font-semibold text-foreground text-xs">
-                    {row.category}
-                  </TableCell>
-                  {row.cells.map((cell: any) => {
-                    const share = cell.totalVal > 0 ? cell.nonmoveVal / cell.totalVal : 0;
-                    const alpha = cell.totalVal > 0 ? Math.min(0.85, share * 0.9 + 0.08) : 0;
-                    const bgStyle = cell.totalVal > 0 ? `rgba(198, 69, 69, ${alpha})` : undefined;
+          {filteredMatrix.rows.length === 0 ? (
+            <div className="text-xs text-center py-8 text-muted-foreground">ไม่พบข้อมูล Matrix ตามตัวกรอง</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-36 font-bold text-foreground">Category</TableHead>
+                  {filteredMatrix.regions.map((r: string) => (
+                    <TableHead key={r} className="text-right font-bold text-foreground text-xs">
+                      {r}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-right font-bold text-foreground text-xs w-20">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMatrix.rows.map((row: any) => (
+                  <TableRow key={row.category} className="hover:bg-muted/30">
+                    <TableCell className="font-semibold text-foreground text-xs">
+                      {row.category}
+                    </TableCell>
+                    {row.cells.map((cell: any) => {
+                      const share = cell.totalVal > 0 ? cell.nonmoveVal / cell.totalVal : 0;
+                      const alpha = cell.totalVal > 0 ? Math.min(0.85, share * 0.9 + 0.08) : 0;
+                      const bgStyle = cell.totalVal > 0 ? `rgba(198, 69, 69, ${alpha})` : undefined;
 
-                    return (
-                      <TableCell
-                        key={cell.region}
-                        style={{ backgroundColor: bgStyle }}
-                        title={`${cell.region} · ${row.category}: Non-Move ${formatCurrency(cell.nonmoveVal)} / รวม ${formatCurrency(cell.totalVal)} (${cell.pct}%)`}
-                        className="text-right font-mono text-xs font-medium text-foreground rounded-xs"
-                      >
-                        {cell.totalVal > 0 ? `${cell.pct}%` : "—"}
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell className="text-right font-mono font-bold text-foreground text-xs bg-muted/40">
-                    {row.totalVal > 0 ? `${row.pct}%` : "—"}
+                      return (
+                        <TableCell
+                          key={cell.region}
+                          style={{ backgroundColor: bgStyle }}
+                          title={`${cell.region} · ${row.category}: Non-Move ${formatCurrency(cell.nonmoveVal)} / รวม ${formatCurrency(cell.totalVal)} (${cell.pct}%)`}
+                          className="text-right font-mono text-xs font-medium text-foreground rounded-xs"
+                        >
+                          {cell.totalVal > 0 ? `${cell.pct}%` : "—"}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="text-right font-mono font-bold text-foreground text-xs bg-muted/40">
+                      {row.totalVal > 0 ? `${row.pct}%` : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                {/* Grand Total Row */}
+                <TableRow className="bg-muted/60 font-bold border-t-2 border-border">
+                  <TableCell className="font-bold text-foreground text-xs">All Categories</TableCell>
+                  {filteredMatrix.colTotals.map((col: any) => (
+                    <TableCell key={col.region} className="text-right font-mono font-bold text-foreground text-xs">
+                      {col.totalVal > 0 ? `${col.pct}%` : "—"}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right font-mono font-bold text-[#C64545] text-xs">
+                    {filteredMatrix.grandPct}%
                   </TableCell>
                 </TableRow>
-              ))}
-
-              {/* Grand Total Row */}
-              <TableRow className="bg-muted/60 font-bold border-t-2 border-border">
-                <TableCell className="font-bold text-foreground text-xs">All Categories</TableCell>
-                {data?.matrix?.colTotals?.map((col: any) => (
-                  <TableCell key={col.region} className="text-right font-mono font-bold text-foreground text-xs">
-                    {col.totalVal > 0 ? `${col.pct}%` : "—"}
-                  </TableCell>
-                ))}
-                <TableCell className="text-right font-mono font-bold text-[#C64545] text-xs">
-                  {data?.matrix?.grandPct}%
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
