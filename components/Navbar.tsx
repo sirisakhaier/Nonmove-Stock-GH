@@ -112,7 +112,7 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Executive Viewer Navigation (3 Tabs: 1-Day Analysis, Overview & Trend, RAW Data) */}
+          {/* Executive Viewer Navigation (3 Clean Tabs) */}
           {isViewerPage && (
             <div className="flex items-center p-1 rounded-lg bg-muted/60 border border-border gap-1">
               <Link
@@ -128,15 +128,15 @@ export function Navbar() {
               </Link>
 
               <Link
-                href="/viewer"
+                href="/viewer/trend"
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                  pathname === "/viewer"
+                  pathname === "/viewer/trend" || pathname === "/viewer"
                     ? "bg-primary text-primary-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-background/80"
                 }`}
               >
-                <BarChart3 className="h-3.5 w-3.5" />
-                <span>ภาพรวม &amp; แนวโน้ม</span>
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span>วิเคราะห์แนวโน้ม (Trend)</span>
               </Link>
 
               <Link

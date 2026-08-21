@@ -1,143 +1,188 @@
-export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NONMOVE_BUCKET_ORDER, classifyNonmove } from "@/lib/nonmoveConfig";
+
+export const dynamic = "force-dynamic";
+
+function mapBucketToTier(bucketStr: string): number {
+  if (!bucketStr) return 0;
+  const b = bucketStr.trim().toLowerCase();
+  if (b.includes(">360") || b.includes("365+") || b.includes(">365") || b.includes("360+")) return 4; // Severe
+  if (b.includes("271-365") || b.includes("270-360") || b.includes(">270") || b.includes("271-360")) return 3; // Critical
+  if (b.includes("181-270") || b.includes("180-360") || b.includes("181-210") || b.includes("211-270") || b.includes("180-270")) return 2; // Elevated
+  if (b.includes("121-180") || b.includes("120-180")) return 1; // Watch
+  return 0; // Active (<=120d)
+}
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const region = searchParams.get("region");
-
-    const storeWhere: any = {
-      storeType: { not: "DC" },
-      branchCode: { notIn: ["GH-001", "GH-002", "GH-003"] },
-    };
-    if (region && region !== "ALL") {
-      storeWhere.region = region;
-    }
-
-    const stores = await prisma.store.findMany({
-      where: storeWhere,
-      select: { branchCode: true },
-    });
-    const branchCodes = stores.map((s) => s.branchCode);
-
-    // 1. Get all distinct dates
+    // 1. Get all distinct snapshot dates in database in ascending order
     const dateRecords = await prisma.nonMoveRow.findMany({
-      where: { branchCode: { in: branchCodes } },
       select: { reportDate: true },
       distinct: ["reportDate"],
       orderBy: { reportDate: "asc" },
     });
 
-    const allDates = dateRecords.map((d) => d.reportDate.toISOString().split("T")[0]);
+    const dates = dateRecords.map((d) => d.reportDate.toISOString().split("T")[0]);
 
-    if (allDates.length === 0) {
+    if (dates.length === 0) {
       return NextResponse.json({
-        availableDates: [],
-        historicalSnapshots: [],
+        dates: [],
+        tierLabels: [],
+        categories: [],
+        regions: [],
+        rollups: [],
+        snapshots: [],
         hasComparison: false,
       });
     }
 
-    // 2. Fetch stats for each date
-    const historicalSnapshots = [];
-    for (const dStr of allDates) {
-      const d = new Date(dStr);
-      const start = new Date(d);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(d);
-      end.setHours(23, 59, 59, 999);
+    const tierLabels = [
+      "Active (≤120d)",
+      "Watch (121–180d)",
+      "Elevated (181–270d)",
+      "Critical (271–365d)",
+      "Severe (365d+)",
+    ];
 
-      const rows = await prisma.nonMoveRow.findMany({
-        where: {
-          branchCode: { in: branchCodes },
-          reportDate: { gte: start, lte: end },
+    // 2. Fetch all nonmove rows across all dates
+    const allRows = await prisma.nonMoveRow.findMany({
+      select: {
+        reportDate: true,
+        branchCode: true,
+        productCode: true,
+        categoryName: true,
+        nonmoveDaysBucket: true,
+        stockQty: true,
+        stockValue: true,
+        store: {
+          select: {
+            region: true,
+            storeNameCust: true,
+            province: true,
+          },
         },
-        select: {
-          productCode: true,
-          stockQty: true,
-          stockValue: true,
-          nonmoveDaysBucket: true,
+        product: {
+          select: {
+            category: true,
+          },
         },
-      });
+      },
+    });
 
+    // 3. Rollup by: Date x Region x Category x Tier
+    const rollupMap = new Map<string, {
+      date: string;
+      dateIdx: number;
+      region: string;
+      category: string;
+      tier: number;
+      qty: number;
+      value: number;
+    }>();
+
+    const categorySet = new Set<string>();
+    const regionSet = new Set<string>();
+
+    for (const r of allRows) {
+      const dStr = r.reportDate.toISOString().split("T")[0];
+      const dIdx = dates.indexOf(dStr);
+      if (dIdx === -1) continue;
+
+      const cat = r.product?.category?.trim().toUpperCase() || r.categoryName?.trim().toUpperCase() || "OTHER";
+      const reg = r.store?.region?.trim() || "OTHER";
+      if (reg !== "OTHER") regionSet.add(reg);
+      if (cat !== "OTHER") categorySet.add(cat);
+
+      const tier = mapBucketToTier(r.nonmoveDaysBucket);
+      const q = r.stockQty || 0;
+      const v = r.stockValue || 0;
+
+      const key = `${dStr}__${reg}__${cat}__${tier}`;
+      if (!rollupMap.has(key)) {
+        rollupMap.set(key, {
+          date: dStr,
+          dateIdx: dIdx,
+          region: reg,
+          category: cat,
+          tier,
+          qty: 0,
+          value: 0,
+        });
+      }
+      const item = rollupMap.get(key)!;
+      item.qty += q;
+      item.value += v;
+    }
+
+    const categories = Array.from(categorySet).sort();
+    if (categories.length === 0) {
+      ["WM", "RF", "AC", "TV", "FREEZER", "WH", "SDA"].forEach((c) => categories.push(c));
+    }
+    const regions = Array.from(regionSet).sort();
+
+    const rollups = Array.from(rollupMap.values()).map((r) => ({
+      ...r,
+      value: Math.round(r.value),
+    }));
+
+    // Per-date snapshot summary
+    const snapshots = dates.map((dStr, dIdx) => {
+      const dayRows = rollups.filter((r) => r.dateIdx === dIdx);
       let totalStockValue = 0;
       let totalStockQty = 0;
-      let highValue = 0;
-      let okValue = 0;
-      const skuSet = new Set<string>();
+      let nonmoveValue = 0;
+      let nonmoveQty = 0;
+      let highRiskValue = 0;
+      const tierVals = [0, 0, 0, 0, 0];
+      const tierQtys = [0, 0, 0, 0, 0];
 
-      const bucketAmounts: Record<string, number> = {};
-      const bucketQtys: Record<string, number> = {};
-      for (const b of NONMOVE_BUCKET_ORDER) {
-        bucketAmounts[b] = 0;
-        bucketQtys[b] = 0;
-      }
-
-      for (const r of rows) {
-        totalStockValue += r.stockValue;
-        totalStockQty += r.stockQty;
-        skuSet.add(r.productCode);
-
-        const b = r.nonmoveDaysBucket || "30-60";
-        if (bucketAmounts[b] !== undefined) {
-          bucketAmounts[b] += r.stockValue;
-          bucketQtys[b] += r.stockQty;
+      for (const r of dayRows) {
+        totalStockValue += r.value;
+        totalStockQty += r.qty;
+        tierVals[r.tier] += r.value;
+        tierQtys[r.tier] += r.qty;
+        if (r.tier >= 1) {
+          nonmoveValue += r.value;
+          nonmoveQty += r.qty;
         }
-
-        if (classifyNonmove(b) === "HIGH") {
-          highValue += r.stockValue;
-        } else {
-          okValue += r.stockValue;
+        if (r.tier >= 3) {
+          highRiskValue += r.value;
         }
       }
 
-      const totalSkus = skuSet.size;
-      const highPct = totalStockValue > 0 ? Math.round((highValue / totalStockValue) * 100) : 0;
-      const okPct = 100 - highPct;
+      const nonmovePct = totalStockValue > 0 ? Math.round((nonmoveValue / totalStockValue) * 100) : 0;
 
-      historicalSnapshots.push({
+      return {
         date: dStr,
-        totalSkus,
-        totalStockQty,
+        dateIdx: dIdx,
         totalStockValue: Math.round(totalStockValue),
-        highValue: Math.round(highValue),
-        okValue: Math.round(okValue),
-        highPct,
-        okPct,
-        bucketAmounts,
-        bucketQtys,
-      });
-    }
-
-    // Delta between last 2 dates
-    let delta = {
-      stockQtyDiff: 0,
-      stockValueDiff: 0,
-      highPctDiff: 0,
-      skusDiff: 0,
-    };
-
-    if (historicalSnapshots.length >= 2) {
-      const last = historicalSnapshots[historicalSnapshots.length - 1];
-      const prev = historicalSnapshots[historicalSnapshots.length - 2];
-      delta = {
-        stockQtyDiff: last.totalStockQty - prev.totalStockQty,
-        stockValueDiff: last.totalStockValue - prev.totalStockValue,
-        highPctDiff: last.highPct - prev.highPct,
-        skusDiff: last.totalSkus - prev.totalSkus,
+        totalStockQty,
+        nonmoveValue: Math.round(nonmoveValue),
+        nonmoveQty,
+        highRiskValue: Math.round(highRiskValue),
+        nonmovePct,
+        tierVals: tierVals.map((v) => Math.round(v)),
+        tierQtys,
       };
-    }
+    });
 
     return NextResponse.json({
-      availableDates: allDates,
-      historicalSnapshots,
-      hasComparison: historicalSnapshots.length >= 2,
-      delta,
+      dates,
+      tierLabels,
+      categories,
+      regions,
+      rollups,
+      snapshots,
+      hasComparison: dates.length > 1,
+      firstDate: dates[0],
+      latestDate: dates[dates.length - 1],
+      prevDate: dates.length > 1 ? dates[dates.length - 2] : dates[0],
     });
   } catch (error: any) {
     console.error("Error in /api/viewer/trend:", error);
-    return NextResponse.json({ error: error.message || "Failed to fetch viewer trend" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch trend analysis" },
+      { status: 500 }
+    );
   }
 }
