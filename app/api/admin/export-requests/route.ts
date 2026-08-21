@@ -6,6 +6,46 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
+function getImageDimensions(buffer: Buffer): { width: number; height: number } | null {
+  try {
+    // PNG
+    if (buffer.length > 24 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+      const width = buffer.readUInt32BE(16);
+      const height = buffer.readUInt32BE(20);
+      if (width > 0 && height > 0) return { width, height };
+    }
+    // GIF
+    if (buffer.length > 10 && buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+      const width = buffer.readUInt16LE(6);
+      const height = buffer.readUInt16LE(8);
+      if (width > 0 && height > 0) return { width, height };
+    }
+    // JPEG
+    if (buffer.length > 4 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+      let offset = 2;
+      while (offset < buffer.length) {
+        if (buffer[offset] !== 0xff) break;
+        const marker = buffer[offset + 1];
+        if (
+          (marker >= 0xc0 && marker <= 0xc3) ||
+          (marker >= 0xc5 && marker <= 0xc7) ||
+          (marker >= 0xc9 && marker <= 0xcb) ||
+          (marker >= 0xcd && marker <= 0xcf)
+        ) {
+          const height = buffer.readUInt16BE(offset + 5);
+          const width = buffer.readUInt16BE(offset + 7);
+          if (width > 0 && height > 0) return { width, height };
+        }
+        const length = buffer.readUInt16BE(offset + 2);
+        offset += 2 + length;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -75,12 +115,12 @@ export async function GET(req: NextRequest) {
       { header: "จำนวนรูป", key: "photoCount", width: 12 },
     ];
 
-    // Add Photo Thumbnail Columns (Photo 1, Photo 2, ...) with spacious width for clear images
+    // Add Photo Thumbnail Columns (Photo 1, Photo 2, ...) with spacious width (25 ≈ 185px)
     for (let p = 1; p <= maxPhotos; p++) {
       baseColumns.push({
         header: `รูปภาพหลักฐาน ${p} (Photo ${p})`,
         key: `photoImg_${p}`,
-        width: 22,
+        width: 25,
       });
     }
 
@@ -161,8 +201,8 @@ export async function GET(req: NextRequest) {
 
       const row = worksheet.addRow(rowData);
 
-      // Set spacious row height so embedded pictures look clear and high-resolution
-      row.height = r.photos.length > 0 ? 85 : 24;
+      // Set spacious row height (95pt ≈ 126px) so photos display clearly without crowding
+      row.height = r.photos.length > 0 ? 95 : 24;
       row.alignment = { vertical: "middle", wrapText: true };
 
       // Status cell coloring
@@ -185,25 +225,27 @@ export async function GET(req: NextRequest) {
         photoCell.font = { color: { argb: "FF2563EB" }, underline: true, size: 10 };
       }
 
-      // Embed photo thumbnails (supporting Base64 Data URLs, Remote HTTP URLs, and Local files)
+      // Embed photo thumbnails preserving 100% natural aspect ratio
       for (let pIdx = 0; pIdx < r.photos.length && pIdx < maxPhotos; pIdx++) {
         const photo = r.photos[pIdx];
         if (!photo?.url) continue;
 
         let imageId: number | null = null;
+        let imageBuffer: Buffer | null = null;
+        let validExt: "jpeg" | "png" | "gif" = "jpeg";
 
         try {
           if (photo.url.startsWith("data:image/")) {
-            // Case 1: Base64 Data URL (stored directly in DB)
+            // Case 1: Base64 Data URL
             const match = photo.url.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
             if (match) {
               const rawExt = match[1].toLowerCase();
-              const validExt = rawExt.includes("png") ? "png" : rawExt.includes("gif") ? "gif" : "jpeg";
+              validExt = rawExt.includes("png") ? "png" : rawExt.includes("gif") ? "gif" : "jpeg";
               const base64Content = match[2];
-              const buffer = Buffer.from(base64Content, "base64");
+              imageBuffer = Buffer.from(base64Content, "base64");
               imageId = workbook.addImage({
-                buffer: buffer as any,
-                extension: validExt as "jpeg" | "png" | "gif",
+                buffer: imageBuffer as any,
+                extension: validExt,
               } as any);
             }
           } else if (photo.url.startsWith("http://") || photo.url.startsWith("https://")) {
@@ -211,11 +253,11 @@ export async function GET(req: NextRequest) {
             const fetchRes = await fetch(photo.url);
             if (fetchRes.ok) {
               const arrayBuffer = await fetchRes.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-              const validExt = photo.url.toLowerCase().includes(".png") ? "png" : "jpeg";
+              imageBuffer = Buffer.from(arrayBuffer);
+              validExt = photo.url.toLowerCase().includes(".png") ? "png" : "jpeg";
               imageId = workbook.addImage({
-                buffer: buffer as any,
-                extension: validExt as "jpeg" | "png" | "gif",
+                buffer: imageBuffer as any,
+                extension: validExt,
               } as any);
             }
           } else {
@@ -225,19 +267,43 @@ export async function GET(req: NextRequest) {
 
             if (fs.existsSync(localFilePath)) {
               const ext = path.extname(localFilePath).toLowerCase().replace(".", "");
-              const validExt = ext === "png" || ext === "gif" ? ext : "jpeg";
+              validExt = ext === "png" || ext === "gif" ? ext : "jpeg";
+              imageBuffer = fs.readFileSync(localFilePath);
               imageId = workbook.addImage({
-                filename: localFilePath,
-                extension: validExt as "jpeg" | "png" | "gif",
+                buffer: imageBuffer as any,
+                extension: validExt,
               } as any);
             }
           }
 
-          if (imageId !== null) {
+          if (imageId !== null && imageBuffer) {
+            // Calculate proportional dimensions preserving original aspect ratio
+            const dims = getImageDimensions(imageBuffer);
+            const maxBoxWidth = 160;  // max pixel width in cell
+            const maxBoxHeight = 115; // max pixel height in cell
+
+            let targetWidth = 120;
+            let targetHeight = 90;
+
+            if (dims && dims.width > 0 && dims.height > 0) {
+              const imgAspect = dims.width / dims.height;
+              const boxAspect = maxBoxWidth / maxBoxHeight;
+
+              if (imgAspect > boxAspect) {
+                // Image is wider than bounding box
+                targetWidth = maxBoxWidth;
+                targetHeight = Math.round(maxBoxWidth / imgAspect);
+              } else {
+                // Image is taller than bounding box
+                targetHeight = maxBoxHeight;
+                targetWidth = Math.round(maxBoxHeight * imgAspect);
+              }
+            }
+
             const colIdx = photoStartColIdx + pIdx;
             worksheet.addImage(imageId, {
               tl: { col: colIdx + 0.05, row: rowIndex - 1 + 0.05 } as any,
-              br: { col: colIdx + 0.95, row: rowIndex - 1 + 0.95 } as any,
+              ext: { width: targetWidth, height: targetHeight },
               editAs: "oneCell",
             } as any);
           }
