@@ -49,16 +49,19 @@ export async function GET(req: NextRequest) {
     }
     maxPhotos = Math.min(Math.max(maxPhotos, 3), 8);
 
-    // Define Base Columns
+    // Define Base Columns with STORE_ID and STORE_NAME
     const baseColumns: any[] = [
       { header: "ลำดับ", key: "index", width: 8 },
-      { header: "รหัสสาขา", key: "branchCode", width: 14 },
-      { header: "ชื่อสาขา", key: "storeName", width: 28 },
-      { header: "ภูมิภาค", key: "region", width: 14 },
-      { header: "รหัสสินค้า", key: "productCode", width: 18 },
-      { header: "ชื่อสินค้า", key: "productName", width: 35 },
+      { header: "STORE_ID", key: "storeId", width: 14 },
+      { header: "STORE_NAME", key: "storeName", width: 30 },
+      { header: "รหัสสาขา (BranchCode)", key: "branchCode", width: 16 },
+      { header: "ชื่อสาขา (Internal)", key: "storeNameInternal", width: 24 },
+      { header: "จังหวัด (Province)", key: "province", width: 16 },
+      { header: "ภูมิภาค (Region)", key: "region", width: 14 },
+      { header: "รหัสสินค้า (ProductCode)", key: "productCode", width: 18 },
+      { header: "ชื่อสินค้า (ProductName)", key: "productName", width: 35 },
       { header: "รุ่น (Model)", key: "model", width: 20 },
-      { header: "หมวดหมู่", key: "category", width: 16 },
+      { header: "หมวดหมู่ (Category)", key: "category", width: 16 },
       { header: "ประเภทคำขอ", key: "requestType", width: 18 },
       { header: "เหตุผลที่ระบุ", key: "reason", width: 30 },
       { header: "คำอธิบายเพิ่มเติม/รายละเอียด", key: "comments", width: 35 },
@@ -101,7 +104,7 @@ export async function GET(req: NextRequest) {
     };
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
 
-    const photoStartColIdx = 19; // 0-based column index where photoImg_1 starts
+    const photoStartColIdx = 22; // 0-based column index where photoImg_1 starts
 
     // Populate rows
     for (let i = 0; i < requests.length; i++) {
@@ -128,8 +131,11 @@ export async function GET(req: NextRequest) {
 
       const rowData: any = {
         index: i + 1,
-        branchCode: r.branchCode,
+        storeId: r.store?.storeId || r.branchCode,
         storeName: r.store?.storeNameCust || r.store?.storeName || r.branchCode,
+        branchCode: r.branchCode,
+        storeNameInternal: r.store?.storeName || "-",
+        province: r.store?.province || "-",
         region: r.store?.region || "OTHER",
         productCode: r.productCode,
         productName: r.product?.productName || "-",
@@ -178,64 +184,48 @@ export async function GET(req: NextRequest) {
         photoCell.font = { color: { argb: "FF2563EB" }, underline: true, size: 10 };
       }
 
-      // EMBED ALL SUBMITTED PHOTOS INTO EXCEL
-      for (let pIdx = 0; pIdx < r.photos.length; pIdx++) {
-        const photoObj = r.photos[pIdx];
-        const photoUrl = photoObj.url;
-        let imageBase64: string | null = null;
-        let extension: "png" | "jpeg" = "jpeg";
+      // Embed photo thumbnails if local files exist
+      for (let pIdx = 0; pIdx < r.photos.length && pIdx < maxPhotos; pIdx++) {
+        const photo = r.photos[pIdx];
+        if (photo.url && !photo.url.startsWith("http")) {
+          const cleanRelPath = photo.url.startsWith("/") ? photo.url.slice(1) : photo.url;
+          const localFilePath = path.join(process.cwd(), "public", cleanRelPath);
 
-        try {
-          if (photoUrl.startsWith("data:image/")) {
-            const match = photoUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
-            if (match) {
-              extension = match[1].toLowerCase() === "png" ? "png" : "jpeg";
-              imageBase64 = match[2];
-            }
-          } else if (photoUrl.startsWith("/uploads/")) {
-            const localPath = path.join(process.cwd(), "public", photoUrl);
-            if (fs.existsSync(localPath)) {
-              const fileBuf = fs.readFileSync(localPath);
-              extension = photoUrl.toLowerCase().endsWith(".png") ? "png" : "jpeg";
-              imageBase64 = fileBuf.toString("base64");
-            }
-          } else if (photoUrl.startsWith("http://") || photoUrl.startsWith("https://")) {
-            const resp = await fetch(photoUrl);
-            if (resp.ok) {
-              const arrayBuf = await resp.arrayBuffer();
-              extension = photoUrl.toLowerCase().endsWith(".png") ? "png" : "jpeg";
-              imageBase64 = Buffer.from(arrayBuf).toString("base64");
+          if (fs.existsSync(localFilePath)) {
+            try {
+              const ext = path.extname(localFilePath).toLowerCase().replace(".", "");
+              const validExt = ext === "jpg" || ext === "jpeg" ? "jpeg" : ext === "png" ? "png" : "gif";
+
+              const imageId = workbook.addImage({
+                filename: localFilePath,
+                extension: validExt as "jpeg" | "png" | "gif",
+              });
+
+              const colIdx = photoStartColIdx + pIdx;
+              worksheet.addImage(imageId, {
+                tl: { col: colIdx + 0.1, row: rowIndex - 1 + 0.1 } as any,
+                br: { col: colIdx + 0.9, row: rowIndex - 1 + 0.9 } as any,
+                editAs: "oneCell",
+              } as any);
+            } catch (err) {
+              console.error("Error embedding image into excel:", err);
             }
           }
-
-          if (imageBase64) {
-            const imageId = workbook.addImage({
-              base64: imageBase64,
-              extension,
-            });
-
-            worksheet.addImage(imageId, {
-              tl: { col: photoStartColIdx + pIdx, row: rowIndex - 1 },
-              ext: { width: 85, height: 68 }, // Crisp thumbnail
-              editAs: "oneCell",
-            });
-          }
-        } catch (imgErr) {
-          console.warn(`Could not embed photo ${pIdx + 1} for row ${rowIndex}:`, imgErr);
         }
       }
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
 
-    return new Response(buffer, {
+    return new NextResponse(buffer, {
+      status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="NonMove_Requests_All_Pictures_${Date.now()}.xlsx"`,
+        "Content-Disposition": `attachment; filename="nonmove_requests_${new Date().toISOString().split("T")[0]}.xlsx"`,
       },
     });
   } catch (error: any) {
-    console.error("Error exporting requests with all images to excel:", error);
+    console.error("Error generating requests Excel:", error);
     return NextResponse.json({ error: error.message || "Failed to export requests" }, { status: 500 });
   }
 }

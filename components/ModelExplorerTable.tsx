@@ -14,8 +14,10 @@ import {
   Square,
   SlidersHorizontal,
   Check,
+  Package,
+  Boxes,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +30,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { RequestStatusBadge } from "./RequestStatusBadge";
-import { formatNumber, formatCurrency } from "@/lib/validators";
+import { formatNumber } from "@/lib/validators";
 import { NONMOVE_BUCKET_ORDER } from "@/lib/nonmoveConfig";
 
 interface ProductModelItem {
@@ -166,8 +168,8 @@ export function ModelExplorerTable({
   return (
     <Card className="border-border shadow-xs overflow-hidden">
       {/* 1. Header Toolbar */}
-      <CardHeader className="p-4 border-b border-border space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <CardHeader className="p-3.5 border-b border-border space-y-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
           {/* Status Pills */}
           <div className="flex items-center gap-1 bg-muted p-1 rounded-md text-xs font-medium self-start">
             <button
@@ -202,9 +204,8 @@ export function ModelExplorerTable({
             </button>
           </div>
 
-          {/* Action Toolbar */}
+          {/* Search and Export Actions */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Live Search */}
             <div className="relative">
               <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
@@ -228,10 +229,11 @@ export function ModelExplorerTable({
           </div>
         </div>
 
-        {/* 2. Secondary Filter Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-          {/* Category Filter */}
+        {/* 2. Compact Multi-Column Filter Row (3 columns side-by-side) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* Column 1: Category Filter */}
           <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs">
+            <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span className="text-[11px] font-semibold text-muted-foreground shrink-0">Category:</span>
             <select
               value={selectedCategory}
@@ -247,7 +249,7 @@ export function ModelExplorerTable({
             </select>
           </div>
 
-          {/* Nonmove Period Multi-Check Dropdown */}
+          {/* Column 2: Nonmove Period Multi-Check Dropdown */}
           <div className="relative" ref={popoverRef}>
             <button
               type="button"
@@ -312,8 +314,9 @@ export function ModelExplorerTable({
             )}
           </div>
 
-          {/* SKU_TYPE Filter */}
+          {/* Column 3: SKU_TYPE Filter */}
           <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs">
+            <Boxes className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span className="text-[11px] font-semibold text-muted-foreground shrink-0">ประเภท:</span>
             <select
               value={selectedSkuType}
@@ -331,24 +334,23 @@ export function ModelExplorerTable({
         </div>
       </CardHeader>
 
-      {/* 3. Model Table (Compact 2-Line Row Layout) */}
+      {/* 3. Space-Saving Model Table (No ProductName, No Amount) */}
       <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">#</TableHead>
-              <TableHead>ข้อมูลโมเดลและสินค้า (Model Details)</TableHead>
+              <TableHead>ข้อมูลโมเดลสินค้า (Model & Code)</TableHead>
               <TableHead className="text-center w-28">ช่วงวัน (Bucket)</TableHead>
               <TableHead className="text-right w-24">จำนวนชิ้น</TableHead>
-              <TableHead className="text-right w-28">มูลค่ารวม (บาท)</TableHead>
-              <TableHead className="text-center w-24">สถานะ</TableHead>
-              <TableHead className="text-right w-20">ยื่นคำขอ</TableHead>
+              <TableHead className="text-center w-28">สถานะ</TableHead>
+              <TableHead className="text-right w-16">คำขอ</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
                   ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา
                 </TableCell>
               </TableRow>
@@ -360,22 +362,20 @@ export function ModelExplorerTable({
                 return (
                   <TableRow key={item.productCode} className="hover:bg-muted/40">
                     <TableCell className="font-mono text-muted-foreground text-[11px]">{rowNumber}</TableCell>
-                    <TableCell className="py-2.5">
-                      {/* Line 1: Model & SKU_TYPE Badge */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                    
+                    {/* Space Saving: Model on Line 1, ProductCode on Line 2 (No ProductName) */}
+                    <TableCell className="py-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-bold text-foreground text-xs">{item.model}</span>
-                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                        <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal">
+                          {item.categoryName}
+                        </Badge>
+                        <Badge variant="secondary" className="text-[10px] py-0 px-1 font-normal">
                           {item.skuType}
                         </Badge>
-                        <span className="text-[11px] text-muted-foreground">
-                          ({item.categoryName})
-                        </span>
                       </div>
-                      {/* Line 2: Product Name & Code */}
-                      <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 truncate">
-                        <span className="font-mono text-[10px]">{item.productCode}</span>
-                        <span>·</span>
-                        <span className="truncate max-w-[280px]">{item.productName}</span>
+                      <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                        {item.productCode}
                       </div>
                     </TableCell>
 
@@ -385,12 +385,8 @@ export function ModelExplorerTable({
                       </Badge>
                     </TableCell>
 
-                    <TableCell className="text-right font-medium text-xs">
+                    <TableCell className="text-right font-semibold text-foreground text-xs">
                       {formatNumber(item.stockQty)}
-                    </TableCell>
-
-                    <TableCell className="text-right font-bold text-foreground text-xs">
-                      {formatCurrency(item.stockValue)}
                     </TableCell>
 
                     <TableCell className="text-center">
