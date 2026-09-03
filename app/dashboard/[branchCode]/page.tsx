@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NONMOVE_BUCKET_ORDER } from "@/lib/nonmoveConfig";
 
+const DEFAULT_CATEGORIES = ["TV", "WH", "FZ", "WM", "RF", "AC", "SDA"];
+
 export default function BranchDashboardPage() {
   const params = useParams();
   const branchCode = params.branchCode as string;
@@ -31,10 +33,9 @@ export default function BranchDashboardPage() {
   const [storeInfo, setStoreInfo] = useState<any>(null);
 
   // 3 Multi-Check Filters
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [selectedBuckets, setSelectedBuckets] = useState<string[]>(Array.from(NONMOVE_BUCKET_ORDER));
   const [selectedSkuTypes, setSelectedSkuTypes] = useState<string[]>(["SELLABLE"]);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   const [selectedProductForAction, setSelectedProductForAction] = useState<any | null>(null);
   const [isActionOpen, setIsActionOpen] = useState(false);
@@ -77,12 +78,6 @@ export default function BranchDashboardPage() {
         }
         if (data.categories) {
           setCategories(data.categories);
-          // On first load, default categories to all EXCEPT CAC and KT
-          if (!isInitialized && data.categories.length > 0) {
-            const defaultCats = data.categories.filter((c: string) => !["CAC", "KT"].includes(c.toUpperCase()));
-            setSelectedCategories(defaultCats.length > 0 ? defaultCats : data.categories);
-            setIsInitialized(true);
-          }
         }
         if (data.skuTypes && data.skuTypes.length > 0) {
           setSkuTypes(data.skuTypes);
@@ -92,7 +87,7 @@ export default function BranchDashboardPage() {
     } catch (e) {
       console.error("Error fetching summary:", e);
     }
-  }, [branchCode, selectedDate, selectedCategories, selectedBuckets, selectedSkuTypes, isInitialized]);
+  }, [branchCode, selectedDate, selectedCategories, selectedBuckets, selectedSkuTypes]);
 
   // 2. Fetch Product List with active filters
   const fetchProducts = useCallback(async () => {

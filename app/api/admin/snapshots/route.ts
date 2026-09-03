@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { invalidateCache } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export async function DELETE(req: NextRequest) {
         },
       },
     });
+
+    invalidateCache();
 
     return NextResponse.json({
       success: true,

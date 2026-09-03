@@ -1,3 +1,4 @@
+import { getFromCache, setInCache } from "@/lib/apiCache";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mapTo4Buckets, NONMOVE_BUCKET_ORDER } from "@/lib/nonmoveConfig";
@@ -68,6 +69,12 @@ export async function GET(req: NextRequest) {
     endOfDay.setHours(23, 59, 59, 999);
 
     // 2. Fetch rows for the target date
+    const cacheKey = `viewer_one_day_${selectedDateStr}`;
+    const cachedResponse = getFromCache(cacheKey);
+    if (cachedResponse) {
+      return NextResponse.json(cachedResponse);
+    }
+
     const rows = await prisma.nonMoveRow.findMany({
       where: {
         reportDate: {
@@ -75,9 +82,29 @@ export async function GET(req: NextRequest) {
           lte: endOfDay,
         },
       },
-      include: {
-        store: true,
-        product: true,
+      select: {
+        productCode: true,
+        branchCode: true,
+        categoryName: true,
+        branchName: true,
+        branchShort: true,
+        nonmoveDaysBucket: true,
+        stockQty: true,
+        stockValue: true,
+        store: {
+          select: {
+            storeNameCust: true,
+            storeName: true,
+            storeId: true,
+            province: true,
+            region: true,
+          },
+        },
+        product: {
+          select: {
+            category: true,
+          },
+        },
       },
     });
 
@@ -309,7 +336,7 @@ export async function GET(req: NextRequest) {
     const linesFlagged = storeCategories.filter((sc) => sc.nonmoveValue > 0).length;
     const avgValuePerLine = totalLines > 0 ? Math.round(totalStockValue / totalLines) : 0;
 
-    return NextResponse.json({
+        const responseData = {
       reportDate: selectedDateStr,
       availableDates,
       tierLabels,
@@ -338,7 +365,11 @@ export async function GET(req: NextRequest) {
         grandPct: totalStockValue > 0 ? Math.round((nonmoveValue / totalStockValue) * 100) : 0,
       },
       storeCategories,
-    });
+    };
+
+    setInCache(cacheKey, responseData, 120_000); // 2 minutes
+    return NextResponse.json(responseData);
+
   } catch (error: any) {
     console.error("Error in /api/viewer/one-day:", error);
     return NextResponse.json(

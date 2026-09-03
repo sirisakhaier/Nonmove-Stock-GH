@@ -79,6 +79,8 @@ model NonMoveRow {
   product  Product @relation(fields: [productCode], references: [productCode], onDelete: Cascade)
 
   @@index([branchCode, reportDate])
+  @@index([reportDate, branchCode])
+  @@index([branchCode, reportDate, productCode])
   @@index([productCode])
   @@index([reportDate])
   @@map("nonmove_rows")

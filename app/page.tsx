@@ -435,7 +435,7 @@ export default function IdentifyPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">
-                    รหัสผ่าน Viewer (viewer1234)
+                    รหัสผ่าน Viewer
                   </label>
                   <Input
                     type="password"
@@ -501,7 +501,7 @@ export default function IdentifyPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">
-                    รหัสผ่าน Admin (admin1234)
+                    รหัสผ่าน Admin
                   </label>
                   <Input
                     type="password"

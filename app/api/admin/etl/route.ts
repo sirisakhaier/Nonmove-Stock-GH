@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processNonmoveExcel } from "@/scripts/etl/loadData";
+import { invalidateCache } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Allow 60s for serverless batch processing
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     const result = await processNonmoveExcel(buffer, file.name);
+    invalidateCache();
 
     return NextResponse.json({
       success: true,

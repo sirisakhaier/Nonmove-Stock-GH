@@ -57,8 +57,27 @@ export async function GET(req: NextRequest) {
 
     const rows = await prisma.nonMoveRow.findMany({
       where: whereClause,
-      include: {
-        product: true,
+      select: {
+        productCode: true,
+        stockQty: true,
+        stockValue: true,
+        nonmoveDaysBucket: true,
+        agingDaysBucket: true,
+        categoryName: true,
+        designName: true,
+        typeName: true,
+        mosLevel: true,
+        priceNormal: true,
+        product: {
+          select: {
+            productName: true,
+            model: true,
+            skuType: true,
+            category: true,
+            subCategory: true,
+            sizeGroup: true,
+          },
+        },
       },
     });
 

@@ -1,3 +1,4 @@
+import { getFromCache, setInCache } from "@/lib/apiCache";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { classifyNonmove, NONMOVE_BUCKET_ORDER, getWorstBucket, mapTo4Buckets } from "@/lib/nonmoveConfig";
@@ -93,9 +94,27 @@ export async function GET(req: NextRequest) {
       },
     };
 
+    const cacheKey = `summary_${branchCode}_${targetDateStr}_${category || "ALL"}_${bucket || "ALL"}_${skuType || "ALL"}`;
+    const cachedSummary = getFromCache(cacheKey);
+    if (cachedSummary) {
+      return NextResponse.json(cachedSummary);
+    }
+
     const rows = await prisma.nonMoveRow.findMany({
       where: whereClause,
-      include: { product: true },
+      select: {
+        productCode: true,
+        stockQty: true,
+        stockValue: true,
+        nonmoveDaysBucket: true,
+        categoryName: true,
+        product: {
+          select: {
+            category: true,
+            skuType: true,
+          },
+        },
+      },
     });
 
     // Approved exclusions
@@ -249,7 +268,7 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b.value - a.value);
 
-    return NextResponse.json({
+    const summaryResult = {
       store: {
         branchCode,
         branchName: store?.storeNameCust || store?.storeName || branchCode,
@@ -273,7 +292,10 @@ export async function GET(req: NextRequest) {
       categoryBreakdown: categoryData,
       categories: categoriesList.length > 0 ? categoriesList : ["TV", "WH", "FZ", "WM", "RF", "AC", "SDA", "CAC", "KT"],
       skuTypes: skuTypesList.length > 0 ? skuTypesList : ["SELLABLE", "DEMO", "MOCK_UP"],
-    });
+    };
+
+    setInCache(cacheKey, summaryResult, 60_000); // 1 minute
+    return NextResponse.json(summaryResult);
   } catch (error: any) {
     console.error("Error in /api/nonmove/summary:", error);
     return NextResponse.json(

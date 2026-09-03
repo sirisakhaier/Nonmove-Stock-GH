@@ -1,3 +1,4 @@
+import { getFromCache, setInCache } from "@/lib/apiCache";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -15,6 +16,11 @@ function mapBucketToTier(bucketStr: string): number {
 
 export async function GET(req: NextRequest) {
   try {
+    const cacheKey = "viewer_trend_summary";
+    const cachedData = getFromCache(cacheKey);
+    if (cachedData) {
+      return NextResponse.json(cachedData);
+    }
     // 1. Get all distinct snapshot dates in database in ascending order
     const dateRecords = await prisma.nonMoveRow.findMany({
       select: { reportDate: true },
