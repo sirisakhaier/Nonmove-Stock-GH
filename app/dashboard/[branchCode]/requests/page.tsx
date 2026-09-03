@@ -112,7 +112,7 @@ export default function MyRequestsPage() {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                ติดตามประวัติและสถานะการขอยกเว้นการคิด Non-Move Stock
+                ติดตามประวัติและสถานะการขอยกเว้นสินค้าค้างนาน
               </p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function MyRequestsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="ค้นหาโมเดล, รหัสสินค้า..."
+              placeholder="ค้นหารุ่นสินค้า, รหัสสินค้า..."
               className="h-8 w-full sm:w-60 pl-8 text-xs"
             />
           </div>
@@ -209,7 +209,7 @@ export default function MyRequestsPage() {
                           {r.product?.model || r.productCode}
                         </span>
                         <Badge variant="outline" className="text-[10px]">
-                          {r.requestType === "EXCLUDE" ? "ขอยกเว้น" : "ชี้แจง"}
+                          {"ขอยกเว้นสินค้า"}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[260px]">

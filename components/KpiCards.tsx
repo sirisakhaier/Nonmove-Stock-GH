@@ -30,7 +30,7 @@ export function KpiCards({ data = {} }: { data?: KpiData }) {
       <Card className="border-border shadow-xs">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2.5 sm:p-3.5 pb-1">
           <CardDescription className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider truncate">
-            รายการสินค้า (SKU)
+            รายการสินค้าทั้งหมด
           </CardDescription>
           <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
         </CardHeader>
@@ -48,7 +48,7 @@ export function KpiCards({ data = {} }: { data?: KpiData }) {
       <Card className="border-border shadow-xs">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2.5 sm:p-3.5 pb-1">
           <CardDescription className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider truncate">
-            จำนวนสต๊อก (Units)
+            จำนวนสต๊อกสินค้า (ชิ้น)
           </CardDescription>
           <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
         </CardHeader>
@@ -66,7 +66,7 @@ export function KpiCards({ data = {} }: { data?: KpiData }) {
       <Card className="border-border shadow-xs">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2.5 sm:p-3.5 pb-1">
           <CardDescription className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider truncate">
-            มูลค่าสต๊อก (Value)
+            มูลค่าสต๊อกรวม (บาท)
           </CardDescription>
           <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
         </CardHeader>
@@ -90,7 +90,7 @@ export function KpiCards({ data = {} }: { data?: KpiData }) {
           <CardDescription className={`text-[10px] sm:text-[11px] font-medium uppercase tracking-wider truncate ${
             isCritical ? "text-rose-700 dark:text-rose-400" : "text-muted-foreground"
           }`}>
-            Non-Move (&ge;61 วัน)
+            สินค้าค้างนาน (&ge;61 วัน)
           </CardDescription>
           <AlertTriangle className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${isCritical ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`} />
         </CardHeader>

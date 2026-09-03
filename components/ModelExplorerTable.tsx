@@ -91,7 +91,7 @@ export function ModelExplorerTable({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Non-Move &ge;61 วัน ({highPct}%)
+              สินค้าค้างนาน &ge;61 วัน ({highPct}%)
             </button>
             <button
               onClick={() => onStatusChange("ALL")}
@@ -123,7 +123,7 @@ export function ModelExplorerTable({
                 type="text"
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="ค้นหาโมเดล, รหัสสินค้า..."
+                placeholder="ค้นหารุ่นสินค้า, รหัสสินค้า..."
                 className="h-8 pl-8 text-xs w-full"
               />
             </div>
@@ -148,10 +148,10 @@ export function ModelExplorerTable({
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40 text-[10px] sm:text-[11px]">
                 <TableHead className="w-8 py-2 px-2 text-center">#</TableHead>
-                <TableHead className="py-2 px-2.5 sm:px-3 font-bold">ข้อมูลโมเดล (Model & Code)</TableHead>
-                <TableHead className="py-2 px-2 text-center w-24 sm:w-28 font-bold whitespace-nowrap">ช่วงวัน</TableHead>
-                <TableHead className="py-2 px-2 text-right w-20 sm:w-24 font-bold whitespace-nowrap">จำนวนชิ้น</TableHead>
-                <TableHead className="py-2 px-2.5 text-right w-16 sm:w-20 font-bold whitespace-nowrap">คำขอ</TableHead>
+                <TableHead className="py-2 px-2.5 sm:px-3 font-bold">ข้อมูลรุ่นและรหัสสินค้า</TableHead>
+                <TableHead className="py-2 px-2 text-center w-24 sm:w-28 font-bold whitespace-nowrap">ช่วงระยะเวลา</TableHead>
+                <TableHead className="py-2 px-2 text-right w-20 sm:w-24 font-bold whitespace-nowrap">จำนวนสต๊อก (ชิ้น)</TableHead>
+                <TableHead className="py-2 px-2.5 text-right w-16 sm:w-20 font-bold whitespace-nowrap">ยื่นคำขอ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -226,7 +226,7 @@ export function ModelExplorerTable({
                             variant="ghost"
                             size="icon"
                             onClick={() => onSelectProduct(item)}
-                            title="ยื่นคำขอสำหรับโมเดลนี้"
+                            title="ยื่นยื่นคำขอสำหรับโมเดลนี้"
                             className="h-7 w-7 text-muted-foreground hover:text-primary"
                           >
                             <FileEdit className="h-3.5 w-3.5" />

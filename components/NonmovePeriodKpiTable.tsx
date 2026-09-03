@@ -61,10 +61,10 @@ export function NonmovePeriodKpiTable({
             </div>
             <div>
               <CardTitle className="text-xs sm:text-sm font-bold text-foreground">
-                สัดส่วนสินค้าตาม 4 ช่วงวัน (Non-Move Period KPI Table)
+                ตารางสัดส่วนสินค้าตาม 4 ช่วงวัน
               </CardTitle>
               <CardDescription className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">
-                จำนวน SKU และสัดส่วน % เทียบสินค้าทั้งหมด 4 ช่วงวัน
+                สรุปจำนวนสินค้าและสัดส่วนตามระยะเวลาที่ไม่เคลื่อนไหว
               </CardDescription>
             </div>
           </div>
@@ -80,11 +80,11 @@ export function NonmovePeriodKpiTable({
           <Table className="w-full text-xs">
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40 text-[10px] sm:text-[11px]">
-                <TableHead className="py-2 px-2.5 sm:px-3 font-bold whitespace-nowrap">ช่วงวันไม่เคลื่อนไหว</TableHead>
-                <TableHead className="py-2 px-2 sm:px-3 text-right font-bold whitespace-nowrap">จำนวน SKU</TableHead>
-                <TableHead className="py-2 px-2 sm:px-3 text-center font-bold whitespace-nowrap">% เทียบ SKU ทั้งหมด</TableHead>
-                <TableHead className="py-2 px-2 sm:px-3 text-right font-bold whitespace-nowrap">จำนวนชิ้น</TableHead>
-                <TableHead className="py-2 px-2.5 sm:px-3 text-right font-bold whitespace-nowrap">มูลค่าสต๊อก (บาท)</TableHead>
+                <TableHead className="py-2 px-2.5 sm:px-3 font-bold whitespace-nowrap">ช่วงระยะเวลา</TableHead>
+                <TableHead className="py-2 px-2 sm:px-3 text-right font-bold whitespace-nowrap">จำนวนรายการ (SKU)</TableHead>
+                <TableHead className="py-2 px-2 sm:px-3 text-center font-bold whitespace-nowrap">สัดส่วนเทียบทั้งหมด (%)</TableHead>
+                <TableHead className="py-2 px-2 sm:px-3 text-right font-bold whitespace-nowrap">จำนวนสต๊อก (ชิ้น)</TableHead>
+                <TableHead className="py-2 px-2.5 sm:px-3 text-right font-bold whitespace-nowrap">มูลค่ารวม (บาท)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

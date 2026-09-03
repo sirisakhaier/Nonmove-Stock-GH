@@ -101,7 +101,7 @@ export function UserModuleFilterBar({
 
   const getCatDisplayText = () => {
     if (categories.length === 0) return "กำลังโหลดหมวดหมู่...";
-    if (selectedCategories.length === categories.length) return "ทุก Category (All)";
+    if (selectedCategories.length === categories.length) return "ทุกหมวดหมู่";
     // Check if default (all except CAC, KT)
     const nonCacKt = categories.filter((c) => !["CAC", "KT"].includes(c.toUpperCase()));
     const isDefault =
@@ -130,7 +130,7 @@ export function UserModuleFilterBar({
   };
 
   const getBucketDisplayText = () => {
-    if (selectedBuckets.length === NONMOVE_BUCKET_ORDER.length) return "ทุกช่วงวัน (All)";
+    if (selectedBuckets.length === NONMOVE_BUCKET_ORDER.length) return "ทุกช่วงวัน";
     if (selectedBuckets.length === 1) {
       const b = selectedBuckets[0];
       return b === "121 up" ? "121 วันขึ้นไป" : `${b} วัน`;
@@ -155,8 +155,8 @@ export function UserModuleFilterBar({
   };
 
   const getTypeDisplayText = () => {
-    if (selectedSkuTypes.length === skuTypes.length && skuTypes.length > 1) return "ทุกประเภท (All)";
-    if (selectedSkuTypes.length === 1 && selectedSkuTypes[0] === "SELLABLE") return "Sellable (สินค้าจำหน่าย)";
+    if (selectedSkuTypes.length === skuTypes.length && skuTypes.length > 1) return "ทุกประเภท";
+    if (selectedSkuTypes.length === 1 && selectedSkuTypes[0] === "SELLABLE") return "สินค้าจำหน่าย (Sellable)";
     if (selectedSkuTypes.length === 1) return selectedSkuTypes[0];
     return `เลือก ${selectedSkuTypes.length} ประเภท`;
   };
@@ -167,7 +167,7 @@ export function UserModuleFilterBar({
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-primary shrink-0" />
           <span className="font-bold text-xs text-foreground">
-            ตัวกรองสต๊อกสาขา (ส่งผลต่อการ์ด KPI และตารางด้านล่าง)
+            ตัวกรองสต๊อกสินค้า (ส่งผลต่อข้อมูลในหน้านี้ทั้งหมด)
           </span>
           <Badge variant="secondary" className="text-[10px] py-0 px-2 font-normal">
             {selectedCategories.length} หมวด · {selectedBuckets.length} ช่วงวัน · {selectedSkuTypes.length} ประเภท
@@ -180,7 +180,7 @@ export function UserModuleFilterBar({
           size="sm"
           onClick={onResetFilters}
           className="h-7 text-xs gap-1.5"
-          title="รีเซ็ตค่าเริ่มต้น: ทุกหมวดหมู่ (ไม่รวม CAC,KT), ทุกช่วงวัน, เฉพาะ Sellable"
+          title="รีเซ็ตค่าเริ่มต้นของตัวกรอง"
         >
           <RotateCcw className="h-3 w-3" />
           <span>รีเซ็ตตัวกรอง</span>
@@ -192,7 +192,7 @@ export function UserModuleFilterBar({
         {/* 1. Category Multi-Check Popover */}
         <div className="relative" ref={catRef}>
           <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-            หมวดหมู่ (Category)
+            หมวดหมู่สินค้า
           </label>
           <button
             type="button"
@@ -279,7 +279,7 @@ export function UserModuleFilterBar({
         {/* 2. Non-Move Period Multi-Check Popover */}
         <div className="relative" ref={bucketRef}>
           <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-            ช่วงวันไม่เคลื่อนไหว (Period)
+            ช่วงวันไม่เคลื่อนไหว
           </label>
           <button
             type="button"
@@ -358,7 +358,7 @@ export function UserModuleFilterBar({
         {/* 3. SKU Type Multi-Check Popover */}
         <div className="relative" ref={typeRef}>
           <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-            ประเภทสินค้า (SKU Type)
+            ประเภทสินค้า
           </label>
           <button
             type="button"
