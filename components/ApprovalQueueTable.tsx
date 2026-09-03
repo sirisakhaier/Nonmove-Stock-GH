@@ -52,36 +52,59 @@ export interface SkuRequestItem {
   reviewedByName?: string | null;
   requestedAt: string;
   reviewedAt?: string | null;
-  store: {
+  store?: {
     branchCode: string;
-    storeNameCust: string;
-    region: string;
+    storeNameCust?: string;
+    storeName?: string;
+    region?: string;
     province?: string | null;
   };
-  product: {
+  product?: {
     productCode: string;
     productName: string;
     model?: string | null;
     category?: string | null;
   };
   requestedBy?: {
-    name: string;
-    phone: string;
+    name?: string;
+    phone?: string;
   };
-  photos: {
+  photos?: {
     id: string;
     url: string;
   }[];
 }
 
 interface ApprovalQueueProps {
-  requests: SkuRequestItem[];
+  requests?: SkuRequestItem[];
   onDecision: (id: string, decision: "APPROVED" | "REJECTED" | "REVISE", comment?: string) => Promise<void>;
   onRefresh?: () => void;
-  isLoading: boolean;
+  isLoading?: boolean;
 }
 
-export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading }: ApprovalQueueProps) {
+function formatSafeDate(dateStr?: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("th-TH", {
+      day: "numeric",
+      month: "short",
+      year: "2-digit",
+    });
+  } catch {
+    return "-";
+  }
+}
+
+export function ApprovalQueueTable({
+  requests = [],
+  onDecision,
+  onRefresh,
+  isLoading = false,
+}: ApprovalQueueProps) {
+  const safeRequests = Array.isArray(requests) ? requests : [];
+
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<SkuRequestItem | null>(null);
   const [activeDecision, setActiveDecision] = useState<"APPROVED" | "REJECTED" | "REVISE" | null>(null);
@@ -91,7 +114,7 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
   const [statusFilter, setStatusFilter] = useState<string>("PENDING");
   const [regionFilter, setRegionFilter] = useState<string>("ALL");
 
-  // Pagination (10 records per page per request)
+  // Pagination (10 records per page)
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -99,26 +122,35 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
   const [requestToDelete, setRequestToDelete] = useState<SkuRequestItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const regions = Array.from(new Set(requests.map((r) => r.store?.region))).filter(Boolean);
+  const regions = useMemo(() => {
+    return Array.from(new Set(safeRequests.map((r) => r?.store?.region))).filter(Boolean) as string[];
+  }, [safeRequests]);
 
   const filteredRequests = useMemo(() => {
-    return requests.filter((r) => {
+    return safeRequests.filter((r) => {
+      if (!r) return false;
       if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
       if (regionFilter !== "ALL" && r.store?.region !== regionFilter) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
+        const pCode = (r.productCode || "").toLowerCase();
+        const pName = (r.product?.productName || "").toLowerCase();
+        const mName = (r.product?.model || "").toLowerCase();
+        const bCode = (r.branchCode || "").toLowerCase();
+        const sName = (r.store?.storeNameCust || r.store?.storeName || "").toLowerCase();
+        const reason = (r.reason || "").toLowerCase();
         return (
-          r.productCode.toLowerCase().includes(q) ||
-          r.product?.productName?.toLowerCase().includes(q) ||
-          r.product?.model?.toLowerCase().includes(q) ||
-          r.branchCode.toLowerCase().includes(q) ||
-          r.store?.storeNameCust?.toLowerCase().includes(q) ||
-          r.reason?.toLowerCase().includes(q)
+          pCode.includes(q) ||
+          pName.includes(q) ||
+          mName.includes(q) ||
+          bCode.includes(q) ||
+          sName.includes(q) ||
+          reason.includes(q)
         );
       }
       return true;
     });
-  }, [requests, statusFilter, regionFilter, search]);
+  }, [safeRequests, statusFilter, regionFilter, search]);
 
   const totalPages = Math.ceil(filteredRequests.length / pageSize) || 1;
   const paginatedRequests = useMemo(() => {
@@ -186,7 +218,7 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              รอพิจารณา ({requests.filter((r) => r.status === "PENDING").length})
+              รอพิจารณา ({safeRequests.filter((r) => r?.status === "PENDING").length})
             </button>
             <button
               onClick={() => { setStatusFilter("ALL"); setPage(1); }}
@@ -196,7 +228,7 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              ทั้งหมด ({requests.length})
+              ทั้งหมด ({safeRequests.length})
             </button>
           </div>
 
@@ -268,7 +300,7 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
               ) : paginatedRequests.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                    ไม่มีรายการคำขอในสถานะนี้
+                    ไม่มีรายการคำขอในเงื่อนไขนี้
                   </TableCell>
                 </TableRow>
               ) : (
@@ -276,18 +308,14 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
                   <TableRow key={r.id} className="hover:bg-muted/50 transition-colors">
                     {/* Date */}
                     <TableCell className="font-mono text-muted-foreground text-[11px] py-2 px-3 whitespace-nowrap">
-                      {new Date(r.requestedAt).toLocaleDateString("th-TH", {
-                        day: "numeric",
-                        month: "short",
-                        year: "2-digit",
-                      })}
+                      {formatSafeDate(r.requestedAt)}
                     </TableCell>
 
                     {/* Branch */}
                     <TableCell className="py-2 px-3">
                       <div className="font-bold text-foreground text-xs">{r.branchCode}</div>
                       <div className="text-[10px] text-muted-foreground truncate max-w-[130px]">
-                        {r.store?.storeNameCust}
+                        {r.store?.storeNameCust || r.store?.storeName || "-"}
                       </div>
                     </TableCell>
 
@@ -307,7 +335,7 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
                         {r.reason}
                       </div>
                       {r.comments && (
-                        <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
+                        <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5 whitespace-pre-line">
                           {r.comments}
                         </div>
                       )}
@@ -319,7 +347,7 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
                         <Badge
                           variant="secondary"
                           className="gap-1 cursor-pointer hover:bg-muted text-[10px] py-0 px-1.5 font-mono"
-                          onClick={() => setSelectedPhoto(r.photos[0].url)}
+                          onClick={() => setSelectedPhoto(r.photos![0].url)}
                         >
                           <ImageIcon className="h-3 w-3" />
                           <span>{r.photos.length}</span>
@@ -411,7 +439,7 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
                   พิจารณาคำขอยกเว้นสินค้า
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
-                  สาขา: {selectedRequest.branchCode} ({selectedRequest.store?.storeNameCust})
+                  สาขา: {selectedRequest.branchCode} ({selectedRequest.store?.storeNameCust || "-"})
                 </CardDescription>
               </div>
               <Button
@@ -630,7 +658,7 @@ export function ApprovalQueueTable({ requests, onDecision, onRefresh, isLoading 
                   รุ่น: {requestToDelete.product?.model || requestToDelete.productCode}
                 </div>
                 <div className="text-muted-foreground">
-                  สาขา: {requestToDelete.branchCode} ({requestToDelete.store?.storeNameCust})
+                  สาขา: {requestToDelete.branchCode} ({requestToDelete.store?.storeNameCust || "-"})
                 </div>
                 <div className="text-muted-foreground">
                   เหตุผล: {requestToDelete.reason}

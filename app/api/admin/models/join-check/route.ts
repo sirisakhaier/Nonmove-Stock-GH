@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getFromCache, setInCache } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const cacheKey = "admin_models_join_check";
+    const cached = getFromCache<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     // 1. Get all distinct ProductCodes from NonMoveRows (Daily Stock Report)
     const stockRows = await prisma.nonMoveRow.findMany({
       select: {
@@ -111,7 +118,7 @@ export async function GET(req: NextRequest) {
 
     const matchRatePct = totalStockSkus > 0 ? Math.round((matchedSkusCount / totalStockSkus) * 100) : 100;
 
-    return NextResponse.json({
+    const result = {
       totalStockSkus,
       totalMasterModels,
       matchedSkusCount,
@@ -124,7 +131,9 @@ export async function GET(req: NextRequest) {
       isFullyMatched: unmatchedSkusCount === 0,
       unmatchedList,
       matchedSample: matchedList.slice(0, 50),
-    });
+    };
+    setInCache(cacheKey, result, 120_000);
+    return NextResponse.json(result);
   } catch (error: any) {
     console.error("Error checking model join:", error);
     return NextResponse.json(

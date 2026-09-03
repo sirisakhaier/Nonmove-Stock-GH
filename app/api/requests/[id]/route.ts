@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { invalidateCache } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,7 @@ export async function PATCH(
       },
     });
 
+    invalidateCache("admin_");
     return NextResponse.json({ success: true, request: updated });
   } catch (error: any) {
     console.error("Error in PATCH /api/requests/[id]:", error);
@@ -142,6 +144,7 @@ export async function DELETE(
       where: { id },
     });
 
+    invalidateCache("admin_");
     return NextResponse.json({
       success: true,
       message: "ลบรายการคำขอเรียบร้อยแล้ว",

@@ -61,9 +61,24 @@ interface SkuRequestItem {
 }
 
 interface RequestExportManagerProps {
-  requests: SkuRequestItem[];
+  requests?: SkuRequestItem[];
   isLoading?: boolean;
   onRefresh?: () => void;
+}
+
+function formatSafeDate(dateStr?: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("th-TH", {
+      day: "numeric",
+      month: "short",
+      year: "2-digit",
+    });
+  } catch {
+    return "-";
+  }
 }
 
 export function RequestExportManager({
@@ -71,6 +86,8 @@ export function RequestExportManager({
   isLoading = false,
   onRefresh,
 }: RequestExportManagerProps) {
+  const safeRequests = Array.isArray(requests) ? requests : [];
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [search, setSearch] = useState("");
@@ -79,22 +96,29 @@ export function RequestExportManager({
 
   // Filter requests
   const filteredRequests = useMemo(() => {
-    return requests.filter((r) => {
+    return safeRequests.filter((r) => {
+      if (!r) return false;
       if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
+        const pCode = (r.productCode || "").toLowerCase();
+        const bCode = (r.branchCode || "").toLowerCase();
+        const mName = (r.product?.model || "").toLowerCase();
+        const pName = (r.product?.productName || "").toLowerCase();
+        const sName = (r.store?.storeNameCust || r.store?.storeName || "").toLowerCase();
+        const reason = (r.reason || "").toLowerCase();
         return (
-          r.productCode.toLowerCase().includes(q) ||
-          r.branchCode.toLowerCase().includes(q) ||
-          (r.product?.model && r.product.model.toLowerCase().includes(q)) ||
-          (r.product?.productName && r.product.productName.toLowerCase().includes(q)) ||
-          (r.store?.storeNameCust && r.store.storeNameCust.toLowerCase().includes(q)) ||
-          (r.reason && r.reason.toLowerCase().includes(q))
+          pCode.includes(q) ||
+          bCode.includes(q) ||
+          mName.includes(q) ||
+          pName.includes(q) ||
+          sName.includes(q) ||
+          reason.includes(q)
         );
       }
       return true;
     });
-  }, [requests, statusFilter, search]);
+  }, [safeRequests, statusFilter, search]);
 
   const totalPages = Math.ceil(filteredRequests.length / pageSize) || 1;
   const paginatedRequests = useMemo(() => {
@@ -203,7 +227,7 @@ export function RequestExportManager({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                ทั้งหมด ({requests.length})
+                ทั้งหมด ({safeRequests.length})
               </button>
               <button
                 onClick={() => { setStatusFilter("PENDING"); setPage(1); }}
@@ -213,7 +237,7 @@ export function RequestExportManager({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                รอพิจารณา ({requests.filter((r) => r.status === "PENDING").length})
+                รอพิจารณา ({safeRequests.filter((r) => r?.status === "PENDING").length})
               </button>
               <button
                 onClick={() => { setStatusFilter("APPROVED"); setPage(1); }}
@@ -223,7 +247,7 @@ export function RequestExportManager({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                อนุมัติแล้ว ({requests.filter((r) => r.status === "APPROVED").length})
+                อนุมัติแล้ว ({safeRequests.filter((r) => r?.status === "APPROVED").length})
               </button>
               <button
                 onClick={() => { setStatusFilter("REVISE"); setPage(1); }}
@@ -233,7 +257,7 @@ export function RequestExportManager({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                ขอข้อมูลเพิ่ม ({requests.filter((r) => r.status === "REVISE").length})
+                ขอข้อมูลเพิ่ม ({safeRequests.filter((r) => r?.status === "REVISE").length})
               </button>
               <button
                 onClick={() => { setStatusFilter("REJECTED"); setPage(1); }}
@@ -243,7 +267,7 @@ export function RequestExportManager({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                ไม่อนุมัติ ({requests.filter((r) => r.status === "REJECTED").length})
+                ไม่อนุมัติ ({safeRequests.filter((r) => r?.status === "REJECTED").length})
               </button>
             </div>
 
@@ -368,11 +392,7 @@ export function RequestExportManager({
 
                       {/* Date */}
                       <TableCell className="py-2 px-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                        {new Date(r.requestedAt).toLocaleDateString("th-TH", {
-                          day: "numeric",
-                          month: "short",
-                          year: "2-digit",
-                        })}
+                        {formatSafeDate(r.requestedAt)}
                       </TableCell>
 
                       {/* Store */}
@@ -399,7 +419,7 @@ export function RequestExportManager({
                           {r.reason}
                         </div>
                         {r.comments && (
-                          <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
+                          <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5 whitespace-pre-line">
                             {r.comments}
                           </div>
                         )}

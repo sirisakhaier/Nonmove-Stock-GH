@@ -1,36 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getFromCache, setInCache } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const totalStores = await prisma.store.count();
-    const totalProducts = await prisma.product.count();
-    const totalFactRows = await prisma.nonMoveRow.count();
-    const totalSessions = await prisma.userSession.count();
-    const totalRequests = await prisma.skuRequest.count();
+    const cacheKey = "admin_stats_overview";
+    const cached = getFromCache<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
 
-    const pendingRequests = await prisma.skuRequest.count({ where: { status: "PENDING" } });
-    const approvedRequests = await prisma.skuRequest.count({ where: { status: "APPROVED" } });
-    const rejectedRequests = await prisma.skuRequest.count({ where: { status: "REJECTED" } });
-
-    const dateRecords = await prisma.nonMoveRow.groupBy({
-      by: ["reportDate"],
-      _count: {
-        _all: true,
-      },
-      orderBy: {
-        reportDate: "desc",
-      },
-    });
+    const [
+      totalStores,
+      totalProducts,
+      totalFactRows,
+      totalSessions,
+      totalRequests,
+      pendingRequests,
+      approvedRequests,
+      rejectedRequests,
+      dateRecords,
+    ] = await Promise.all([
+      prisma.store.count(),
+      prisma.product.count(),
+      prisma.nonMoveRow.count(),
+      prisma.userSession.count(),
+      prisma.skuRequest.count(),
+      prisma.skuRequest.count({ where: { status: "PENDING" } }),
+      prisma.skuRequest.count({ where: { status: "APPROVED" } }),
+      prisma.skuRequest.count({ where: { status: "REJECTED" } }),
+      prisma.nonMoveRow.groupBy({
+        by: ["reportDate"],
+        _count: {
+          _all: true,
+        },
+        _sum: {
+          stockQty: true,
+          stockValue: true,
+        },
+        orderBy: {
+          reportDate: "desc",
+        },
+      }),
+    ]);
 
     const snapshots = dateRecords.map((d) => ({
       date: d.reportDate.toISOString().split("T")[0],
+      count: d._count._all,
       rowCount: d._count._all,
+      totalQty: d._sum?.stockQty || 0,
+      totalValue: Math.round(d._sum?.stockValue || 0),
     }));
 
-    return NextResponse.json({
+    const result = {
       totalStores,
       totalProducts,
       totalFactRows,
@@ -42,7 +66,10 @@ export async function GET(req: NextRequest) {
         rejected: rejectedRequests,
       },
       snapshots,
-    });
+    };
+
+    setInCache(cacheKey, result, 60_000);
+    return NextResponse.json(result);
   } catch (error: any) {
     console.error("Error in /api/admin/stats:", error);
     return NextResponse.json({ error: error.message || "Failed to fetch admin stats" }, { status: 500 });

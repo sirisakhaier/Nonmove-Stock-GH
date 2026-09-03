@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Search,
   Download,
@@ -42,53 +42,82 @@ interface SkuRequestItem {
   reviewedByName?: string | null;
   requestedAt: string;
   reviewedAt?: string | null;
-  store: {
+  store?: {
     branchCode: string;
-    storeNameCust: string;
-    region: string;
+    storeNameCust?: string;
+    storeName?: string;
+    region?: string;
     province?: string | null;
   };
-  product: {
+  product?: {
     productCode: string;
     productName: string;
     model?: string | null;
     category?: string | null;
   };
   requestedBy?: {
-    name: string;
-    phone: string;
+    name?: string;
+    phone?: string;
   };
-  photos: {
+  photos?: {
     id: string;
     url: string;
   }[];
 }
 
-export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestItem[] }) {
+function formatSafeDate(dateStr?: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("th-TH", {
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "-";
+  }
+}
+
+export function RequestHistoryTable({ requests = [] }: { requests?: SkuRequestItem[] }) {
+  const safeRequests = Array.isArray(requests) ? requests : [];
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [regionFilter, setRegionFilter] = useState("ALL");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
-  const regions = Array.from(new Set(requests.map((r) => r.store?.region))).filter(Boolean);
+  const regions = useMemo(() => {
+    return Array.from(new Set(safeRequests.map((r) => r?.store?.region))).filter(Boolean) as string[];
+  }, [safeRequests]);
 
-  const filteredRequests = requests.filter((r) => {
-    if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
-    if (regionFilter !== "ALL" && r.store?.region !== regionFilter) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      return (
-        r.productCode.toLowerCase().includes(q) ||
-        r.product?.productName?.toLowerCase().includes(q) ||
-        r.product?.model?.toLowerCase().includes(q) ||
-        r.branchCode.toLowerCase().includes(q) ||
-        r.store?.storeNameCust?.toLowerCase().includes(q) ||
-        r.requestedBy?.name?.toLowerCase().includes(q) ||
-        r.reviewedByName?.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filteredRequests = useMemo(() => {
+    return safeRequests.filter((r) => {
+      if (!r) return false;
+      if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
+      if (regionFilter !== "ALL" && r.store?.region !== regionFilter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const pCode = (r.productCode || "").toLowerCase();
+        const pName = (r.product?.productName || "").toLowerCase();
+        const mName = (r.product?.model || "").toLowerCase();
+        const bCode = (r.branchCode || "").toLowerCase();
+        const sName = (r.store?.storeNameCust || r.store?.storeName || "").toLowerCase();
+        const uName = (r.requestedBy?.name || "").toLowerCase();
+        const rName = (r.reviewedByName || "").toLowerCase();
+        return (
+          pCode.includes(q) ||
+          pName.includes(q) ||
+          mName.includes(q) ||
+          bCode.includes(q) ||
+          sName.includes(q) ||
+          uName.includes(q) ||
+          rName.includes(q)
+        );
+      }
+      return true;
+    });
+  }, [safeRequests, statusFilter, regionFilter, search]);
 
   return (
     <div className="space-y-4">
@@ -105,7 +134,7 @@ export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestIte
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              ทั้งหมด ({requests.length})
+              ทั้งหมด ({safeRequests.length})
             </button>
             <button
               onClick={() => setStatusFilter("APPROVED")}
@@ -115,7 +144,7 @@ export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestIte
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              อนุมัติ ({requests.filter((r) => r.status === "APPROVED").length})
+              อนุมัติ ({safeRequests.filter((r) => r?.status === "APPROVED").length})
             </button>
             <button
               onClick={() => setStatusFilter("REJECTED")}
@@ -125,7 +154,7 @@ export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestIte
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              ไม่อนุมัติ ({requests.filter((r) => r.status === "REJECTED").length})
+              ไม่อนุมัติ ({safeRequests.filter((r) => r?.status === "REJECTED").length})
             </button>
             <button
               onClick={() => setStatusFilter("REVISE")}
@@ -135,7 +164,7 @@ export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestIte
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              ขอข้อมูลเพิ่ม ({requests.filter((r) => r.status === "REVISE").length})
+              ขอข้อมูลเพิ่ม ({safeRequests.filter((r) => r?.status === "REVISE").length})
             </button>
           </div>
 
@@ -195,14 +224,11 @@ export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestIte
               filteredRequests.map((r) => (
                 <TableRow key={r.id} className="hover:bg-muted/50">
                   <TableCell className="font-mono text-muted-foreground text-[11px]">
-                    {new Date(r.requestedAt).toLocaleDateString("th-TH", {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {formatSafeDate(r.requestedAt)}
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium text-foreground text-xs">{r.store?.storeNameCust || r.branchCode}</div>
-                    <div className="text-[11px] text-muted-foreground font-mono">{r.branchCode} · ภาค {r.store?.region}</div>
+                    <div className="font-medium text-foreground text-xs">{r.store?.storeNameCust || r.store?.storeName || r.branchCode}</div>
+                    <div className="text-[11px] text-muted-foreground font-mono">{r.branchCode} {r.store?.region ? `· ภาค ${r.store.region}` : ""}</div>
                   </TableCell>
                   <TableCell>
                     <div className="font-bold text-foreground text-xs">{r.product?.model || r.productCode}</div>
@@ -225,16 +251,16 @@ export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestIte
                   </TableCell>
                   <TableCell className="text-center">
                     {r.photos && r.photos.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedPhoto(r.photos[0].url)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary text-foreground text-[11px] font-medium hover:bg-muted border border-border"
+                      <Badge
+                        variant="secondary"
+                        className="gap-1 cursor-pointer hover:bg-muted text-[10px] py-0 px-1.5 font-mono"
+                        onClick={() => setSelectedPhoto(r.photos![0].url)}
                       >
-                        <ImageIcon className="h-3 w-3 text-blue-600" />
-                        <span>{r.photos.length} รูป</span>
-                      </button>
+                        <ImageIcon className="h-3 w-3" />
+                        <span>{r.photos.length}</span>
+                      </Badge>
                     ) : (
-                      <span className="text-[11px] text-muted-foreground">-</span>
+                      <span className="text-muted-foreground text-[10px]">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
@@ -242,14 +268,14 @@ export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestIte
                   </TableCell>
                   <TableCell className="max-w-[220px]">
                     {r.reviewComment ? (
-                      <div className="text-xs text-foreground font-medium">{r.reviewComment}</div>
-                    ) : (
-                      <div className="text-[11px] text-muted-foreground">-</div>
-                    )}
-                    {r.reviewedByName && (
-                      <div className="text-[10px] text-muted-foreground mt-0.5">
-                        โดย: {r.reviewedByName}
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-foreground leading-snug">{r.reviewComment}</p>
+                        <div className="text-[10px] text-muted-foreground">
+                          โดย: {r.reviewedByName || "Admin"}
+                        </div>
                       </div>
+                    ) : (
+                      <span className="text-muted-foreground text-[11px]">-</span>
                     )}
                   </TableCell>
                 </TableRow>
@@ -259,7 +285,7 @@ export function RequestHistoryTable({ requests = [] }: { requests: SkuRequestIte
         </Table>
       </Card>
 
-      {/* Photo Lightbox Modal */}
+      {/* Lightbox for Photos */}
       {selectedPhoto && (
         <PhotoLightbox
           photoUrl={selectedPhoto}

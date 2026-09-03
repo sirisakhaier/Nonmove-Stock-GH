@@ -271,7 +271,9 @@ export default function AdminPage() {
     );
   }
 
-  const pendingCount = requests.filter((r) => r.status === "PENDING").length;
+  const pendingCount = Array.isArray(requests)
+    ? requests.filter((r) => r && r.status === "PENDING").length
+    : 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors">
@@ -312,7 +314,7 @@ export default function AdminPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border border-border bg-muted/40 rounded-lg p-1 gap-1 text-xs">
           {/* Tab 1: Combined Import & Delete Data */}
           <button
-            onClick={() => { setActiveTab("DATA"); fetchStats(); }}
+            onClick={() => setActiveTab("DATA")}
             className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "DATA"
                 ? "bg-card text-foreground font-semibold shadow-xs"
@@ -351,7 +353,7 @@ export default function AdminPage() {
 
           {/* Tab 4: Approvals Queue */}
           <button
-            onClick={() => { setActiveTab("APPROVALS"); fetchRequests(); }}
+            onClick={() => setActiveTab("APPROVALS")}
             className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "APPROVALS"
                 ? "bg-card text-foreground font-semibold shadow-xs"
@@ -364,7 +366,7 @@ export default function AdminPage() {
 
           {/* Tab 5: Request History & Status Logs */}
           <button
-            onClick={() => { setActiveTab("HISTORY"); fetchRequests(); }}
+            onClick={() => setActiveTab("HISTORY")}
             className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md font-medium transition-all ${
               activeTab === "HISTORY"
                 ? "bg-card text-foreground font-semibold shadow-xs"
@@ -372,7 +374,7 @@ export default function AdminPage() {
             }`}
           >
             <History className="h-3.5 w-3.5" />
-            <span>5. ประวัติ ({requests.length})</span>
+            <span>5. ประวัติ ({(requests || []).length})</span>
           </button>
 
           {/* Tab 6: Export Excel */}
@@ -555,7 +557,7 @@ export default function AdminPage() {
                             {s.date}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatNumber(s.count)}
+                            {formatNumber(s.count || s.rowCount || 0)}
                           </TableCell>
                           <TableCell className="text-right font-mono font-medium text-xs">
                             {formatNumber(s.totalQty || 0)}
