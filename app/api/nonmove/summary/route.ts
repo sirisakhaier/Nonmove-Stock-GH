@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { classifyNonmove, NONMOVE_BUCKET_ORDER, getWorstBucket } from "@/lib/nonmoveConfig";
+import { classifyNonmove, NONMOVE_BUCKET_ORDER, getWorstBucket, mapTo4Buckets } from "@/lib/nonmoveConfig";
 
 export async function GET(req: NextRequest) {
   try {
@@ -119,14 +119,14 @@ export async function GET(req: NextRequest) {
         modelMap.set(p, {
           stockQty: r.stockQty,
           stockValue: r.stockValue,
-          buckets: [r.nonmoveDaysBucket],
+          buckets: [mapTo4Buckets(r.nonmoveDaysBucket)],
           categoryName: cat,
         });
       } else {
         const item = modelMap.get(p)!;
         item.stockQty += r.stockQty;
         item.stockValue += r.stockValue;
-        item.buckets.push(r.nonmoveDaysBucket);
+        item.buckets.push(mapTo4Buckets(r.nonmoveDaysBucket));
       }
     }
 

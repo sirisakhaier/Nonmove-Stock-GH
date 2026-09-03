@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { classifyNonmove, NONMOVE_BUCKET_ORDER, getWorstBucket } from "@/lib/nonmoveConfig";
+import { classifyNonmove, NONMOVE_BUCKET_ORDER, getWorstBucket, mapTo4Buckets } from "@/lib/nonmoveConfig";
 
 export const dynamic = "force-dynamic";
 
@@ -152,21 +152,21 @@ export async function GET(req: NextRequest) {
           categoryName: r.product?.category || r.categoryName || "Other",
           subCategory: r.product?.subCategory || r.typeName || "-",
           sizeGroup: r.product?.sizeGroup || "-",
-          nonmoveDaysBucket: r.nonmoveDaysBucket,
+          nonmoveDaysBucket: mapTo4Buckets(r.nonmoveDaysBucket),
           agingDaysBucket: r.agingDaysBucket,
           stockQty: r.stockQty,
           stockValue: r.stockValue,
           mosLevel: r.mosLevel,
           priceNormal: r.priceNormal,
-          allBuckets: [r.nonmoveDaysBucket],
-          classification: classifyNonmove(r.nonmoveDaysBucket),
+          allBuckets: [mapTo4Buckets(r.nonmoveDaysBucket)],
+          classification: classifyNonmove(mapTo4Buckets(r.nonmoveDaysBucket)),
           isExcluded,
           activeRequest: reqInfo,
         });
       } else {
         existing.stockQty += r.stockQty;
         existing.stockValue += r.stockValue;
-        existing.allBuckets.push(r.nonmoveDaysBucket);
+        existing.allBuckets.push(mapTo4Buckets(r.nonmoveDaysBucket));
         existing.nonmoveDaysBucket = getWorstBucket(existing.allBuckets);
         existing.classification = classifyNonmove(existing.nonmoveDaysBucket);
       }
@@ -176,7 +176,7 @@ export async function GET(req: NextRequest) {
 
     // Filter by bucket if specified
     if (nonmoveDays && nonmoveDays !== "ALL") {
-      const allowedBuckets = new Set(nonmoveDays.split(",").map((s) => s.trim()).filter(Boolean));
+      const allowedBuckets = new Set<string>(nonmoveDays.split(",").map((s) => mapTo4Buckets(s.trim())).filter(Boolean));
       modelList = modelList.filter((m) => allowedBuckets.has(m.nonmoveDaysBucket));
     }
 

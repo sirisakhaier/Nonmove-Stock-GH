@@ -90,7 +90,7 @@ export function KpiCards({ data = {} }: { data?: KpiData }) {
           <CardDescription className={`text-[11px] font-medium uppercase tracking-wider ${
             isCritical ? "text-rose-700 dark:text-rose-400" : "text-muted-foreground"
           }`}>
-            วิกฤต (&gt;120 วัน)
+            สินค้า Non-Move (&ge;61 วัน)
           </CardDescription>
           <AlertTriangle className={`h-4 w-4 ${isCritical ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`} />
         </CardHeader>
@@ -103,7 +103,7 @@ export function KpiCards({ data = {} }: { data?: KpiData }) {
           <p className={`text-[10px] mt-0.5 truncate ${
             isCritical ? "text-rose-600/90 dark:text-rose-400/90 font-medium" : "text-muted-foreground"
           }`}>
-            {formatNumber(highCount)} จากทั้งหมด {formatNumber(totalSkus)} SKU
+            ค้างตั้งแต่ 61 วันขึ้นไป ({formatNumber(highCount)} จาก {formatNumber(totalSkus)} SKU)
           </p>
         </CardContent>
       </Card>

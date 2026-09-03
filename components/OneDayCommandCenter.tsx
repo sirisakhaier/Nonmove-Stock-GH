@@ -35,13 +35,12 @@ import {
 } from "@/components/ui/table";
 import { formatNumber, formatCurrency, formatPercent } from "@/lib/validators";
 
-const TIER_COLORS = ["#2FBF8F", "#B7C948", "#E8A93C", "#DD7A3C", "#C64545"];
+const TIER_COLORS = ["#2FBF8F", "#B7C948", "#E8A93C", "#C64545"];
 const TIER_LABELS = [
-  "Active (≤120d)",
-  "Watch (121–180d)",
-  "Elevated (181–270d)",
-  "Critical (271–365d)",
-  "Severe (365d+)",
+  "30-60 วัน",
+  "61-90 วัน",
+  "91-120 วัน",
+  "121 วันขึ้นไป",
 ];
 
 function fmtBahtShort(n: number) {
@@ -176,7 +175,7 @@ export function OneDayCommandCenter() {
       nmV += item.nonmoveValue;
       nmQ += item.nonmoveQty;
       // High risk = tiers 3 and 4
-      hrV += (item.tierVals[3] || 0) + (item.tierVals[4] || 0);
+      hrV += (item.tierVals[3] || 0);
       if (item.nonmoveValue > 0) flagged++;
     }
 
@@ -201,9 +200,9 @@ export function OneDayCommandCenter() {
 
   // Aging Pipeline Totals for River Bar (respects cat/reg/search)
   const riverTiers = useMemo(() => {
-    const sums = [0, 1, 2, 3, 4].map((t) => ({ tier: t, label: TIER_LABELS[t], val: 0, qty: 0 }));
+    const sums = [0, 1, 2, 3].map((t) => ({ tier: t, label: TIER_LABELS[t], val: 0, qty: 0 }));
     for (const item of baseFilteredItems) {
-      for (let t = 0; t < 5; t++) {
+      for (let t = 0; t < 4; t++) {
         sums[t].val += item.tierVals[t] || 0;
         sums[t].qty += item.tierQtys[t] || 0;
       }
@@ -225,7 +224,7 @@ export function OneDayCommandCenter() {
       const c = map.get(item.category)!;
       c.totalVal += item.totalValue;
       c.totalQty += item.totalQty;
-      for (let t = 0; t < 5; t++) {
+      for (let t = 0; t < 4; t++) {
         c.tierVals[t] += item.tierVals[t] || 0;
         c.tierQtys[t] += item.tierQtys[t] || 0;
       }
@@ -245,7 +244,7 @@ export function OneDayCommandCenter() {
       const r = map.get(item.region)!;
       r.totalVal += item.totalValue;
       r.totalQty += item.totalQty;
-      for (let t = 0; t < 5; t++) {
+      for (let t = 0; t < 4; t++) {
         r.tierVals[t] += item.tierVals[t] || 0;
         r.tierQtys[t] += item.tierQtys[t] || 0;
       }
@@ -582,7 +581,7 @@ export function OneDayCommandCenter() {
         {/* Card 2: Non-Move Value */}
         <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#DD7A3C]">
           <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            Non-Move (&gt;120d)
+            Non-Move (&ge;61 วัน)
           </div>
           <div className="font-mono text-lg font-bold text-[#DD7A3C] mt-1.5 leading-none">
             {fmtBahtShort(filteredKPIs.nonmoveValue)}
@@ -608,13 +607,13 @@ export function OneDayCommandCenter() {
         {/* Card 4: High-Risk Value */}
         <Card className="border-border shadow-xs relative overflow-hidden p-4 border-l-4 border-l-[#C64545]">
           <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            High-Risk (&gt;270d)
+            High-Risk (121 วันขึ้นไป)
           </div>
           <div className="font-mono text-lg font-bold text-[#C64545] mt-1.5 leading-none">
             {fmtBahtShort(filteredKPIs.highRiskValue)}
           </div>
           <div className="text-[11px] text-muted-foreground mt-1.5">
-            Critical + Severe risk
+            ค้างตั้งแต่ 121 วันขึ้นไป
           </div>
         </Card>
 
@@ -655,7 +654,7 @@ export function OneDayCommandCenter() {
             </span>
           </CardTitle>
           <CardDescription className="text-[11px] mt-0.5">
-            ท่อจำแนกสถานะสต๊อก 5 ระดับ (คลิกที่ช่วงวันเพื่อเลือกกรองเฉพาะกลุ่มนั้น)
+            ท่อจำแนกสถานะสต๊อก 4 ระดับ (30-60, 61-90, 91-120, 121 วันขึ้นไป) (คลิกที่ช่วงวันเพื่อเลือกกรองเฉพาะกลุ่มนั้น)
           </CardDescription>
         </CardHeader>
 
@@ -726,7 +725,7 @@ export function OneDayCommandCenter() {
           <CardHeader className="p-4 pb-2 border-b border-border">
             <CardTitle className="text-sm font-bold">By Category</CardTitle>
             <CardDescription className="text-[11px] mt-0.5">
-              สัดส่วน Active vs. Aging จำแนกตาม 5 ระดับความเสี่ยง (ตามตัวกรองที่เลือก)
+              สัดส่วนสต๊อกจำแนกตาม 4 ช่วงวัน (Non-Move นับตั้งแต่ 61 วันขึ้นไป) (ตามตัวกรองที่เลือก)
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
@@ -984,7 +983,7 @@ export function OneDayCommandCenter() {
                   className="cursor-pointer hover:text-primary transition-colors text-right"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    <span>Non-Move (&gt;120d ฿)</span>
+                    <span>Non-Move (&ge;61d ฿)</span>
                     {sortCol === "nonmoveValue" && (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                   </div>
                 </TableHead>

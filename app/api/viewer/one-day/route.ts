@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { mapTo4Buckets, NONMOVE_BUCKET_ORDER } from "@/lib/nonmoveConfig";
 
 export const dynamic = "force-dynamic";
 
-// Map bucket strings to aging tier (0: Active, 1: Watch, 2: Elevated, 3: Critical, 4: Severe)
-function mapBucketToTier(bucketStr: string): number {
-  if (!bucketStr) return 0;
-  const b = bucketStr.trim().toLowerCase();
-  if (b.includes(">360") || b.includes("365+") || b.includes(">365") || b.includes("360+")) return 4; // Severe
-  if (b.includes("271-365") || b.includes("270-360") || b.includes(">270") || b.includes("271-360")) return 3; // Critical
-  if (b.includes("181-270") || b.includes("180-360") || b.includes("181-210") || b.includes("211-270") || b.includes("180-270")) return 2; // Elevated
-  if (b.includes("121-180") || b.includes("120-180")) return 1; // Watch
-  return 0; // Active (<=120d: 30-60, 61-90, 91-120, etc.)
+// Map bucket strings to 4 aging tiers:
+// 0: "30-60" (Active <=60d)
+// 1: "61-90" (Non-move 61-90d)
+// 2: "91-120" (Non-move 91-120d)
+// 3: "121 up" (High Non-move >=121d)
+function mapBucketToTierIndex(bucketStr: string): number {
+  const mapped = mapTo4Buckets(bucketStr);
+  const idx = NONMOVE_BUCKET_ORDER.indexOf(mapped);
+  return idx >= 0 ? idx : 0;
 }
 
 export async function GET(req: NextRequest) {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get("date");
 
-    // 1. Get all available snapshot dates
+    // 1. Get all available snapshot dates in descending order (latest first)
     const dateRows = await prisma.nonMoveRow.findMany({
       select: { reportDate: true },
       distinct: ["reportDate"],
@@ -27,6 +28,13 @@ export async function GET(req: NextRequest) {
     });
 
     const availableDates = dateRows.map((d) => d.reportDate.toISOString().split("T")[0]);
+
+    const tierLabels = [
+      "30-60 วัน",
+      "61-90 วัน",
+      "91-120 วัน",
+      "121 วันขึ้นไป",
+    ];
 
     if (availableDates.length === 0) {
       return NextResponse.json({
@@ -42,7 +50,7 @@ export async function GET(req: NextRequest) {
           totalLines: 0,
           avgValuePerLine: 0,
         },
-        tierData: [0, 1, 2, 3, 4].map((t) => ({ tier: t, value: 0, qty: 0 })),
+        tierData: [0, 1, 2, 3].map((t) => ({ tier: t, value: 0, qty: 0 })),
         categoryBreakdown: [],
         regionBreakdown: [],
         matrix: { categories: [], regions: [], rows: [] },
@@ -50,6 +58,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Always default to latest uploaded date if none provided or invalid
     const selectedDateStr = dateParam && availableDates.includes(dateParam) ? dateParam : availableDates[0];
     const targetDate = new Date(selectedDateStr);
 
@@ -72,15 +81,6 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Tier definitions
-    const tierLabels = [
-      "Active (≤120d)",
-      "Watch (121–180d)",
-      "Elevated (181–270d)",
-      "Critical (271–365d)",
-      "Severe (365d+)",
-    ];
-
     let totalStockValue = 0;
     let totalStockQty = 0;
     let nonmoveValue = 0;
@@ -92,13 +92,12 @@ export async function GET(req: NextRequest) {
       { tier: 1, label: tierLabels[1], value: 0, qty: 0 },
       { tier: 2, label: tierLabels[2], value: 0, qty: 0 },
       { tier: 3, label: tierLabels[3], value: 0, qty: 0 },
-      { tier: 4, label: tierLabels[4], value: 0, qty: 0 },
     ];
 
     // Aggregations maps
     const catMap = new Map<string, { totalVal: number; totalQty: number; tierVals: number[]; tierQtys: number[] }>();
     const regMap = new Map<string, { totalVal: number; totalQty: number; tierVals: number[]; tierQtys: number[] }>();
-    const matrixMap = new Map<string, { totalVal: number; nonmoveVal: number }>(); // key: `${cat}__${reg}`
+    const matrixMap = new Map<string, { totalVal: number; nonmoveVal: number }>();
 
     // Store x Category aggregation map
     const storeCatMap = new Map<string, {
@@ -120,9 +119,9 @@ export async function GET(req: NextRequest) {
     for (const r of rows) {
       const v = r.stockValue || 0;
       const q = r.stockQty || 0;
-      const tier = mapBucketToTier(r.nonmoveDaysBucket);
-      const isNM = tier >= 1; // >120d
-      const isHR = tier >= 3; // >270d
+      const tier = mapBucketToTierIndex(r.nonmoveDaysBucket);
+      const isNM = tier >= 1; // Non-move from 61 day up (tier 1: 61-90, tier 2: 91-120, tier 3: 121 up)
+      const isHR = tier === 3; // High-risk >= 121 days
 
       totalStockValue += v;
       totalStockQty += q;
@@ -146,7 +145,7 @@ export async function GET(req: NextRequest) {
 
       // Category breakdown
       if (!catMap.has(cat)) {
-        catMap.set(cat, { totalVal: 0, totalQty: 0, tierVals: [0, 0, 0, 0, 0], tierQtys: [0, 0, 0, 0, 0] });
+        catMap.set(cat, { totalVal: 0, totalQty: 0, tierVals: [0, 0, 0, 0], tierQtys: [0, 0, 0, 0] });
       }
       const cItem = catMap.get(cat)!;
       cItem.totalVal += v;
@@ -156,7 +155,7 @@ export async function GET(req: NextRequest) {
 
       // Region breakdown
       if (!regMap.has(reg)) {
-        regMap.set(reg, { totalVal: 0, totalQty: 0, tierVals: [0, 0, 0, 0, 0], tierQtys: [0, 0, 0, 0, 0] });
+        regMap.set(reg, { totalVal: 0, totalQty: 0, tierVals: [0, 0, 0, 0], tierQtys: [0, 0, 0, 0] });
       }
       const rItem = regMap.get(reg)!;
       rItem.totalVal += v;
@@ -187,8 +186,8 @@ export async function GET(req: NextRequest) {
           totalValue: 0,
           nonmoveQty: 0,
           nonmoveValue: 0,
-          tierVals: [0, 0, 0, 0, 0],
-          tierQtys: [0, 0, 0, 0, 0],
+          tierVals: [0, 0, 0, 0],
+          tierQtys: [0, 0, 0, 0],
           skus: new Set([r.productCode]),
         });
       }
@@ -279,7 +278,7 @@ export async function GET(req: NextRequest) {
     // Format Store x Category Detail List
     const storeCategories = Array.from(storeCatMap.values()).map((item) => {
       let dominantTier = 0;
-      for (let t = 4; t >= 0; t--) {
+      for (let t = 3; t >= 0; t--) {
         if (item.tierVals[t] > 0) {
           dominantTier = t;
           break;

@@ -34,14 +34,13 @@ import {
 } from "@/components/ui/table";
 import { formatNumber, formatCurrency, formatPercent } from "@/lib/validators";
 
-const TIER_COLORS_HEX = ["#2FBF8F", "#B7C948", "#E8A93C", "#DD7A3C", "#C64545"];
+const TIER_COLORS_HEX = ["#2FBF8F", "#B7C948", "#E8A93C", "#C64545"];
 const SERIES_PALETTE = ["#37C6C0", "#E8B84B", "#DD7A6E", "#6C9BE8", "#B78CE8", "#8FCB6B", "#E86BA8", "#9FAEC0"];
 const TIER_LABELS = [
-  "Active (≤120d)",
-  "Watch (121–180d)",
-  "Elevated (181–270d)",
-  "Critical (271–365d)",
-  "Severe (365d+)",
+  "30-60 วัน",
+  "61-90 วัน",
+  "91-120 วัน",
+  "121 วันขึ้นไป",
 ];
 
 function fmtDateEN(iso: string) {
@@ -183,8 +182,8 @@ export function ViewerTrendAnalysis() {
     const nmPrev = totalsAt(prevD, 1);
     const nmFirst = totalsAt(firstD, 1);
 
-    const hrLast = totalsAt(lastD, 3);
-    const hrFirst = totalsAt(firstD, 3);
+    const hrLast = totalsAt(lastD, 3); // Tier 3 = 121 up
+    const hrFirst = totalsAt(firstD, 3); // Tier 3 = 121 up
 
     const dTotPrev = totPrev > 0 ? ((totLast - totPrev) / totPrev) * 100 : 0;
     const dNmPrev = nmPrev > 0 ? ((nmLast - nmPrev) / nmPrev) * 100 : 0;
@@ -219,7 +218,7 @@ export function ViewerTrendAnalysis() {
       const total = totals[di];
       const barWidthPct = (total / maxTotal) * 100;
 
-      const segs = [0, 1, 2, 3, 4].map((t) => {
+      const segs = [0, 1, 2, 3].map((t) => {
         const tVal = dayRows.filter((r) => r.tier === t).reduce((acc, r) => acc + (metric === "v" ? r.value : r.qty), 0);
         const w = total > 0 ? (tVal / total) * 100 : 0;
         const isDim = selectedTiers.size > 0 && !selectedTiers.has(t);
@@ -557,7 +556,7 @@ export function ViewerTrendAnalysis() {
         {/* KPI 2: Non-Move Value Latest */}
         <Card className="border-border shadow-xs p-4 border-l-4 border-l-[#DD7A3C]">
           <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            Non-Move (&gt;120d) — Latest
+            Non-Move (&ge;61 วัน) — Latest
           </div>
           <div className="font-mono text-xl font-bold text-[#DD7A3C] mt-1.5 leading-none">
             {metric === "v" ? fmtBahtShort(kpis.nmLast) : `${formatNumber(kpis.nmLast)} u`}
@@ -587,7 +586,7 @@ export function ViewerTrendAnalysis() {
         {/* KPI 4: High-Risk Trend */}
         <Card className={`border-border shadow-xs p-4 border-l-4 ${kpis.dHrFirst > 0 ? "border-l-[#C64545]" : "border-l-[#2FBF8F]"}`}>
           <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            High-Risk (&gt;270d) Trend
+            High-Risk (121 วันขึ้นไป) Trend
           </div>
           <div className={`font-mono text-xl font-bold mt-1.5 leading-none ${kpis.dHrFirst > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
             {fmtDelta(kpis.dHrFirst, true)}
@@ -684,7 +683,7 @@ export function ViewerTrendAnalysis() {
               Non-Move Value Trend — by Region
             </CardTitle>
             <CardDescription className="text-[11px] mt-0.5">
-              ยอดสต๊อกค้าง &gt;120 วันในแต่ละภูมิภาคข้ามรอบรายงาน
+              ยอดสต๊อกค้างตั้งแต่ 61 วันขึ้นไป (Non-Move)ในแต่ละภูมิภาคข้ามรอบรายงาน
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
@@ -800,7 +799,7 @@ export function ViewerTrendAnalysis() {
               Non-Move Value Trend — by Category
             </CardTitle>
             <CardDescription className="text-[11px] mt-0.5">
-              ยอดสต๊อกค้าง &gt;120 วันในแต่ละหมวดหมู่ข้ามรอบรายงาน
+              ยอดสต๊อกค้างตั้งแต่ 61 วันขึ้นไป (Non-Move)ในแต่ละหมวดหมู่ข้ามรอบรายงาน
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
@@ -918,7 +917,7 @@ export function ViewerTrendAnalysis() {
               Region × Category Movement — First vs. Latest Snapshot
             </CardTitle>
             <CardDescription className="text-[11px] mt-0.5">
-              การเปลี่ยนแปลงยอด Non-move จาก {fmtDateEN(dates[firstD])} ถึง {fmtDateEN(dates[lastD])} (ยอดบวกสีแดง = ทุนจมเพิ่มขึ้น, ยอดลบสีเขียว = ระบายสต๊อกออกสำเร็จ)
+              การเปลี่ยนแปลงยอด Non-move (&ge;61 วัน) จาก {fmtDateEN(dates[firstD])} ถึง {fmtDateEN(dates[lastD])} (ยอดบวกสีแดง = ทุนจมเพิ่มขึ้น, ยอดลบสีเขียว = ระบายสต๊อกออกสำเร็จ)
             </CardDescription>
           </div>
 

@@ -37,11 +37,10 @@ export async function GET(req: NextRequest) {
     }
 
     const tierLabels = [
-      "Active (≤120d)",
-      "Watch (121–180d)",
-      "Elevated (181–270d)",
-      "Critical (271–365d)",
-      "Severe (365d+)",
+      "30-60 วัน",
+      "61-90 วัน",
+      "91-120 วัน",
+      "121 วันขึ้นไป",
     ];
 
     // 2. Fetch all nonmove rows across all dates
@@ -133,8 +132,8 @@ export async function GET(req: NextRequest) {
       let nonmoveValue = 0;
       let nonmoveQty = 0;
       let highRiskValue = 0;
-      const tierVals = [0, 0, 0, 0, 0];
-      const tierQtys = [0, 0, 0, 0, 0];
+      const tierVals = [0, 0, 0, 0];
+      const tierQtys = [0, 0, 0, 0];
 
       for (const r of dayRows) {
         totalStockValue += r.value;
@@ -145,7 +144,7 @@ export async function GET(req: NextRequest) {
           nonmoveValue += r.value;
           nonmoveQty += r.qty;
         }
-        if (r.tier >= 3) {
+        if (r.tier === 3) {
           highRiskValue += r.value;
         }
       }

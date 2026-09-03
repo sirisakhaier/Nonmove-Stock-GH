@@ -48,10 +48,10 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-xs transition-colors">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Brand Lockup */}
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2.5 group">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 gap-2">
+        {/* Brand Lockup & Prominent Store Name for Store Users */}
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
             <img
               src="/logo.png"
               alt="Haier"
@@ -66,11 +66,26 @@ export function Navbar() {
               </span>
             </div>
           </Link>
+
+          {/* Prominent Store Name in Top Zone for Store Users */}
+          {branchCode && !isViewerPage && !isAdminPage && (
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/25 text-foreground font-bold text-xs truncate max-w-[190px] sm:max-w-[320px]">
+              <Store className="h-4 w-4 text-primary shrink-0" />
+              <div className="flex flex-col text-left truncate leading-tight">
+                <span className="font-bold text-xs text-foreground truncate">
+                  {storeInfo?.branchName || branchCode}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-normal truncate hidden sm:inline">
+                  {branchCode} {storeInfo?.userName ? `· ${storeInfo.userName}` : ""}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="flex items-center gap-1.5 text-xs font-medium">
-          {/* Store User Navigation */}
+        <nav className="flex items-center gap-1.5 text-xs font-medium shrink-0">
+          {/* Store User Navigation (Removed 'แนวโน้ม' per request) */}
           {branchCode && !isViewerPage && !isAdminPage && (
             <div className="flex items-center p-1 rounded-lg bg-muted/60 border border-border gap-1">
               <Link
@@ -83,18 +98,6 @@ export function Navbar() {
               >
                 <Store className="h-3.5 w-3.5" />
                 <span>รายละเอียด</span>
-              </Link>
-
-              <Link
-                href={`/dashboard/${branchCode}/trend`}
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                  pathname.includes("/trend")
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/80"
-                }`}
-              >
-                <TrendingUp className="h-3.5 w-3.5" />
-                <span>แนวโน้ม</span>
               </Link>
 
               <Link
@@ -112,7 +115,7 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Executive Viewer Navigation (3 Clean Tabs) */}
+          {/* Executive Viewer Navigation (3 Tabs) */}
           {isViewerPage && (
             <div className="flex items-center p-1 rounded-lg bg-muted/60 border border-border gap-1">
               <Link
@@ -162,20 +165,9 @@ export function Navbar() {
           )}
         </nav>
 
-        {/* Right Info & Actions */}
-        <div className="flex items-center gap-2">
+        {/* Right Actions */}
+        <div className="flex items-center gap-2 shrink-0">
           <ThemeToggle />
-
-          {storeInfo?.branchCode && !isViewerPage && !isAdminPage && (
-            <div className="text-right hidden md:block text-[11px] leading-tight pr-1">
-              <div className="font-medium text-foreground">
-                {storeInfo.branchName || storeInfo.branchCode}
-              </div>
-              <div className="text-muted-foreground text-[10px]">
-                {storeInfo.userName ? `ผู้ใช้งาน: ${storeInfo.userName}` : storeInfo.branchCode}
-              </div>
-            </div>
-          )}
 
           {!isRootPage && (
             <Button

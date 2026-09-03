@@ -13,12 +13,11 @@ import {
   Loader2,
   Lock,
   X,
-  Layers,
+  BarChart3,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { isValidThaiPhone } from "@/lib/validators";
 import { APP_VERSION, TEAM_NAME, getCommitHash } from "@/lib/version";
@@ -37,13 +36,13 @@ export default function IdentifyPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [commitHash, setCommitHash] = useState(getCommitHash());
 
-  // Management Modal (Admin & Viewer)
-  const [isMgmtModalOpen, setIsMgmtModalOpen] = useState(false);
-  const [mgmtTab, setMgmtTab] = useState<"VIEWER" | "ADMIN">("VIEWER");
+  // Separate Modals for Viewer and Admin
+  const [isViewerModalOpen, setIsViewerModalOpen] = useState(false);
   const [viewerPasscode, setViewerPasscode] = useState("");
   const [viewerError, setViewerError] = useState("");
   const [isViewerVerifying, setIsViewerVerifying] = useState(false);
 
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [adminPasscode, setAdminPasscode] = useState("");
   const [adminError, setAdminError] = useState("");
   const [isAdminVerifying, setIsAdminVerifying] = useState(false);
@@ -152,7 +151,7 @@ export default function IdentifyPage() {
 
     if (viewerPasscode === "viewer1234") {
       localStorage.setItem("viewer_passcode", viewerPasscode);
-      setIsMgmtModalOpen(false);
+      setIsViewerModalOpen(false);
       router.push("/viewer");
     } else {
       setViewerError("รหัสผ่านไม่ถูกต้อง");
@@ -171,7 +170,7 @@ export default function IdentifyPage() {
 
     if (adminPasscode === "admin1234" || adminPasscode === "admin123") {
       localStorage.setItem("approver_passcode", adminPasscode);
-      setIsMgmtModalOpen(false);
+      setIsAdminModalOpen(false);
       router.push("/admin");
     } else {
       setAdminError("รหัสผ่านไม่ถูกต้อง");
@@ -181,14 +180,14 @@ export default function IdentifyPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 lg:p-8 transition-colors">
-      {/* 1. Header Bar: Balanced Co-Branding */}
-      <header className="max-w-4xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-border">
-        <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-1">
+      {/* 1. Header Bar */}
+      <header className="max-w-4xl mx-auto w-full flex items-center justify-between gap-4 pb-4 border-b border-border">
+        <div className="flex flex-col items-start text-left space-y-1">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Non-Move Stock Management
           </h1>
 
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-xs text-muted-foreground font-medium">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-xs text-muted-foreground font-medium">
             <div className="flex items-center gap-1.5">
               <img
                 src="/global_house.jpg"
@@ -211,30 +210,13 @@ export default function IdentifyPage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setViewerError("");
-              setViewerPasscode("");
-              setAdminError("");
-              setAdminPasscode("");
-              setIsMgmtModalOpen(true);
-            }}
-            className="h-8 text-xs font-medium gap-1.5"
-          >
-            <ShieldAlert className="h-3.5 w-3.5" />
-            <span>Viewer / Admin</span>
-          </Button>
-
           <ThemeToggle />
         </div>
       </header>
 
-      {/* 2. Main Store Login Card */}
-      <main className="max-w-md mx-auto w-full my-6">
+      {/* 2. Main Input Zone: Store Login Card */}
+      <main className="max-w-md mx-auto w-full my-6 space-y-4">
         <Card className="border-border shadow-xs">
           <CardHeader className="text-center space-y-1 pb-4">
             <CardTitle className="text-lg font-bold">เข้าสู่ระบบสำหรับสาขา</CardTitle>
@@ -347,9 +329,68 @@ export default function IdentifyPage() {
             </form>
           </CardContent>
         </Card>
+
+        {/* 3. BELOW INPUT ZONE: Separate Links for Executive Viewer & Admin */}
+        <div className="space-y-3 pt-2">
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-border"></div>
+            <span className="flex-shrink mx-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              หรือเข้าสู่ระบบฝ่ายบริหารและจัดการ
+            </span>
+            <div className="flex-grow border-t border-border"></div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Separate Link/Button for Viewer */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setViewerError("");
+                setViewerPasscode("");
+                setIsViewerModalOpen(true);
+              }}
+              className="h-auto py-3 px-3.5 flex flex-col items-start gap-1 bg-card hover:bg-muted/60 border-border text-left group"
+            >
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  <span>Executive Viewer</span>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <span className="text-[10px] text-muted-foreground font-normal">
+                ภาพรวมวิเคราะห์ &amp; RAW Data
+              </span>
+            </Button>
+
+            {/* Separate Link/Button for Admin */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setAdminError("");
+                setAdminPasscode("");
+                setIsAdminModalOpen(true);
+              }}
+              className="h-auto py-3 px-3.5 flex flex-col items-start gap-1 bg-card hover:bg-muted/60 border-border text-left group"
+            >
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
+                  <ShieldAlert className="h-4 w-4 text-primary" />
+                  <span>Admin Hub</span>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <span className="text-[10px] text-muted-foreground font-normal">
+                จัดการ Master &amp; อนุมัติคำขอ
+              </span>
+            </Button>
+          </div>
+        </div>
       </main>
 
-      {/* 3. Footer */}
+      {/* 4. Footer */}
       <footer className="max-w-4xl mx-auto w-full pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
         <div>
           <span>Non-Move Stock Analysis System</span> · <span>v{APP_VERSION}</span>
@@ -359,146 +400,133 @@ export default function IdentifyPage() {
         </div>
       </footer>
 
-      {/* 4. Unified Management Modal (Viewer / Admin) */}
-      {isMgmtModalOpen && (
+      {/* 5. Separate Modal for Executive Viewer */}
+      {isViewerModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-sm rounded-lg border border-border bg-card text-card-foreground shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-muted-foreground" />
+                <BarChart3 className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-bold text-foreground">
-                  เข้าสู่ระบบสำหรับฝ่ายบริหารและจัดการ
+                  เข้าสู่ระบบ Executive Viewer
                 </h3>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsMgmtModalOpen(false)}
+                onClick={() => setIsViewerModalOpen(false)}
                 className="h-7 w-7"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
 
-            {/* Modal Tab Switcher */}
-            <div className="grid grid-cols-2 border-b border-border bg-muted/50 p-1 gap-1 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setMgmtTab("VIEWER");
-                  setViewerError("");
-                }}
-                className={`py-1.5 rounded-md font-medium transition-all ${
-                  mgmtTab === "VIEWER"
-                    ? "bg-card text-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Viewer (ภาพรวม)
-              </button>
+            <div className="p-4">
+              <form onSubmit={handleViewerLogin} className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  สำหรับผู้บริหาร ดูภาพรวมวิเคราะห์รายวัน แนวโน้ม และดาวน์โหลด RAW Data
+                </p>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMgmtTab("ADMIN");
-                  setAdminError("");
-                }}
-                className={`py-1.5 rounded-md font-medium transition-all ${
-                  mgmtTab === "ADMIN"
-                    ? "bg-card text-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                {viewerError && (
+                  <div className="rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 text-xs text-rose-700 dark:text-rose-300">
+                    {viewerError}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    รหัสผ่าน Viewer (viewer1234)
+                  </label>
+                  <Input
+                    type="password"
+                    value={viewerPasscode}
+                    onChange={(e) => setViewerPasscode(e.target.value)}
+                    placeholder="กรอกรหัสผ่าน Viewer"
+                    autoFocus
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isViewerVerifying}
+                  className="w-full mt-2 font-medium"
+                >
+                  {isViewerVerifying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      กำลังตรวจสอบ...
+                    </>
+                  ) : (
+                    "เข้าสู่ระบบ Viewer"
+                  )}
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Separate Modal for Admin Management Hub */}
+      {isAdminModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-card text-card-foreground shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-bold text-foreground">
+                  เข้าสู่ระบบ Admin Hub
+                </h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsAdminModalOpen(false)}
+                className="h-7 w-7"
               >
-                Admin (จัดการระบบ)
-              </button>
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-4">
-              {mgmtTab === "VIEWER" && (
-                <form onSubmit={handleViewerLogin} className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    สำหรับผู้บริหาร ดูภาพรวมวิเคราะห์และดาวน์โหลดข้อมูล RAW Data
-                  </p>
+              <form onSubmit={handleAdminLogin} className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  สำหรับผู้ดูแลระบบ จัดการมิติข้อมูล Store/Model นำเข้ารายงาน และพิจารณาคำขอ
+                </p>
 
-                  {viewerError && (
-                    <div className="rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 text-xs text-rose-700 dark:text-rose-300">
-                      {viewerError}
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">
-                      รหัสผ่าน Viewer
-                    </label>
-                    <Input
-                      type="password"
-                      value={viewerPasscode}
-                      onChange={(e) => setViewerPasscode(e.target.value)}
-                      placeholder="กรอกรหัสผ่าน Viewer"
-                      autoFocus
-                    />
+                {adminError && (
+                  <div className="rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 text-xs text-rose-700 dark:text-rose-300">
+                    {adminError}
                   </div>
+                )}
 
-                  <Button
-                    type="submit"
-                    disabled={isViewerVerifying}
-                    className="w-full mt-2 font-medium"
-                  >
-                    {isViewerVerifying ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        กำลังตรวจสอบ...
-                      </>
-                    ) : (
-                      "เข้าสู่ระบบ Viewer"
-                    )}
-                  </Button>
-                </form>
-              )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    รหัสผ่าน Admin (admin1234)
+                  </label>
+                  <Input
+                    type="password"
+                    value={adminPasscode}
+                    onChange={(e) => setAdminPasscode(e.target.value)}
+                    placeholder="กรอกรหัสผ่าน Admin"
+                    autoFocus
+                  />
+                </div>
 
-              {mgmtTab === "ADMIN" && (
-                <form onSubmit={handleAdminLogin} className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    สำหรับผู้ดูแลระบบ จัดการมิติข้อมูล นำเข้ารายงาน และพิจารณาคำขอ
-                  </p>
-
-                  {adminError && (
-                    <div className="rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 text-xs text-rose-700 dark:text-rose-300">
-                      {adminError}
-                    </div>
+                <Button
+                  type="submit"
+                  disabled={isAdminVerifying}
+                  className="w-full mt-2 font-medium"
+                >
+                  {isAdminVerifying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      กำลังตรวจสอบ...
+                    </>
+                  ) : (
+                    "เข้าสู่ระบบ Admin Hub"
                   )}
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">
-                      รหัสผ่าน Admin
-                    </label>
-                    <Input
-                      type="password"
-                      value={adminPasscode}
-                      onChange={(e) => setAdminPasscode(e.target.value)}
-                      placeholder="กรอกรหัสผ่าน Admin"
-                      autoFocus
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={isAdminVerifying}
-                    className="w-full mt-2 font-medium"
-                  >
-                    {isAdminVerifying ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        กำลังตรวจสอบ...
-                      </>
-                    ) : (
-                      "เข้าสู่ระบบ Admin"
-                    )}
-                  </Button>
-                </form>
-              )}
+                </Button>
+              </form>
             </div>
           </div>
         </div>

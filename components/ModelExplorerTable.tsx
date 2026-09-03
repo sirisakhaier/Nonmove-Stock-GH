@@ -144,7 +144,7 @@ export function ModelExplorerTable({
 
   const handleSelectAllPending = () => {
     if (pendingBuckets.length === NONMOVE_BUCKET_ORDER.length) {
-      setPendingBuckets([">360", "180-360", "120-180"]);
+      setPendingBuckets(["61-90", "91-120", "121 up"]);
     } else {
       setPendingBuckets(Array.from(NONMOVE_BUCKET_ORDER));
     }
@@ -161,7 +161,10 @@ export function ModelExplorerTable({
 
   const getBucketDisplayText = () => {
     if (activeBuckets.length === NONMOVE_BUCKET_ORDER.length) return "ทุกช่วงวัน (All)";
-    if (activeBuckets.length === 1) return `${activeBuckets[0]} วัน`;
+    if (activeBuckets.length === 1) {
+      const b = activeBuckets[0];
+      return b === "121 up" ? "121 วันขึ้นไป" : `${b} วัน`;
+    }
     return `เลือก ${activeBuckets.length} ช่วงวัน`;
   };
 
@@ -190,7 +193,7 @@ export function ModelExplorerTable({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              วิกฤต &gt;120 วัน ({highPct}%)
+              Non-Move &ge;61 วัน ({highPct}%)
             </button>
             <button
               onClick={() => onStatusChange("OK")}
@@ -200,7 +203,7 @@ export function ModelExplorerTable({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              ปกติ &le;120 วัน ({okPct}%)
+              ปกติ 30-60 วัน ({okPct}%)
             </button>
           </div>
 
@@ -288,7 +291,9 @@ export function ModelExplorerTable({
                         onClick={() => handleTogglePendingBucket(b)}
                         className="w-full flex items-center justify-between px-2 py-1.5 rounded-sm text-left hover:bg-muted transition-colors"
                       >
-                        <span className="text-foreground font-medium">{b} วัน</span>
+                        <span className="text-foreground font-medium">
+                          {b === "121 up" ? "121 วันขึ้นไป" : `${b} วัน`}
+                        </span>
                         {isChecked ? (
                           <CheckSquare className="h-3.5 w-3.5 text-primary" />
                         ) : (
