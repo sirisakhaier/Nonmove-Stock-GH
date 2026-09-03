@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
 import {
   Search,
   Download,
@@ -8,14 +8,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   FileEdit,
-  CheckSquare,
-  Square,
-  SlidersHorizontal,
-  Check,
-  Package,
-  Boxes,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +24,6 @@ import {
 } from "@/components/ui/table";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { formatNumber } from "@/lib/validators";
-import { NONMOVE_BUCKET_ORDER } from "@/lib/nonmoveConfig";
 
 interface ProductModelItem {
   productCode: string;
@@ -61,16 +53,8 @@ interface TableProps {
   onPageChange: (newPage: number) => void;
   search: string;
   onSearchChange: (newSearch: string) => void;
-  selectedCategory: string;
-  onCategoryChange: (cat: string) => void;
-  selectedBucket: string;
-  onBucketChange: (bucket: string) => void;
-  selectedSkuType: string;
-  onSkuTypeChange: (skuType: string) => void;
   selectedStatus: string;
   onStatusChange: (status: string) => void;
-  categories: string[];
-  skuTypes?: string[];
   highPct: number;
   okPct: number;
   onSelectProduct: (product: ProductModelItem) => void;
@@ -85,88 +69,14 @@ export function ModelExplorerTable({
   onPageChange,
   search,
   onSearchChange,
-  selectedCategory,
-  onCategoryChange,
-  selectedBucket,
-  onBucketChange,
-  selectedSkuType,
-  onSkuTypeChange,
   selectedStatus,
   onStatusChange,
-  categories,
-  skuTypes = ["SELLABLE", "DEMO", "MOCK_UP"],
   highPct,
   okPct,
   onSelectProduct,
   onExport,
 }: TableProps) {
   const totalPages = Math.ceil(total / limit) || 1;
-
-  // Multi-check Popover State
-  const [isBucketOpen, setIsBucketOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Parse currently active buckets
-  const activeBuckets: string[] =
-    selectedBucket === "ALL" || !selectedBucket
-      ? Array.from(NONMOVE_BUCKET_ORDER)
-      : selectedBucket.split(",").map((b) => b.trim()).filter(Boolean);
-
-  // Local pending buckets inside the open dropdown
-  const [pendingBuckets, setPendingBuckets] = useState<string[]>(activeBuckets);
-
-  useEffect(() => {
-    setPendingBuckets(activeBuckets);
-  }, [selectedBucket]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        setIsBucketOpen(false);
-      }
-    }
-    if (isBucketOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isBucketOpen]);
-
-  const handleTogglePendingBucket = (b: string) => {
-    let newSelected: string[];
-    if (pendingBuckets.includes(b)) {
-      newSelected = pendingBuckets.filter((item) => item !== b);
-      if (newSelected.length === 0) return;
-    } else {
-      newSelected = [...pendingBuckets, b];
-    }
-    setPendingBuckets(newSelected);
-  };
-
-  const handleSelectAllPending = () => {
-    if (pendingBuckets.length === NONMOVE_BUCKET_ORDER.length) {
-      setPendingBuckets(["61-90", "91-120", "121 up"]);
-    } else {
-      setPendingBuckets(Array.from(NONMOVE_BUCKET_ORDER));
-    }
-  };
-
-  const handleApplyBuckets = () => {
-    if (pendingBuckets.length === NONMOVE_BUCKET_ORDER.length) {
-      onBucketChange("ALL");
-    } else {
-      onBucketChange(pendingBuckets.join(","));
-    }
-    setIsBucketOpen(false);
-  };
-
-  const getBucketDisplayText = () => {
-    if (activeBuckets.length === NONMOVE_BUCKET_ORDER.length) return "ทุกช่วงวัน (All)";
-    if (activeBuckets.length === 1) {
-      const b = activeBuckets[0];
-      return b === "121 up" ? "121 วันขึ้นไป" : `${b} วัน`;
-    }
-    return `เลือก ${activeBuckets.length} ช่วงวัน`;
-  };
 
   return (
     <Card className="border-border shadow-xs overflow-hidden">
@@ -231,115 +141,9 @@ export function ModelExplorerTable({
             </Button>
           </div>
         </div>
-
-        {/* 2. Compact Multi-Column Filter Row (3 columns side-by-side) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {/* Column 1: Category Filter */}
-          <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs">
-            <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-[11px] font-semibold text-muted-foreground shrink-0">Category:</span>
-            <select
-              value={selectedCategory}
-              onChange={(e) => onCategoryChange(e.target.value)}
-              className="w-full bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
-            >
-              <option value="ALL">ทุก Category (All)</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Column 2: Nonmove Period Multi-Check Dropdown */}
-          <div className="relative" ref={popoverRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setPendingBuckets(activeBuckets);
-                setIsBucketOpen(!isBucketOpen);
-              }}
-              className="w-full flex items-center justify-between gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground hover:bg-muted/40 transition-colors"
-            >
-              <div className="flex items-center gap-1.5 truncate">
-                <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="font-medium truncate">{getBucketDisplayText()}</span>
-              </div>
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            </button>
-
-            {isBucketOpen && (
-              <div className="absolute z-50 left-0 mt-1 w-60 rounded-md border border-border bg-card p-2.5 shadow-lg space-y-1.5 animate-in fade-in-80 text-xs">
-                <div className="flex items-center justify-between pb-1.5 border-b border-border">
-                  <span className="font-semibold text-foreground text-[11px]">ช่วงวันไม่เคลื่อนไหว</span>
-                  <button
-                    type="button"
-                    onClick={handleSelectAllPending}
-                    className="text-[10px] text-primary hover:underline font-medium"
-                  >
-                    {pendingBuckets.length === NONMOVE_BUCKET_ORDER.length ? "เลือกเฉพาะวิกฤต" : "เลือกทั้งหมด"}
-                  </button>
-                </div>
-                <div className="space-y-0.5">
-                  {NONMOVE_BUCKET_ORDER.map((b) => {
-                    const isChecked = pendingBuckets.includes(b);
-                    return (
-                      <button
-                        key={b}
-                        type="button"
-                        onClick={() => handleTogglePendingBucket(b)}
-                        className="w-full flex items-center justify-between px-2 py-1.5 rounded-sm text-left hover:bg-muted transition-colors"
-                      >
-                        <span className="text-foreground font-medium">
-                          {b === "121 up" ? "121 วันขึ้นไป" : `${b} วัน`}
-                        </span>
-                        {isChecked ? (
-                          <CheckSquare className="h-3.5 w-3.5 text-primary" />
-                        ) : (
-                          <Square className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="pt-1.5 border-t border-border flex justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleApplyBuckets}
-                    className="h-7 text-xs font-semibold px-3"
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    ยืนยันการเลือก
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Column 3: SKU_TYPE Filter */}
-          <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs">
-            <Boxes className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-[11px] font-semibold text-muted-foreground shrink-0">ประเภท:</span>
-            <select
-              value={selectedSkuType}
-              onChange={(e) => onSkuTypeChange(e.target.value)}
-              className="w-full bg-transparent font-medium text-foreground focus:outline-hidden cursor-pointer"
-            >
-              <option value="ALL">ทุกประเภท (All)</option>
-              {skuTypes.map((st) => (
-                <option key={st} value={st}>
-                  {st}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
       </CardHeader>
 
-      {/* 3. Space-Saving Model Table (No ProductName, No Amount) */}
+      {/* 2. Space-Saving Model Table (No ProductName, No Amount) */}
       <CardContent className="p-0">
         <Table>
           <TableHeader>
@@ -368,49 +172,77 @@ export function ModelExplorerTable({
                   <TableRow key={item.productCode} className="hover:bg-muted/40">
                     <TableCell className="font-mono text-muted-foreground text-[11px]">{rowNumber}</TableCell>
                     
-                    {/* Space Saving: Model on Line 1, ProductCode on Line 2 (No ProductName) */}
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-foreground text-xs">{item.model}</span>
-                        <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal">
-                          {item.categoryName}
-                        </Badge>
-                        <Badge variant="secondary" className="text-[10px] py-0 px-1 font-normal">
-                          {item.skuType}
-                        </Badge>
-                      </div>
-                      <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
-                        {item.productCode}
+                    {/* Model & ProductCode */}
+                    <TableCell>
+                      <div className="font-bold text-foreground text-xs">{item.model}</div>
+                      <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5 flex-wrap mt-0.5">
+                        <span>{item.productCode}</span>
+                        <span>·</span>
+                        <span className="font-semibold text-foreground/80">{item.categoryName}</span>
+                        {item.skuType && (
+                          <>
+                            <span>·</span>
+                            <span className="text-[10px] text-muted-foreground">{item.skuType}</span>
+                          </>
+                        )}
                       </div>
                     </TableCell>
 
+                    {/* Nonmove Period Bucket */}
                     <TableCell className="text-center">
-                      <Badge variant={isHigh ? "destructive" : "success"} className="text-[10px]">
-                        {item.nonmoveDaysBucket} วัน
+                      <Badge
+                        variant="secondary"
+                        className={`text-[11px] font-mono font-medium ${
+                          isHigh
+                            ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        }`}
+                      >
+                        {item.nonmoveDaysBucket === "121 up" ? "121 วันขึ้นไป" : `${item.nonmoveDaysBucket} วัน`}
                       </Badge>
                     </TableCell>
 
-                    <TableCell className="text-right font-semibold text-foreground text-xs">
+                    {/* Stock Qty */}
+                    <TableCell className="text-right font-medium text-xs">
                       {formatNumber(item.stockQty)}
                     </TableCell>
 
+                    {/* Status */}
                     <TableCell className="text-center">
-                      {item.activeRequest ? (
-                        <RequestStatusBadge status={item.activeRequest.status} />
+                      {item.isExcluded ? (
+                        <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                          ยกเว้นแล้ว
+                        </Badge>
+                      ) : isHigh ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          <span>Non-Move</span>
+                        </span>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground">-</span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>ปกติ</span>
+                        </span>
                       )}
                     </TableCell>
 
+                    {/* Action Request Button */}
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onSelectProduct(item)}
-                        className="h-7 text-xs font-medium px-2"
-                      >
-                        <FileEdit className="h-3.5 w-3.5" />
-                      </Button>
+                      {item.activeRequest ? (
+                        <div onClick={() => onSelectProduct(item)} className="cursor-pointer inline-block">
+                          <RequestStatusBadge status={item.activeRequest.status} />
+                        </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onSelectProduct(item)}
+                          title="ยื่นคำขอสำหรับโมเดลนี้"
+                          className="h-7 w-7 text-muted-foreground hover:text-primary"
+                        >
+                          <FileEdit className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -419,32 +251,35 @@ export function ModelExplorerTable({
           </TableBody>
         </Table>
 
-        {/* 4. Pagination */}
-        <div className="flex items-center justify-between p-3 border-t border-border bg-card text-xs text-muted-foreground">
+        {/* 3. Pagination Footer */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 border-t border-border text-xs text-muted-foreground">
           <div>
-            หน้า <span className="font-medium text-foreground">{page}</span> จาก <span className="font-medium text-foreground">{totalPages}</span> ({formatNumber(total)} SKU)
+            แสดง {data.length > 0 ? (page - 1) * limit + 1 : 0} ถึง{" "}
+            {Math.min(page * limit, total)} จากทั้งหมด {formatNumber(total)} รายการ
           </div>
 
           <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
-              size="sm"
-              disabled={page <= 1}
+              size="icon"
               onClick={() => onPageChange(page - 1)}
-              className="h-7 text-xs gap-1"
+              disabled={page <= 1}
+              className="h-7 w-7"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              <span>ก่อนหน้า</span>
             </Button>
+
+            <span className="px-2 font-medium">
+              หน้า {page} จาก {totalPages}
+            </span>
 
             <Button
               variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
+              size="icon"
               onClick={() => onPageChange(page + 1)}
-              className="h-7 text-xs gap-1"
+              disabled={page >= totalPages}
+              className="h-7 w-7"
             >
-              <span>ถัดไป</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>

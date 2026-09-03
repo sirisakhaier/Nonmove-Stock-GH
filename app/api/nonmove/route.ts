@@ -8,15 +8,14 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchCode = searchParams.get("branchCode");
-    const reportDateStr = searchParams.get("date") || searchParams.get("reportDate");
+    const reportDateStr = searchParams.get("date");
     const category = searchParams.get("category");
-    const nonmoveDays = searchParams.get("bucket") || searchParams.get("nonmoveDaysBucket") || searchParams.get("nonmoveDays");
-    const agingDays = searchParams.get("agingDaysBucket") || searchParams.get("agingDays");
+    const nonmoveDays = searchParams.get("bucket") || searchParams.get("nonmoveDays");
     const skuType = searchParams.get("skuType");
+    const status = searchParams.get("status"); // ALL, HIGH, OK
     const search = searchParams.get("search");
-    const statusFilter = searchParams.get("status");
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.max(1, parseInt(searchParams.get("limit") || "25", 10));
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "25");
 
     if (!branchCode) {
       return NextResponse.json({ error: "branchCode is required" }, { status: 400 });
@@ -46,43 +45,6 @@ export async function GET(req: NextRequest) {
         lte: endOfDay,
       },
     };
-
-    if (category && category !== "ALL") {
-      whereClause.OR = [
-        { product: { category: { equals: category, mode: "insensitive" } } },
-        { categoryName: { equals: category, mode: "insensitive" } },
-      ];
-    }
-
-    // MULTI-BUCKET SUPPORT (Comma-separated or Single)
-    if (nonmoveDays && nonmoveDays !== "ALL") {
-      const buckets = nonmoveDays.split(",").map((s) => s.trim()).filter(Boolean);
-      if (buckets.length === 1) {
-        whereClause.nonmoveDaysBucket = buckets[0];
-      } else if (buckets.length > 1) {
-        whereClause.nonmoveDaysBucket = { in: buckets };
-      }
-    }
-
-    if (agingDays && agingDays !== "ALL") {
-      whereClause.agingDaysBucket = agingDays;
-    }
-
-    // SKU_TYPE SUPPORT (SELLABLE, DEMO, MOCK_UP...)
-    if (skuType && skuType !== "ALL") {
-      const types = skuType.split(",").map((s) => s.trim()).filter(Boolean);
-      if (types.length === 1) {
-        whereClause.product = {
-          ...whereClause.product,
-          skuType: { equals: types[0], mode: "insensitive" },
-        };
-      } else if (types.length > 1) {
-        whereClause.product = {
-          ...whereClause.product,
-          skuType: { in: types },
-        };
-      }
-    }
 
     if (search && search.trim()) {
       const q = search.trim();
@@ -117,6 +79,22 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Filter parsers
+    let allowedCats: Set<string> | null = null;
+    if (category && category !== "ALL") {
+      allowedCats = new Set(category.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    }
+
+    let allowedTypes: Set<string> | null = null;
+    if (skuType && skuType !== "ALL") {
+      allowedTypes = new Set(skuType.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    }
+
+    let allowedBuckets: Set<string> | null = null;
+    if (nonmoveDays && nonmoveDays !== "ALL") {
+      allowedBuckets = new Set<string>(nonmoveDays.split(",").map((s) => mapTo4Buckets(s.trim())).filter(Boolean));
+    }
+
     const modelMap = new Map<string, {
       productCode: string;
       productName: string;
@@ -139,34 +117,44 @@ export async function GET(req: NextRequest) {
 
     for (const r of rows) {
       const pCode = r.productCode;
+      const cat = r.product?.category?.trim().toUpperCase() || r.categoryName?.trim().toUpperCase() || "OTHER";
+      const sType = r.product?.skuType?.trim().toUpperCase() || "SELLABLE";
+
+      // Filter by Category
+      if (allowedCats && !allowedCats.has(cat)) continue;
+
+      // Filter by SKU Type
+      if (allowedTypes && !allowedTypes.has(sType)) continue;
+
       const existing = modelMap.get(pCode);
       const reqInfo = requestMap.get(pCode) || null;
       const isExcluded = reqInfo?.status === "APPROVED" && reqInfo?.requestType === "EXCLUDE";
+      const mappedBucket = mapTo4Buckets(r.nonmoveDaysBucket);
 
       if (!existing) {
         modelMap.set(pCode, {
           productCode: pCode,
           productName: r.product?.productName || pCode,
           model: r.product?.model || r.designName || "-",
-          skuType: r.product?.skuType || "SELLABLE",
-          categoryName: r.product?.category || r.categoryName || "Other",
+          skuType: sType,
+          categoryName: cat,
           subCategory: r.product?.subCategory || r.typeName || "-",
           sizeGroup: r.product?.sizeGroup || "-",
-          nonmoveDaysBucket: mapTo4Buckets(r.nonmoveDaysBucket),
+          nonmoveDaysBucket: mappedBucket,
           agingDaysBucket: r.agingDaysBucket,
           stockQty: r.stockQty,
           stockValue: r.stockValue,
           mosLevel: r.mosLevel,
           priceNormal: r.priceNormal,
-          allBuckets: [mapTo4Buckets(r.nonmoveDaysBucket)],
-          classification: classifyNonmove(mapTo4Buckets(r.nonmoveDaysBucket)),
+          allBuckets: [mappedBucket],
+          classification: classifyNonmove(mappedBucket),
           isExcluded,
           activeRequest: reqInfo,
         });
       } else {
         existing.stockQty += r.stockQty;
         existing.stockValue += r.stockValue;
-        existing.allBuckets.push(mapTo4Buckets(r.nonmoveDaysBucket));
+        existing.allBuckets.push(mappedBucket);
         existing.nonmoveDaysBucket = getWorstBucket(existing.allBuckets);
         existing.classification = classifyNonmove(existing.nonmoveDaysBucket);
       }
@@ -175,41 +163,19 @@ export async function GET(req: NextRequest) {
     let modelList = Array.from(modelMap.values());
 
     // Filter by bucket if specified
-    if (nonmoveDays && nonmoveDays !== "ALL") {
-      const allowedBuckets = new Set<string>(nonmoveDays.split(",").map((s) => mapTo4Buckets(s.trim())).filter(Boolean));
+    if (allowedBuckets) {
       modelList = modelList.filter((m) => allowedBuckets.has(m.nonmoveDaysBucket));
     }
 
     let highCount = 0;
     let okCount = 0;
     for (const m of modelList) {
-      if (!m.isExcluded) {
-        if (m.classification === "HIGH") highCount++;
-        else okCount++;
-      }
+      if (m.classification === "HIGH") highCount++;
+      else okCount++;
     }
-    const activeCount = highCount + okCount;
-    const highPct = activeCount > 0 ? Math.round((highCount / activeCount) * 100) : 0;
-    const okPct = activeCount > 0 ? 100 - highPct : 0;
 
-    if (statusFilter && statusFilter !== "ALL") {
-      if (statusFilter === "HIGH") {
-        modelList = modelList.filter((m) => m.classification === "HIGH" && !m.isExcluded);
-      } else if (statusFilter === "OK") {
-        modelList = modelList.filter((m) => m.classification === "OK" && !m.isExcluded);
-      } else if (statusFilter === "EXCLUDED") {
-        modelList = modelList.filter((m) => m.isExcluded);
-      } else if (statusFilter === "NO_REQUEST") {
-        modelList = modelList.filter((m) => !m.activeRequest);
-      } else if (statusFilter === "PENDING") {
-        modelList = modelList.filter((m) => m.activeRequest && m.activeRequest.status === "PENDING");
-      } else if (statusFilter === "APPROVED") {
-        modelList = modelList.filter((m) => m.activeRequest && m.activeRequest.status === "APPROVED");
-      } else if (statusFilter === "REJECTED") {
-        modelList = modelList.filter((m) => m.activeRequest && m.activeRequest.status === "REJECTED");
-      } else if (statusFilter === "REVISE") {
-        modelList = modelList.filter((m) => m.activeRequest && m.activeRequest.status === "REVISE");
-      }
+    if (status && status !== "ALL") {
+      modelList = modelList.filter((m) => m.classification === status);
     }
 
     const total = modelList.length;
@@ -221,11 +187,15 @@ export async function GET(req: NextRequest) {
       total,
       page,
       limit,
-      highPct,
-      okPct,
+      totalPages: Math.ceil(total / limit),
+      highCount,
+      okCount,
     });
   } catch (error: any) {
     console.error("Error in /api/nonmove:", error);
-    return NextResponse.json({ error: error.message || "Failed to fetch nonmove items" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch products" },
+      { status: 500 }
+    );
   }
 }

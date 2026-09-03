@@ -1,13 +1,16 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { classifyNonmove, getWorstBucket } from "@/lib/nonmoveConfig";
+import { classifyNonmove, getWorstBucket, mapTo4Buckets } from "@/lib/nonmoveConfig";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchCode = searchParams.get("branchCode");
-    const reportDateStr = searchParams.get("reportDate");
+    const reportDateStr = searchParams.get("date") || searchParams.get("reportDate");
+    const category = searchParams.get("category");
+    const bucket = searchParams.get("bucket");
+    const skuType = searchParams.get("skuType");
 
     if (!branchCode) {
       return NextResponse.json({ error: "branchCode is required" }, { status: 400 });
@@ -48,20 +51,45 @@ export async function GET(req: NextRequest) {
     });
     const reqMap = new Map(requests.map((r) => [r.productCode, r]));
 
+    // Multi-filters
+    let allowedCats: Set<string> | null = null;
+    if (category && category !== "ALL") {
+      allowedCats = new Set(category.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    }
+
+    let allowedTypes: Set<string> | null = null;
+    if (skuType && skuType !== "ALL") {
+      allowedTypes = new Set(skuType.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    }
+
+    let allowedBuckets: Set<string> | null = null;
+    if (bucket && bucket !== "ALL") {
+      allowedBuckets = new Set(bucket.split(",").map((s) => mapTo4Buckets(s.trim())).filter(Boolean));
+    }
+
     const modelMap = new Map<string, any>();
     for (const r of rows) {
       const p = r.productCode;
+      const cat = r.product?.category?.trim().toUpperCase() || r.categoryName?.trim().toUpperCase() || "OTHER";
+      const sType = r.product?.skuType?.trim().toUpperCase() || "SELLABLE";
+
+      if (allowedCats && !allowedCats.has(cat)) continue;
+      if (allowedTypes && !allowedTypes.has(sType)) continue;
+
       const reqInfo = reqMap.get(p);
+      const mappedB = mapTo4Buckets(r.nonmoveDaysBucket);
+
       if (!modelMap.has(p)) {
         modelMap.set(p, {
           ProductCode: p,
           ProductName: r.product?.productName || p,
           Model: r.product?.model || "-",
-          Category: r.categoryName || r.product?.category || "-",
+          Category: cat,
           SubCategory: r.product?.subCategory || "-",
+          SkuType: sType,
           StockQty: r.stockQty,
           StockValue: r.stockValue,
-          Buckets: [r.nonmoveDaysBucket],
+          Buckets: [mappedB],
           AgingDays: r.agingDaysBucket,
           RequestStatus: reqInfo ? `${reqInfo.status} (${reqInfo.requestType})` : "NO_REQUEST",
           ReviewComment: reqInfo?.reviewComment || "",
@@ -70,11 +98,19 @@ export async function GET(req: NextRequest) {
         const item = modelMap.get(p);
         item.StockQty += r.stockQty;
         item.StockValue += r.stockValue;
-        item.Buckets.push(r.nonmoveDaysBucket);
+        item.Buckets.push(mappedB);
       }
     }
 
-    const exportRows = Array.from(modelMap.values()).map((m) => {
+    let exportModels = Array.from(modelMap.values());
+    if (allowedBuckets) {
+      exportModels = exportModels.filter((m) => {
+        const worst = getWorstBucket(m.Buckets);
+        return allowedBuckets!.has(worst);
+      });
+    }
+
+    const exportRows = exportModels.map((m) => {
       const worstBucket = getWorstBucket(m.Buckets);
       return {
         "Product Code": `="${m.ProductCode}"`,
@@ -82,9 +118,10 @@ export async function GET(req: NextRequest) {
         "Model": `"${(m.Model || "").replace(/"/g, '""')}"`,
         "Category": `"${(m.Category || "").replace(/"/g, '""')}"`,
         "Sub Category": `"${(m.SubCategory || "").replace(/"/g, '""')}"`,
-        "Nonmove Bucket": worstBucket,
+        "Sku Type": `"${(m.SkuType || "").replace(/"/g, '""')}"`,
+        "Nonmove Bucket": worstBucket === "121 up" ? "121 วันขึ้นไป" : `${worstBucket} วัน`,
         "Aging Bucket": m.AgingDays,
-        "Classification": classifyNonmove(worstBucket),
+        "Classification": classifyNonmove(worstBucket) === "HIGH" ? "Non-Move (>=61d)" : "OK",
         "Stock Qty": m.StockQty,
         "Stock Value (THB)": m.StockValue,
         "Request Status": m.RequestStatus,

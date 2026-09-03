@@ -1,39 +1,49 @@
-export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { classifyNonmove, NONMOVE_BUCKET_ORDER, getWorstBucket, mapTo4Buckets } from "@/lib/nonmoveConfig";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchCode = searchParams.get("branchCode");
-    const reportDateStr = searchParams.get("date") || searchParams.get("reportDate");
+    const reportDateStr = searchParams.get("date");
     const category = searchParams.get("category");
+    const bucket = searchParams.get("bucket");
+    const skuType = searchParams.get("skuType");
 
     if (!branchCode) {
       return NextResponse.json({ error: "branchCode is required" }, { status: 400 });
     }
 
+    // 1. Get branch info
     const store = await prisma.store.findUnique({
       where: { branchCode },
-      select: {
-        branchCode: true,
-        storeNameCust: true,
-        storeName: true,
-        region: true,
-        province: true,
-      },
     });
 
-    // Find all distinct available dates for this store
-    const availableDates = await prisma.nonMoveRow.findMany({
+    // 2. Fetch distinct available dates
+    const dates = await prisma.nonMoveRow.findMany({
       where: { branchCode },
       select: { reportDate: true },
       distinct: ["reportDate"],
       orderBy: { reportDate: "desc" },
     });
+    const dateList = dates.map((d) => d.reportDate.toISOString().split("T")[0]);
 
-    const dateList = availableDates.map((d) => d.reportDate.toISOString().split("T")[0]);
+    // 3. Fetch all categories and skuTypes for this branch/catalog
+    const allProducts = await prisma.product.findMany({
+      select: { category: true, skuType: true },
+      distinct: ["category", "skuType"],
+    });
+
+    const categoriesList = Array.from(
+      new Set(allProducts.map((p) => p.category?.trim()).filter((c): c is string => Boolean(c)))
+    ).sort();
+
+    const skuTypesList = Array.from(
+      new Set(allProducts.map((p) => p.skuType?.trim()).filter((t): t is string => Boolean(t)))
+    );
 
     if (dateList.length === 0) {
       return NextResponse.json({
@@ -55,10 +65,15 @@ export async function GET(req: NextRequest) {
           overallOkPct: 0,
           excludedCount: 0,
         },
-        chartData: NONMOVE_BUCKET_ORDER.map((b) => ({ bucket: b, count: 0, classification: classifyNonmove(b), isHigh: classifyNonmove(b) === "HIGH" })),
+        chartData: NONMOVE_BUCKET_ORDER.map((b) => ({
+          bucket: b,
+          count: 0,
+          classification: classifyNonmove(b),
+          isHigh: classifyNonmove(b) === "HIGH",
+        })),
         categoryBreakdown: [],
-        categories: ["WM", "RF", "AC", "TV", "FREEZER", "WH", "SDA"],
-        skuTypes: ["SELLABLE", "DEMO", "MOCK_UP"],
+        categories: categoriesList.length > 0 ? categoriesList : ["TV", "WH", "FZ", "WM", "RF", "AC", "SDA", "CAC", "KT"],
+        skuTypes: skuTypesList.length > 0 ? skuTypesList : ["SELLABLE", "DEMO", "MOCK_UP"],
       });
     }
 
@@ -77,13 +92,6 @@ export async function GET(req: NextRequest) {
         lte: endOfDay,
       },
     };
-
-    if (category && category !== "ALL") {
-      whereClause.OR = [
-        { product: { category: { equals: category, mode: "insensitive" } } },
-        { categoryName: { equals: category, mode: "insensitive" } },
-      ];
-    }
 
     const rows = await prisma.nonMoveRow.findMany({
       where: whereClause,
@@ -104,23 +112,49 @@ export async function GET(req: NextRequest) {
       ).map((r) => r.productCode)
     );
 
+    // Multi-Filter Parsing
+    let allowedCats: Set<string> | null = null;
+    if (category && category !== "ALL") {
+      allowedCats = new Set(category.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    }
+
+    let allowedTypes: Set<string> | null = null;
+    if (skuType && skuType !== "ALL") {
+      allowedTypes = new Set(skuType.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    }
+
+    let allowedBuckets: Set<string> | null = null;
+    if (bucket && bucket !== "ALL") {
+      allowedBuckets = new Set(bucket.split(",").map((s) => mapTo4Buckets(s.trim())).filter(Boolean));
+    }
+
     // Group by productCode
     const modelMap = new Map<string, {
       stockQty: number;
       stockValue: number;
       buckets: string[];
       categoryName: string;
+      skuType: string;
     }>();
 
     for (const r of rows) {
       const p = r.productCode;
-      const cat = r.product?.category || r.categoryName || "Other";
+      const cat = r.product?.category?.trim().toUpperCase() || r.categoryName?.trim().toUpperCase() || "OTHER";
+      const sType = r.product?.skuType?.trim().toUpperCase() || "SELLABLE";
+
+      // Filter by Category
+      if (allowedCats && !allowedCats.has(cat)) continue;
+
+      // Filter by SKU Type
+      if (allowedTypes && !allowedTypes.has(sType)) continue;
+
       if (!modelMap.has(p)) {
         modelMap.set(p, {
           stockQty: r.stockQty,
           stockValue: r.stockValue,
           buckets: [mapTo4Buckets(r.nonmoveDaysBucket)],
           categoryName: cat,
+          skuType: sType,
         });
       } else {
         const item = modelMap.get(p)!;
@@ -145,11 +179,15 @@ export async function GET(req: NextRequest) {
     const categoryBreakdown: Record<string, { value: number; count: number }> = {};
 
     for (const [pCode, data] of Array.from(modelMap.entries())) {
+      const worstBucket = getWorstBucket(data.buckets);
+
+      // Filter by Bucket (4 groups)
+      if (allowedBuckets && !allowedBuckets.has(worstBucket)) continue;
+
       totalSkus++;
       totalStockQty += data.stockQty;
       totalStockValue += data.stockValue;
 
-      const worstBucket = getWorstBucket(data.buckets);
       bucketCounts[worstBucket] = (bucketCounts[worstBucket] || 0) + 1;
 
       const cat = data.categoryName;
@@ -172,11 +210,11 @@ export async function GET(req: NextRequest) {
     const highPct = activeCount > 0 ? Math.round((highCount / activeCount) * 100) : 0;
     const okPct = activeCount > 0 ? 100 - highPct : 0;
 
-    const chartData = NONMOVE_BUCKET_ORDER.map((bucket) => ({
-      bucket,
-      count: bucketCounts[bucket] || 0,
-      classification: classifyNonmove(bucket),
-      isHigh: classifyNonmove(bucket) === "HIGH",
+    const chartData = NONMOVE_BUCKET_ORDER.map((b) => ({
+      bucket: b,
+      count: bucketCounts[b] || 0,
+      classification: classifyNonmove(b),
+      isHigh: classifyNonmove(b) === "HIGH",
     }));
 
     const categoryData = Object.entries(categoryBreakdown)
@@ -188,80 +226,35 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b.value - a.value);
 
-    // Get unique categories for filter dropdown: fetch from Master Product Dimension first
-    const productCategories = await prisma.product.findMany({
-      where: {
-        productCode: {
-          in: rows.map((r) => r.productCode),
-        },
-      },
-      select: { category: true },
-      distinct: ["category"],
-    });
-
-    const rawCats = productCategories
-      .map((p) => p.category?.trim().toUpperCase())
-      .filter((c): c is string => Boolean(c) && c !== "OTHER" && c !== "OTHER ");
-
-    const catSet = new Set(rawCats);
-    for (const r of rows) {
-      const c = r.product?.category?.trim().toUpperCase() || r.categoryName?.trim().toUpperCase();
-      if (c && c !== "OTHER" && c !== "OTHER ") {
-        catSet.add(c);
-      }
-    }
-
-    // Default standard Haier categories if empty
-    if (catSet.size === 0) {
-      ["WM", "RF", "AC", "TV", "FREEZER", "WH", "SDA"].forEach((c) => catSet.add(c));
-    }
-
-    const categories = Array.from(catSet).sort();
-
-    // Get unique skuTypes
-    const allSkuTypes = await prisma.product.findMany({
-      select: { skuType: true },
-      distinct: ["skuType"],
-    });
-    const rawSkuTypes = allSkuTypes.map((p) => p.skuType?.toUpperCase()).filter(Boolean);
-    const skuTypesSet = new Set(["SELLABLE", "DEMO", "MOCK_UP", ...rawSkuTypes]);
-    const skuTypes = Array.from(skuTypesSet);
-
     return NextResponse.json({
       store: {
         branchCode,
         branchName: store?.storeNameCust || store?.storeName || branchCode,
         region: store?.region || "OTHER",
       },
-      reportDate: targetDateStr,
       selectedDate: targetDateStr,
+      reportDate: targetDateStr,
       availableDates: dateList,
       kpis: {
         totalSkus,
         totalStockQty,
-        totalStockValue,
+        totalStockValue: Math.round(totalStockValue),
         highNonmoveRatio: highPct,
         highCount,
         okCount,
         overallOkPct: okPct,
         excludedCount,
       },
-      totalSkus,
-      totalStockQty,
-      totalStockValue,
-      highCount,
-      okCount,
-      excludedCount,
-      highPct,
-      okPct,
       chartData,
       categoryBreakdown: categoryData,
-      categoryData,
-      categories,
-      skuTypes,
+      categories: categoriesList.length > 0 ? categoriesList : ["TV", "WH", "FZ", "WM", "RF", "AC", "SDA", "CAC", "KT"],
+      skuTypes: skuTypesList.length > 0 ? skuTypesList : ["SELLABLE", "DEMO", "MOCK_UP"],
     });
   } catch (error: any) {
     console.error("Error in /api/nonmove/summary:", error);
-    return NextResponse.json({ error: error.message || "Failed to fetch summary" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch summary" },
+      { status: 500 }
+    );
   }
 }
