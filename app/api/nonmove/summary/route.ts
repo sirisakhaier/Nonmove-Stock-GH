@@ -172,8 +172,12 @@ export async function GET(req: NextRequest) {
     let excludedCount = 0;
 
     const bucketCounts: Record<string, number> = {};
+    const bucketQtys: Record<string, number> = {};
+    const bucketValues: Record<string, number> = {};
     for (const b of NONMOVE_BUCKET_ORDER) {
       bucketCounts[b] = 0;
+      bucketQtys[b] = 0;
+      bucketValues[b] = 0;
     }
 
     const categoryBreakdown: Record<string, { value: number; count: number }> = {};
@@ -189,6 +193,8 @@ export async function GET(req: NextRequest) {
       totalStockValue += data.stockValue;
 
       bucketCounts[worstBucket] = (bucketCounts[worstBucket] || 0) + 1;
+      bucketQtys[worstBucket] = (bucketQtys[worstBucket] || 0) + data.stockQty;
+      bucketValues[worstBucket] = (bucketValues[worstBucket] || 0) + data.stockValue;
 
       const cat = data.categoryName;
       if (!categoryBreakdown[cat]) {
@@ -210,11 +216,28 @@ export async function GET(req: NextRequest) {
     const highPct = activeCount > 0 ? Math.round((highCount / activeCount) * 100) : 0;
     const okPct = activeCount > 0 ? 100 - highPct : 0;
 
-    const chartData = NONMOVE_BUCKET_ORDER.map((b) => ({
-      bucket: b,
-      count: bucketCounts[b] || 0,
-      classification: classifyNonmove(b),
-      isHigh: classifyNonmove(b) === "HIGH",
+    const periodKpis = NONMOVE_BUCKET_ORDER.map((b) => {
+      const count = bucketCounts[b] || 0;
+      const pct = totalSkus > 0 ? (count / totalSkus) * 100 : 0;
+      const isHigh = classifyNonmove(b) === "HIGH";
+      return {
+        bucket: b,
+        label: b === "121 up" ? "121 วันขึ้นไป" : `${b} วัน`,
+        skuCount: count,
+        skuPct: Math.round(pct * 10) / 10,
+        stockQty: bucketQtys[b] || 0,
+        stockValue: Math.round(bucketValues[b] || 0),
+        classification: classifyNonmove(b),
+        isHigh,
+        statusLabel: isHigh ? "Non-Move" : "ปกติ",
+      };
+    });
+
+    const chartData = periodKpis.map((p) => ({
+      bucket: p.bucket,
+      count: p.skuCount,
+      classification: p.classification,
+      isHigh: p.isHigh,
     }));
 
     const categoryData = Object.entries(categoryBreakdown)
@@ -245,6 +268,7 @@ export async function GET(req: NextRequest) {
         overallOkPct: okPct,
         excludedCount,
       },
+      periodKpis,
       chartData,
       categoryBreakdown: categoryData,
       categories: categoriesList.length > 0 ? categoriesList : ["TV", "WH", "FZ", "WM", "RF", "AC", "SDA", "CAC", "KT"],

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { UserModuleFilterBar } from "@/components/UserModuleFilterBar";
 import { KpiCards } from "@/components/KpiCards";
+import { NonmovePeriodKpiTable } from "@/components/NonmovePeriodKpiTable";
 import { ModelExplorerTable } from "@/components/ModelExplorerTable";
 import { ActionPanel } from "@/components/ActionPanel";
 import { Calendar, Store, RefreshCw } from "lucide-react";
@@ -24,7 +25,7 @@ export default function BranchDashboardPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(25);
   const [search, setSearch] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [selectedStatus, setSelectedStatus] = useState("HIGH"); // Default show Nonmove model per request
   const [categories, setCategories] = useState<string[]>([]);
   const [skuTypes, setSkuTypes] = useState<string[]>(["SELLABLE", "DEMO", "MOCK_UP"]);
   const [storeInfo, setStoreInfo] = useState<any>(null);
@@ -148,6 +149,7 @@ export default function BranchDashboardPage() {
     setSelectedCategories(defaultCats.length > 0 ? defaultCats : categories);
     setSelectedBuckets(Array.from(NONMOVE_BUCKET_ORDER));
     setSelectedSkuTypes(["SELLABLE"]);
+    setSelectedStatus("HIGH");
     setPage(1);
   };
 
@@ -265,7 +267,15 @@ export default function BranchDashboardPage() {
         {/* 3. KPI Cards (Recalculates based on Top Filters) */}
         <KpiCards data={summary?.kpis} />
 
-        {/* 4. Model Explorer Table */}
+        {/* 4. New KPI Table: How many SKU in 4 Non-Move Periods and % vs Total SKU */}
+        <NonmovePeriodKpiTable
+          data={summary?.periodKpis}
+          totalSkus={summary?.kpis?.totalSkus}
+          totalQty={summary?.kpis?.totalStockQty}
+          totalValue={summary?.kpis?.totalStockValue}
+        />
+
+        {/* 5. Model Explorer Table */}
         <ModelExplorerTable
           data={products}
           total={total}
