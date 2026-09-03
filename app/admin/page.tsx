@@ -6,6 +6,7 @@ import { ApprovalQueueTable } from "@/components/ApprovalQueueTable";
 import { RequestHistoryTable } from "@/components/RequestHistoryTable";
 import { StoreDimensionManager } from "@/components/StoreDimensionManager";
 import { ModelDimensionManager } from "@/components/ModelDimensionManager";
+import { RequestExportManager } from "@/components/RequestExportManager";
 import {
   ShieldAlert,
   Upload,
@@ -598,6 +599,7 @@ export default function AdminPage() {
           <ApprovalQueueTable
             requests={requests}
             onDecision={handleDecision}
+            onRefresh={fetchRequests}
             isLoading={isLoadingRequests}
           />
         )}
@@ -607,34 +609,13 @@ export default function AdminPage() {
           <RequestHistoryTable requests={requests} />
         )}
 
-        {/* Tab 6: Export Data */}
+        {/* Tab 6: Export Data with Selectable Records Table */}
         {activeTab === "EXPORT" && (
-          <Card className="border-border shadow-xs p-6 space-y-4 max-w-lg">
-            <div>
-              <CardTitle className="text-base font-semibold">
-                ส่งออกข้อมูลคำขอ (Export Requests Excel)
-              </CardTitle>
-              <CardDescription className="text-xs mt-1">
-                ดาวน์โหลดข้อมูลคำขอทั้งหมดหรือเฉพาะที่รอการตรวจสอบในรูปแบบไฟล์ Excel (.xlsx)
-              </CardDescription>
-            </div>
-
-            <div className="space-y-2 pt-2">
-              <Button asChild className="w-full font-medium">
-                <a href="/api/admin/export-requests?status=ALL" download>
-                  <Download className="h-4 w-4 mr-2" />
-                  ดาวน์โหลดคำขอทั้งหมด (Excel)
-                </a>
-              </Button>
-
-              <Button asChild variant="outline" className="w-full font-medium">
-                <a href="/api/admin/export-requests?status=PENDING" download>
-                  <Download className="h-4 w-4 mr-2" />
-                  ดาวน์โหลดเฉพาะรายการที่รอพิจารณา (Pending)
-                </a>
-              </Button>
-            </div>
-          </Card>
+          <RequestExportManager
+            requests={requests}
+            isLoading={isLoadingRequests}
+            onRefresh={fetchRequests}
+          />
         )}
       </main>
 

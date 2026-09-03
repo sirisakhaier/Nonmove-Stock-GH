@@ -115,3 +115,43 @@ export async function PATCH(
     return NextResponse.json({ error: error.message || "Failed to update request" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+
+    const existing = await prisma.skuRequest.findUnique({
+      where: { id },
+      include: { photos: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "ไม่พบรายการคำขอนี้" }, { status: 404 });
+    }
+
+    // Delete associated photos
+    await prisma.requestPhoto.deleteMany({
+      where: { requestId: id },
+    });
+
+    // Delete the request
+    await prisma.skuRequest.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "ลบรายการคำขอเรียบร้อยแล้ว",
+    });
+  } catch (error: any) {
+    console.error("Error in DELETE /api/requests/[id]:", error);
+    return NextResponse.json(
+      { error: error.message || "เกิดข้อผิดพลาดในการลบคำขอ" },
+      { status: 500 }
+    );
+  }
+}
+

@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || "ALL";
+    const idsParam = searchParams.get("ids");
 
     // Determine base URL from request headers
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
@@ -57,7 +58,12 @@ export async function GET(req: NextRequest) {
     const baseUrl = `${proto}://${host}`;
 
     const where: any = {};
-    if (status !== "ALL") {
+    if (idsParam && idsParam.trim()) {
+      const idsList = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+      if (idsList.length > 0) {
+        where.id = { in: idsList };
+      }
+    } else if (status !== "ALL") {
       where.status = status;
     }
 
