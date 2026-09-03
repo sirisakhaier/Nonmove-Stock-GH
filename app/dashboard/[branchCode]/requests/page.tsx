@@ -227,9 +227,9 @@ export default function MyRequestsPage() {
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase">เหตุผลที่ยื่น:</span>
                     <p className="font-medium text-foreground">{r.reason}</p>
                     {r.comments && (
-                      <p className="text-muted-foreground bg-muted/30 p-2 rounded-md border border-border mt-1">
+                      <div className="text-foreground bg-muted/30 p-2.5 rounded-md border border-border mt-1 whitespace-pre-line text-xs leading-relaxed">
                         {r.comments}
-                      </p>
+                      </div>
                     )}
                   </div>
 

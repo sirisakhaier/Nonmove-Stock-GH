@@ -328,9 +328,9 @@ export function ApprovalQueueTable({ requests, onDecision, isLoading }: Approval
                 {selectedRequest.comments && (
                   <div>
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase">รายละเอียดเพิ่มเติม</span>
-                    <p className="text-xs text-foreground mt-0.5 bg-background p-2 rounded-md border border-border">
+                    <div className="text-xs text-foreground mt-0.5 bg-background p-2.5 rounded-md border border-border whitespace-pre-line leading-relaxed">
                       {selectedRequest.comments}
-                    </p>
+                    </div>
                   </div>
                 )}
 
